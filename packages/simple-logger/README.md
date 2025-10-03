@@ -5,7 +5,7 @@ loguru 기반 로거 래퍼. 데코레이터로 함수/메서드의 시작/종�
 ## 설치
 
 ```bash
-pip install git+https://github.com/yourusername/python-toolbox.git#subdirectory=packages/simple-logger
+pip install git+https://github.com/gatesplan/python-toolbox.git#subdirectory=packages/simple-logger
 ```
 
 ## 기본 사용법
