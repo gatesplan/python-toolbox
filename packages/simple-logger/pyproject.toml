@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "simple-logger"
+version = "0.0.1"
+description = "간단한 로거 구현체"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [
+    {name = "생선공장", email = "gatesplan@gmail.com"}
+]
+license = {text = "MIT"}
+dependencies = [
+    "loguru>=0.7.0"
+]
+
+[project.urls]
+Homepage = "https://github.com/yourusername/python-toolbox"
+Repository = "https://github.com/yourusername/python-toolbox"
