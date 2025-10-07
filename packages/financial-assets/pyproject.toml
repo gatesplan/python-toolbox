@@ -14,7 +14,11 @@ authors = [
 license = {text = "MIT"}
 dependencies = [
     "pandas>=2.0.0",
-    "pyarrow>=21.0.0"
+    "pyarrow>=21.0.0",
+    "python-dotenv>=1.0.0",
+    "sqlalchemy>=2.0.0",
+    "pymysql>=1.0.0",
+    "simple-logger"
 ]
 
 [project.urls]

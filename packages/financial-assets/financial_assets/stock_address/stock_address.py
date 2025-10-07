@@ -20,6 +20,10 @@ class StockAddress:
         """파일명 형식으로 변환"""
         return f"{self.archetype}-{self.exchange}-{self.tradetype}-{self.base}-{self.quote}-{self.timeframe}"
 
+    def to_tablename(self) -> str:
+        """테이블명 형식으로 변환 (언더스코어 구분)"""
+        return f"{self.archetype}_{self.exchange}_{self.tradetype}_{self.base}_{self.quote}_{self.timeframe}"
+
     @classmethod
     def from_filename(cls, filename: str) -> "StockAddress":
         """파일명에서 StockAddress 객체 생성"""

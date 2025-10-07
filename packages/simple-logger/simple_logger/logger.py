@@ -13,7 +13,7 @@ def configure_logger(
     log_dir: Optional[str] = None,
     console_level: str = "INFO",
     file_level: str = "DEBUG",
-    rotation: str = "500 MB",
+    rotation: str = "1 day",
     retention: str = "10 days",
     format_string: Optional[str] = None
 ):
