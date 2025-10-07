@@ -5,8 +5,13 @@ from functools import wraps
 from typing import Callable, Any, Optional
 from pathlib import Path
 from datetime import datetime
+from contextvars import ContextVar
 
 from loguru import logger
+
+# 컨텍스트 변수 (스레드별 독립 저장소)
+_context_class_name = ContextVar("class_name", default="-")
+_context_func_id = ContextVar("func_id", default="-")
 
 
 def configure_logger(
@@ -39,12 +44,19 @@ def configure_logger(
             "<level>{message}</level>"
         )
 
+    # ContextVar에서 값을 읽어서 extra에 주입하는 필터
+    def context_filter(record):
+        record["extra"]["class_name"] = _context_class_name.get()
+        record["extra"]["func_id"] = _context_func_id.get()
+        return True
+
     # 콘솔 핸들러
     logger.add(
         sink=lambda msg: print(msg, end=""),
         format=format_string,
         level=console_level,
-        colorize=True
+        colorize=True,
+        filter=context_filter
     )
 
     # 파일 핸들러
@@ -63,10 +75,11 @@ def configure_logger(
         level=file_level,
         rotation=rotation,
         retention=retention,
-        encoding="utf-8"
+        encoding="utf-8",
+        filter=context_filter
     )
 
-    # 기본 컨텍스트 설정
+    # 기본 컨텍스트 설정 (ContextVar로 대체되므로 불필요하지만 호환성 유지)
     logger.configure(extra={"class_name": "-", "func_id": "-"})
 
 
@@ -104,50 +117,57 @@ def func_logging(
 
         @wraps(func)
         def wrapper(*args, **kwargs) -> Any:
-            # 컨텍스트 바인딩
-            ctx_logger = logger.bind(class_name=class_name, func_id=func_id)
+            # ContextVar 설정 (토큰 저장으로 nested call 안전)
+            token_class = _context_class_name.set(class_name)
+            token_func = _context_func_id.set(func_id)
 
-            # 시작 로그
-            start_msg = "시작"
-            if log_params:
-                # 파라미터 수집 (self 제외)
-                params = {}
-                if is_method and args:
-                    # 메서드인 경우 self 제외
-                    param_args = args[1:]
-                else:
-                    param_args = args
-
-                # args를 딕셔너리로 변환 (간단하게)
-                if param_args:
-                    params['args'] = param_args
-                if kwargs:
-                    params['kwargs'] = kwargs
-
-                if params:
-                    start_msg += f" params={params}"
-
-            ctx_logger.log(level, start_msg)
-
-            # 실행
-            start_time = time.time() if log_time else None
             try:
-                result = func(*args, **kwargs)
+                # 시작 로그
+                start_msg = "시작"
+                if log_params:
+                    # 파라미터 수집 (self 제외)
+                    params = {}
+                    if is_method and args:
+                        # 메서드인 경우 self 제외
+                        param_args = args[1:]
+                    else:
+                        param_args = args
 
-                # 종료 로그
-                end_msg = "종료"
-                if log_result:
-                    end_msg += f" result={result}"
-                if log_time:
-                    elapsed = time.time() - start_time
-                    end_msg += f" elapsed={elapsed:.3f}s"
+                    # args를 딕셔너리로 변환 (간단하게)
+                    if param_args:
+                        params['args'] = param_args
+                    if kwargs:
+                        params['kwargs'] = kwargs
 
-                ctx_logger.log(level, end_msg)
-                return result
+                    if params:
+                        start_msg += f" params={params}"
 
-            except Exception as e:
-                ctx_logger.exception("오류 발생")
-                raise
+                logger.log(level, start_msg)
+
+                # 실행
+                start_time = time.time() if log_time else None
+                try:
+                    result = func(*args, **kwargs)
+
+                    # 종료 로그
+                    end_msg = "종료"
+                    if log_result:
+                        end_msg += f" result={result}"
+                    if log_time:
+                        elapsed = time.time() - start_time
+                        end_msg += f" elapsed={elapsed:.3f}s"
+
+                    logger.log(level, end_msg)
+                    return result
+
+                except Exception as e:
+                    logger.exception("오류 발생")
+                    raise
+
+            finally:
+                # 원래 컨텍스트로 복원 (nested call 대응)
+                _context_class_name.reset(token_class)
+                _context_func_id.reset(token_func)
 
         return wrapper
 
@@ -186,27 +206,35 @@ def init_logging(
             cls = args[0].__class__.__name__ if args else "Unknown"
             func_id = f'{cls}.__init__'
 
-            ctx_logger = logger.bind(class_name=cls, func_id=func_id)
-
-            # 시작 로그
-            start_msg = "초기화 시작"
-            if log_params and (args[1:] or kwargs):
-                params = {}
-                if len(args) > 1:
-                    params['args'] = args[1:]
-                if kwargs:
-                    params['kwargs'] = kwargs
-                start_msg += f" params={params}"
-
-            ctx_logger.log(level, start_msg)
+            # ContextVar 설정 (토큰 저장으로 nested call 안전)
+            token_class = _context_class_name.set(cls)
+            token_func = _context_func_id.set(func_id)
 
             try:
-                result = func(*args, **kwargs)
-                ctx_logger.log(level, "초기화 완료")
-                return result
-            except Exception:
-                ctx_logger.exception("초기화 오류")
-                raise
+                # 시작 로그
+                start_msg = "초기화 시작"
+                if log_params and (args[1:] or kwargs):
+                    params = {}
+                    if len(args) > 1:
+                        params['args'] = args[1:]
+                    if kwargs:
+                        params['kwargs'] = kwargs
+                    start_msg += f" params={params}"
+
+                logger.log(level, start_msg)
+
+                try:
+                    result = func(*args, **kwargs)
+                    logger.log(level, "초기화 완료")
+                    return result
+                except Exception:
+                    logger.exception("초기화 오류")
+                    raise
+
+            finally:
+                # 원래 컨텍스트로 복원 (nested call 대응)
+                _context_class_name.reset(token_class)
+                _context_func_id.reset(token_func)
 
         return wrapper
 
