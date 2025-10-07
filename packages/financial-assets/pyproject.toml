@@ -3,9 +3,9 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "simple-logger"
+name = "financial-assets"
 version = "0.0.1"
-description = "간단한 로거 구현체"
+description = "금융 자산 데이터 처리 모듈 (캔들스틱, 가격 등)"
 readme = "README.md"
 requires-python = ">=3.10"
 authors = [
@@ -13,7 +13,8 @@ authors = [
 ]
 license = {text = "MIT"}
 dependencies = [
-    "loguru>=0.7.0"
+    "pandas>=2.0.0",
+    "pyarrow>=21.0.0"
 ]
 
 [project.urls]
