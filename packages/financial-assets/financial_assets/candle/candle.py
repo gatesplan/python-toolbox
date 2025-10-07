@@ -4,6 +4,7 @@ from ..price import Price
 from .env import EnvManageWorker
 from .storage import StorageDirector
 from simple_logger import init_logging, func_logging
+import warnings
 
 
 class Candle:
@@ -22,7 +23,7 @@ class Candle:
             candle_df: 캔들 데이터 DataFrame
         """
         self.address = address
-        self.candle_df = candle_df
+        self.candle_df = self._normalize_timestamp(candle_df) if candle_df is not None else None
         self.is_new = True
         self.is_partial = False
         self.storage_last_ts = None
@@ -97,6 +98,9 @@ class Candle:
             new_df: 새로운 데이터 DataFrame
             save_immediately: True면 자동으로 save() 호출
         """
+        # timestamp 정규화
+        new_df = self._normalize_timestamp(new_df)
+
         if self.candle_df is None or self.candle_df.empty:
             self.candle_df = new_df.copy()
         else:
@@ -108,6 +112,42 @@ class Candle:
 
         if save_immediately:
             self.save()
+
+    @staticmethod
+    def _normalize_timestamp(df: pd.DataFrame) -> pd.DataFrame:
+        """
+        밀리초 timestamp를 초로 자동 변환
+
+        Args:
+            df: 검증할 DataFrame
+
+        Returns:
+            timestamp가 초 단위로 정규화된 DataFrame
+        """
+        if df is None or df.empty:
+            return df
+
+        if 'timestamp' not in df.columns:
+            return df
+
+        # 밀리초 판단 기준: 10^10 (2286-11-20 17:46:40 UTC)
+        TIMESTAMP_SECOND_MAX = 10_000_000_000
+
+        max_ts = df['timestamp'].max()
+
+        if max_ts >= TIMESTAMP_SECOND_MAX:
+            # 밀리초 감지 → 초로 변환
+            df = df.copy()
+            df['timestamp'] = df['timestamp'] // 1000
+
+            warnings.warn(
+                f"Detected millisecond timestamps in DataFrame. "
+                f"Automatically converted to seconds for consistency. "
+                f"Original max: {max_ts}, Converted max: {df['timestamp'].max()}",
+                UserWarning
+            )
+
+        return df
 
     @func_logging
     def last_timestamp(self) -> int:

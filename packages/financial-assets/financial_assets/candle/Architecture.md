@@ -111,7 +111,7 @@ graph TB
 
 | 컬럼명 | 타입 | 설명 |
 |--------|------|------|
-| timestamp | int | 캔들의 타임스탬프 (millisecond 기준) |
+| timestamp | int | Unix timestamp (초 단위) |
 | high | float | 고가 (소수점 4자리까지) |
 | low | float | 저가 (소수점 4자리까지) |
 | open | float | 시가 (소수점 4자리까지) |
@@ -120,7 +120,7 @@ graph TB
 
 **데이터 최적화:**
 - HLOCV 값: `round(4)` 적용하여 소수점 4자리까지만 저장
-- timestamp: int 타입 (Parquet 저장 시 tick으로 변환하여 저장 용량 최적화)
+- timestamp: int 타입, Unix epoch seconds (Parquet 저장 시 tick으로 변환하여 저장 용량 최적화)
 
 ### Timestamp ↔ Tick 변환 (Parquet 전용)
 
@@ -136,8 +136,8 @@ Parquet 저장 시 저장 용량을 극단적으로 줄이기 위해 timestamp�
 - `timestamp = tick * unit`
 
 **효과:**
-- 예: timestamp [1704067200000, 1704153600000, ...] (13자리)
-- → tick [1, 2, 3, ...] (1-3자리) + unit=86400000
+- 예: timestamp [1704067200, 1704153600, ...] (Unix seconds, 10자리)
+- → tick [1, 2, 3, ...] (1-3자리) + unit=86400
 - 저장 용량 대폭 감소 (특히 일정한 간격의 시계열 데이터)
 
 **저장 방식:**
