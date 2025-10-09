@@ -1,5 +1,15 @@
-from .price.Price import Price
-from .stock_address import StockAddress
-from .candle import Candle
+"""Financial assets package.
 
-__all__ = ["Price", "StockAddress", "Candle"]
+This package provides modules for handling various financial asset types:
+- price: Price data structures
+- stock_address: Stock address handling
+- candle: Candle data structures
+- order: Order management
+- trade: Trading operations
+
+Each module should be imported explicitly:
+    from financial_assets.order import Order
+    from financial_assets.candle import Candle
+"""
+
+__all__ = []
