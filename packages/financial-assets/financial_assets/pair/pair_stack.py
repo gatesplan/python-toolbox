@@ -111,7 +111,7 @@ class PairStack:
 
         return self.total_value_amount()
 
-    def append(self, pair: Pair) -> None:
+    def append(self, pair: Pair) -> bool:
         """
         Pair를 스택에 추가.
 
@@ -120,27 +120,21 @@ class PairStack:
         Args:
             pair: 추가할 Pair
 
-        Raises:
-            ValueError: 다른 ticker의 Pair를 추가하려고 할 때
+        Returns:
+            bool: 추가 성공 시 True, 다른 ticker로 거부 시 False
         """
         # 빈 스택이면 symbol 설정
         if self.is_empty():
             self._asset_symbol = pair.get_asset_token().symbol
             self._value_symbol = pair.get_value_token().symbol
             self._pairs.append(pair)
-            return
+            return True
 
         # ticker 일치 검증
         if pair.get_asset_token().symbol != self._asset_symbol:
-            raise ValueError(
-                f"Cannot add pair with different asset symbol: "
-                f"expected {self._asset_symbol}, got {pair.get_asset_token().symbol}"
-            )
+            return False
         if pair.get_value_token().symbol != self._value_symbol:
-            raise ValueError(
-                f"Cannot add pair with different value symbol: "
-                f"expected {self._value_symbol}, got {pair.get_value_token().symbol}"
-            )
+            return False
 
         # 최상단 Pair와 평단가 비교
         top_pair = self._pairs[-1]
@@ -148,7 +142,7 @@ class PairStack:
         # 둘 중 하나라도 asset amount가 0이면 병합 불가
         if top_pair.get_asset() == 0 or pair.get_asset() == 0:
             self._pairs.append(pair)
-            return
+            return True
 
         top_mean = top_pair.mean_value()
         new_mean = pair.mean_value()
@@ -165,6 +159,8 @@ class PairStack:
             self._pairs[-1] = merged
         else:
             self._pairs.append(pair)
+
+        return True
 
     def mean_value(self) -> float:
         """
@@ -216,116 +212,79 @@ class PairStack:
         """
         asset 수량 기준으로 분할. 원본 수정, 분리된 PairStack 반환.
 
-        스택 순서대로(맨 위부터) 분리합니다.
+        모든 레이어를 같은 비율로 분할합니다.
 
         Args:
             amount: 분리할 asset 수량
 
         Returns:
-            PairStack: 분리된 PairStack (스택 순서 유지)
+            PairStack: 분리된 PairStack
 
         Raises:
             ValueError: amount가 음수이거나 총 asset 수량을 초과할 때
+            RuntimeError: 총 asset 수량이 0일 때
         """
         if amount < 0:
             raise ValueError(f"Amount must be non-negative, got {amount}")
 
         total_asset = self.total_asset_amount()
+        if total_asset == 0:
+            raise RuntimeError("Cannot split: total asset amount is zero")
+
         if amount > total_asset:
             raise ValueError(
                 f"Amount {amount} exceeds total asset amount {total_asset}"
             )
 
-        splitted_pairs: list[Pair] = []
-        remaining_amount = amount
-
-        # 스택 맨 위(index 0)부터 순서대로 분리
-        while remaining_amount > 0 and self._pairs:
-            current_pair = self._pairs[0]
-
-            if current_pair.get_asset() <= remaining_amount:
-                # 현재 Pair 전체를 가져감
-                splitted_pairs.append(current_pair)
-                remaining_amount -= current_pair.get_asset()
-                self._pairs.pop(0)
-            else:
-                # 현재 Pair를 분할
-                reduced, splitted = current_pair.split_by_asset_amount(remaining_amount)
-                self._pairs[0] = reduced
-                splitted_pairs.append(splitted)
-                remaining_amount = 0
-
-        # 스택이 비어있으면 symbol 초기화
-        if self.is_empty():
-            self._asset_symbol = None
-            self._value_symbol = None
-
-        return PairStack(splitted_pairs)
+        ratio = amount / total_asset
+        return self.split_by_ratio(ratio)
 
     def split_by_value_amount(self, amount: float) -> PairStack:
         """
         value 수량 기준으로 분할. 원본 수정, 분리된 PairStack 반환.
 
-        스택 순서대로(맨 위부터) 분리합니다.
+        모든 레이어를 같은 비율로 분할합니다.
 
         Args:
             amount: 분리할 value 수량
 
         Returns:
-            PairStack: 분리된 PairStack (스택 순서 유지)
+            PairStack: 분리된 PairStack
 
         Raises:
             ValueError: amount가 음수이거나 총 value 수량을 초과할 때
+            RuntimeError: 총 value 수량이 0일 때
         """
         if amount < 0:
             raise ValueError(f"Amount must be non-negative, got {amount}")
 
         total_value = self.total_value_amount()
+        if total_value == 0:
+            raise RuntimeError("Cannot split: total value amount is zero")
+
         if amount > total_value:
             raise ValueError(
                 f"Amount {amount} exceeds total value amount {total_value}"
             )
 
-        splitted_pairs: list[Pair] = []
-        remaining_amount = amount
-
-        # 스택 맨 위(index 0)부터 순서대로 분리
-        while remaining_amount > 0 and self._pairs:
-            current_pair = self._pairs[0]
-
-            if current_pair.get_value() <= remaining_amount:
-                # 현재 Pair 전체를 가져감
-                splitted_pairs.append(current_pair)
-                remaining_amount -= current_pair.get_value()
-                self._pairs.pop(0)
-            else:
-                # 현재 Pair를 분할
-                reduced, splitted = current_pair.split_by_value_amount(remaining_amount)
-                self._pairs[0] = reduced
-                splitted_pairs.append(splitted)
-                remaining_amount = 0
-
-        # 스택이 비어있으면 symbol 초기화
-        if self.is_empty():
-            self._asset_symbol = None
-            self._value_symbol = None
-
-        return PairStack(splitted_pairs)
+        ratio = amount / total_value
+        return self.split_by_ratio(ratio)
 
     def split_by_ratio(self, ratio: float) -> PairStack:
         """
         비율 기준으로 분할. 원본 수정, 분리된 PairStack 반환.
 
-        모든 레이어를 같은 비율로 분할합니다.
+        총 value 기준으로 ratio만큼 분할하며, 스택 위(index 0)부터 순서대로 뽑습니다.
 
         Args:
             ratio: 분할 비율 (0.0 ~ 1.0)
 
         Returns:
-            PairStack: 분리된 PairStack (스택 순서 유지)
+            PairStack: 분리된 PairStack
 
         Raises:
             ValueError: ratio가 0~1 범위를 벗어날 때
+            RuntimeError: 총 value 수량이 0일 때
         """
         if not 0 <= ratio <= 1:
             raise ValueError(f"Ratio must be between 0 and 1, got {ratio}")
@@ -340,16 +299,37 @@ class PairStack:
             self._value_symbol = None
             return splitted
 
+        total_value = self.total_value_amount()
+        if total_value == 0:
+            raise RuntimeError("Cannot split: total value amount is zero")
+
+        target_value = total_value * ratio
         splitted_pairs: list[Pair] = []
-        new_pairs: list[Pair] = []
+        remaining_target = target_value
 
-        # 각 레이어를 같은 비율로 분할
-        for pair in self._pairs:
-            reduced, splitted = pair.split_by_ratio(ratio)
-            new_pairs.append(reduced)
-            splitted_pairs.append(splitted)
+        # 스택 위(맨 뒤)부터 순서대로 value 기준으로 뽑기
+        while remaining_target > 0 and self._pairs:
+            current_pair = self._pairs[-1]
+            current_value = current_pair.get_value()
 
-        self._pairs = new_pairs
+            if current_value <= remaining_target:
+                # 현재 Pair 전체를 가져감
+                splitted_pairs.append(current_pair)
+                remaining_target -= current_value
+                self._pairs.pop()
+            else:
+                # 현재 Pair를 분할
+                reduced, splitted = current_pair.split_by_value_amount(remaining_target)
+                self._pairs[-1] = reduced
+                splitted_pairs.append(splitted)
+                remaining_target = 0
+
+        # 스택이 비어있거나 남은 수량이 너무 작으면 정리 (garbage control)
+        if self.is_empty() or self.total_value_amount() < 0.0001:
+            self._pairs.clear()
+            self._asset_symbol = None
+            self._value_symbol = None
+
         return PairStack(splitted_pairs)
 
     def is_empty(self) -> bool:

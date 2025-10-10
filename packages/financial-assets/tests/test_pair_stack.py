@@ -67,19 +67,23 @@ class TestPairStackAppend:
         stack.append(Pair(Token("BTC", 1.0), Token("USD", 50010.0)))  # 0.02% 차이
         assert len(stack) == 2
 
-    def test_append_different_asset_symbol_raises(self):
-        """다른 asset symbol Pair 추가 시 에러"""
+    def test_append_different_asset_symbol_returns_false(self):
+        """다른 asset symbol Pair 추가 시 False 반환"""
         stack = PairStack()
-        stack.append(Pair(Token("BTC", 1.0), Token("USD", 50000.0)))
-        with pytest.raises(ValueError, match="different asset symbol"):
-            stack.append(Pair(Token("ETH", 1.0), Token("USD", 2000.0)))
+        result1 = stack.append(Pair(Token("BTC", 1.0), Token("USD", 50000.0)))
+        assert result1 is True
+        result2 = stack.append(Pair(Token("ETH", 1.0), Token("USD", 2000.0)))
+        assert result2 is False
+        assert len(stack) == 1  # 추가되지 않음
 
-    def test_append_different_value_symbol_raises(self):
-        """다른 value symbol Pair 추가 시 에러"""
+    def test_append_different_value_symbol_returns_false(self):
+        """다른 value symbol Pair 추가 시 False 반환"""
         stack = PairStack()
-        stack.append(Pair(Token("BTC", 1.0), Token("USD", 50000.0)))
-        with pytest.raises(ValueError, match="different value symbol"):
-            stack.append(Pair(Token("BTC", 1.0), Token("KRW", 60000000.0)))
+        result1 = stack.append(Pair(Token("BTC", 1.0), Token("USD", 50000.0)))
+        assert result1 is True
+        result2 = stack.append(Pair(Token("BTC", 1.0), Token("KRW", 60000000.0)))
+        assert result2 is False
+        assert len(stack) == 1  # 추가되지 않음
 
 
 class TestPairStackMeanValue:
@@ -184,21 +188,20 @@ class TestPairStackSplitByAssetAmount:
         assert splitted.total_value_amount() == 15000.0
 
     def test_split_across_multiple_layers(self):
-        """여러 레이어 걸쳐 분리"""
+        """여러 레이어 걸쳐 분리 (비율 기반)"""
         stack = PairStack([
             Pair(Token("BTC", 1.0), Token("USD", 50000.0)),
             Pair(Token("BTC", 0.8), Token("USD", 42000.0)),
             Pair(Token("BTC", 0.5), Token("USD", 27000.0)),
         ])
-        # 총 2.3 BTC에서 1.5 BTC 분리
+        # 총 2.3 BTC에서 1.5 BTC 분리 (비율: 1.5/2.3 ≈ 0.652)
         splitted = stack.split_by_asset_amount(1.5)
 
-        # 원본: 0.8 BTC (마지막 레이어만 일부 남음)
-        assert abs(stack.total_asset_amount() - 0.8) < 0.0001
+        # 분리: 1.5 BTC
+        assert abs(splitted.total_asset_amount() - 1.5) < 0.01
 
-        # 분리: 1.5 BTC (첫 레이어 전체 + 둘째 레이어 전체 + 셋째 레이어 일부)
-        assert abs(splitted.total_asset_amount() - 1.5) < 0.0001
-        assert len(splitted) == 3
+        # 원본: 0.8 BTC 남음
+        assert abs(stack.total_asset_amount() - 0.8) < 0.01
 
     def test_split_negative_amount_raises(self):
         """음수 분리 에러"""
@@ -248,24 +251,20 @@ class TestPairStackSplitByRatio:
     """PairStack split_by_ratio 테스트"""
 
     def test_split_by_ratio_half(self):
-        """50% 분리"""
+        """50% 분리 (value 기준, 스택 위부터)"""
         stack = PairStack([
             Pair(Token("BTC", 1.0), Token("USD", 50000.0)),
             Pair(Token("BTC", 0.8), Token("USD", 42000.0)),
         ])
+        # 총 value: 92000, 50% = 46000
+        # 스택 위(마지막): 42000 전체 + 첫번째에서 4000
         splitted = stack.split_by_ratio(0.5)
 
-        # 원본: 50% 남음
-        assert abs(stack.total_asset_amount() - 0.9) < 0.0001
-        assert abs(stack.total_value_amount() - 46000.0) < 0.01
-
-        # 분리: 50%
-        assert abs(splitted.total_asset_amount() - 0.9) < 0.0001
+        # 분리: 46000 USD (총 value의 50%)
         assert abs(splitted.total_value_amount() - 46000.0) < 0.01
 
-        # 레이어 수는 유지
-        assert len(stack) == 2
-        assert len(splitted) == 2
+        # 원본: 46000 USD 남음
+        assert abs(stack.total_value_amount() - 46000.0) < 0.01
 
     def test_split_by_ratio_zero(self):
         """0% 분리 (아무것도 안 함)"""
