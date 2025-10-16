@@ -7,7 +7,6 @@ from ..token import Token
 class PairStack:
     """
     같은 ticker(symbol pair)의 Pair들을 스택으로 관리.
-
     평단가가 유사한(0.01% 이내) Pair는 자동으로 병합됩니다.
     하나의 Pair처럼 동작하지만, 내부적으로는 여러 레이어로 관리됩니다.
 
@@ -114,7 +113,6 @@ class PairStack:
     def append(self, pair: Pair) -> bool:
         """
         Pair를 스택에 추가.
-
         최상단 Pair와 평단가 차이가 0.01% 이내면 자동으로 병합됩니다.
 
         Args:
@@ -211,7 +209,6 @@ class PairStack:
     def split_by_asset_amount(self, amount: float) -> PairStack:
         """
         asset 수량 기준으로 분할. 원본 수정, 분리된 PairStack 반환.
-
         모든 레이어를 같은 비율로 분할합니다.
 
         Args:
@@ -242,7 +239,6 @@ class PairStack:
     def split_by_value_amount(self, amount: float) -> PairStack:
         """
         value 수량 기준으로 분할. 원본 수정, 분리된 PairStack 반환.
-
         모든 레이어를 같은 비율로 분할합니다.
 
         Args:
@@ -273,7 +269,6 @@ class PairStack:
     def split_by_ratio(self, ratio: float) -> PairStack:
         """
         비율 기준으로 분할. 원본 수정, 분리된 PairStack 반환.
-
         총 value 기준으로 ratio만큼 분할하며, 스택 위(index 0)부터 순서대로 뽑습니다.
 
         Args:
@@ -351,3 +346,31 @@ class PairStack:
 
         layers = "\n  ".join(str(pair) for pair in self._pairs)
         return f"PairStack({len(self)} layers):\n  {layers}"
+
+    def __eq__(self, other: object) -> bool:
+        """
+        PairStack 동등성 비교.
+        asset_symbol과 value_symbol이 같으면 같은 종류로 판단합니다.
+
+        Args:
+            other: 비교 대상 객체
+
+        Returns:
+            bool: 같은 종류의 PairStack이면 True
+        """
+        if not isinstance(other, PairStack):
+            return False
+
+        # 둘 다 비어있으면 같음
+        if self.is_empty() and other.is_empty():
+            return True
+
+        # 하나만 비어있으면 다름
+        if self.is_empty() or other.is_empty():
+            return False
+
+        # symbol 비교
+        return (
+            self._asset_symbol == other._asset_symbol
+            and self._value_symbol == other._value_symbol
+        )

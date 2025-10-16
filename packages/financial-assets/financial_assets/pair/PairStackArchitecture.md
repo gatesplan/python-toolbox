@@ -57,6 +57,7 @@ classDiagram
         +split_by_ratio(ratio: float) PairStack
         +is_empty() bool
         +__len__() int
+        +__eq__(other) bool
     }
 
     class Pair {
@@ -307,6 +308,22 @@ stack.is_empty()  # True
 
 ```python
 len(stack)  # 3 (3개의 Pair 레이어)
+```
+
+**__eq__(other) -> bool**
+
+PairStack 동등성 비교. asset_symbol과 value_symbol이 같으면 같은 종류로 판단.
+
+```python
+stack1 = PairStack([Pair(Token("BTC", 1.0), Token("USD", 50000.0))])
+stack2 = PairStack([Pair(Token("BTC", 0.5), Token("USD", 25000.0))])
+stack3 = PairStack([Pair(Token("ETH", 1.0), Token("USD", 3000.0))])
+
+stack1 == stack2  # True (같은 BTC-USD)
+stack1 == stack3  # False (다른 ticker)
+
+# 빈 스택끼리는 같음
+PairStack() == PairStack()  # True
 ```
 
 ### 사용 예시

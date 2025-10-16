@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from .order import Order
+    from .order_info import OrderInfo
     from ..stock_address import StockAddress
 
 
@@ -10,7 +10,7 @@ if TYPE_CHECKING:
 class FilledOrder:
     """주문 체결 내역"""
 
-    order: "Order"
+    order: "OrderInfo"
     fill_id: str
     price: float
     quantity: float

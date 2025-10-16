@@ -3,20 +3,20 @@ from typing import TYPE_CHECKING
 from .order_status import OrderStatus
 
 if TYPE_CHECKING:
-    from .order import Order
+    from .order_info import OrderInfo
 
 
-class OrderList:
-    """상태별 Order 관리 (시간순 정렬)"""
+class OrderInfoList:
+    """상태별 OrderInfo 관리 (시간순 정렬)"""
 
     def __init__(self):
-        self._orders: dict[str, "Order"] = {}
+        self._orders: dict[str, "OrderInfo"] = {}
         self._by_status: dict[OrderStatus, list[str]] = {
             status: [] for status in OrderStatus
         }
 
-    def add(self, order: "Order") -> None:
-        """Order 추가 및 observer 등록"""
+    def add(self, order: "OrderInfo") -> None:
+        """OrderInfo 추가 및 observer 등록"""
         self._orders[order.order_id] = order
         self._by_status[order.status].append(order.order_id)
         self._sort_by_timestamp(order.status)
@@ -25,7 +25,7 @@ class OrderList:
         order.attach(self)
 
     def remove(self, order_id: str) -> None:
-        """Order 제거 및 observer 해제"""
+        """OrderInfo 제거 및 observer 해제"""
         if order_id not in self._orders:
             return
 
@@ -34,9 +34,9 @@ class OrderList:
         order.detach(self)
 
     def on_order_status_changed(
-        self, order: "Order", old_status: OrderStatus, new_status: OrderStatus
+        self, order: "OrderInfo", old_status: OrderStatus, new_status: OrderStatus
     ) -> None:
-        """Order 상태 변경 알림 처리 (리스트 간 이동)"""
+        """OrderInfo 상태 변경 알림 처리 (리스트 간 이동)"""
         order_id = order.order_id
 
         # 이전 상태 리스트에서 제거
@@ -52,17 +52,17 @@ class OrderList:
         """해당 상태의 리스트를 timestamp 기준 정렬"""
         self._by_status[status].sort(key=lambda oid: self._orders[oid].timestamp)
 
-    def get_by_status(self, status: OrderStatus) -> list["Order"]:
-        """특정 상태의 Order들 (시간순)"""
+    def get_by_status(self, status: OrderStatus) -> list["OrderInfo"]:
+        """특정 상태의 OrderInfo들 (시간순)"""
         return [self._orders[oid] for oid in self._by_status[status]]
 
-    def get_active(self) -> list["Order"]:
+    def get_active(self) -> list["OrderInfo"]:
         """Active 주문들 (OPEN, PARTIALLY_FILLED)"""
         return self.get_by_status(OrderStatus.OPEN) + self.get_by_status(
             OrderStatus.PARTIALLY_FILLED
         )
 
-    def get_completed(self) -> list["Order"]:
+    def get_completed(self) -> list["OrderInfo"]:
         """완료된 주문들 (FILLED, CANCELED, REJECTED, EXPIRED, FAILED)"""
         return (
             self.get_by_status(OrderStatus.FILLED)
@@ -72,8 +72,8 @@ class OrderList:
             + self.get_by_status(OrderStatus.FAILED)
         )
 
-    def get(self, order_id: str) -> "Order | None":
-        """order_id로 Order 조회"""
+    def get(self, order_id: str) -> "OrderInfo | None":
+        """order_id로 OrderInfo 조회"""
         return self._orders.get(order_id)
 
     def __len__(self) -> int:

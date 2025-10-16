@@ -8,7 +8,7 @@ This package provides modules for handling various financial asset types:
 - trade: Trading operations
 
 Each module should be imported explicitly:
-    from financial_assets.order import Order
+    from financial_assets.order import OrderInfo
     from financial_assets.candle import Candle
 """
 

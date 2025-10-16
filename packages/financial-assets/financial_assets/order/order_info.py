@@ -5,11 +5,11 @@ from .order_status import OrderStatus
 
 if TYPE_CHECKING:
     from .filled_order import FilledOrder
-    from .order_list import OrderList
+    from .order_info_list import OrderInfoList
 
 
 @dataclass
-class Order:
+class OrderInfo:
     """거래소 주문 정보를 표준화된 형식으로 보관하는 데이터 구조체"""
 
     stock_address: StockAddress
@@ -22,7 +22,7 @@ class Order:
     status: OrderStatus
     timestamp: int  # Unix timestamp (seconds)
     extra: dict = field(default_factory=dict)
-    _observers: list["OrderList"] = field(default_factory=list, repr=False, compare=False)
+    _observers: list["OrderInfoList"] = field(default_factory=list, repr=False, compare=False)
 
     def is_active(self) -> bool:
         """Active 상태 여부 (OPEN, PARTIALLY_FILLED)"""
@@ -42,13 +42,13 @@ class Order:
         """미체결 수량"""
         return self.quantity - self.filled_quantity
 
-    def attach(self, observer: "OrderList") -> None:
-        """OrderList observer 등록"""
+    def attach(self, observer: "OrderInfoList") -> None:
+        """OrderInfoList observer 등록"""
         if observer not in self._observers:
             self._observers.append(observer)
 
-    def detach(self, observer: "OrderList") -> None:
-        """OrderList observer 해제"""
+    def detach(self, observer: "OrderInfoList") -> None:
+        """OrderInfoList observer 해제"""
         if observer in self._observers:
             self._observers.remove(observer)
 
