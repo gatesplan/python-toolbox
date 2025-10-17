@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "financial-indicators"
+version = "0.0.1"
+description = "금융 기술 지표 계산 모듈"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [
+    {name = "생선공장", email = "gatesplan@gmail.com"}
+]
+license = {text = "MIT"}
+dependencies = [
+    "pandas>=2.0.0",
+    "numpy>=1.24.0",
+    "financial-assets"
+]
+
+[project.urls]
+Homepage = "https://github.com/gatesplan/python-toolbox"
+Repository = "https://github.com/gatesplan/python-toolbox"
