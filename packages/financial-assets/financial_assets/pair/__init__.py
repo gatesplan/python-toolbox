@@ -8,7 +8,7 @@ PairStack은 같은 ticker의 Pair들을 스택으로 관리하며,
 평단가가 유사한 Pair는 자동으로 병합됩니다.
 """
 
-from financial_assets.pair.pair import Pair
-from financial_assets.pair.pair_stack import PairStack
+from .pair import Pair
+from .pair_stack import PairStack
 
 __all__ = ["Pair", "PairStack"]
