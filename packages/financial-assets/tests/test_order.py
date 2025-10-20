@@ -1,530 +1,504 @@
-"""
-Tests for Order class
-"""
+"""Tests for Order module."""
+
 import pytest
-from financial_assets.token import Token
-from financial_assets.pair import Pair, PairStack
-from financial_assets.order import Order, OrderInfo, OrderStatus
+from financial_assets.order import SpotOrder
+from financial_assets.trade import SpotTrade, SpotSide
 from financial_assets.stock_address import StockAddress
+from financial_assets.token import Token
+from financial_assets.pair import Pair
 
 
-class TestOrderInit:
-    """Order 초기화 테스트"""
+@pytest.fixture
+def stock_address():
+    """Create a sample stock address for testing."""
+    return StockAddress(
+        archetype="crypto",
+        exchange="binance",
+        tradetype="spot",
+        base="btc",
+        quote="usdt",
+        timeframe="1d",
+    )
 
-    def test_order_creation(self):
-        """Order 객체 생성"""
-        info = OrderInfo(
-            stock_address=StockAddress(
-                archetype="crypto",
-                exchange="binance",
-                tradetype="spot",
-                base="btc",
-                quote="usd",
-                timeframe="1d"
-            ),
+
+class TestSpotOrderCreation:
+    """Test order creation with different types."""
+
+    def test_limit_order_creation(self, stock_address):
+        """Test creating a limit order."""
+        order = SpotOrder(
             order_id="order-123",
-            side="buy",
+            stock_address=stock_address,
+            side=SpotSide.BUY,
             order_type="limit",
             price=50000.0,
-            quantity=1.5,
-            filled_quantity=0.0,
-            status=OrderStatus.OPEN,
+            amount=1.0,
             timestamp=1234567890,
         )
-        assets = PairStack([Pair(Token("BTC", 1.5), Token("USD", 75000.0))])
 
-        order = Order(info=info, assets=assets)
-
-        assert order.info == info
-        assert order.assets == assets
         assert order.order_id == "order-123"
+        assert order.side == SpotSide.BUY
+        assert order.order_type == "limit"
         assert order.price == 50000.0
-        assert order.quantity == 1.5
-        assert order.filled_quantity == 0.0
-        assert order.status == OrderStatus.OPEN
+        assert order.amount == 1.0
+        assert order.filled_amount == 0.0
+        assert order.status == "pending"
+        assert order.stop_price is None
 
-
-class TestOrderDelegation:
-    """Order 속성 위임 테스트"""
-
-    def test_order_info_property_delegation(self):
-        """OrderInfo 속성들이 Order에서 직접 접근 가능"""
-        info = OrderInfo(
-            stock_address=StockAddress(
-                archetype="crypto",
-                exchange="binance",
-                tradetype="spot",
-                base="btc",
-                quote="usd",
-                timeframe="1d"
-            ),
-            order_id="order-456",
-            side="sell",
-            order_type="limit",
-            price=51000.0,
-            quantity=2.0,
-            filled_quantity=0.5,
-            status=OrderStatus.PARTIALLY_FILLED,
-            timestamp=1234567890,
+    def test_market_order_creation(self, stock_address):
+        """Test creating a market order with price=None."""
+        order = SpotOrder(
+            order_id="market-order-1",
+            stock_address=stock_address,
+            side=SpotSide.SELL,
+            order_type="market",
+            price=None,
+            amount=0.5,
+            timestamp=1234567900,
         )
-        assets = PairStack([Pair(Token("BTC", 1.5), Token("USD", 76500.0))])
 
-        order = Order(info=info, assets=assets)
+        assert order.price is None
+        assert order.order_type == "market"
 
-        # 위임된 속성 검증
-        assert order.order_id == "order-456"
-        assert order.price == 51000.0
-        assert order.quantity == 2.0
-        assert order.filled_quantity == 0.5
-        assert order.status == OrderStatus.PARTIALLY_FILLED
+    def test_stop_order_creation(self, stock_address):
+        """Test creating a stop order with stop_price."""
+        order = SpotOrder(
+            order_id="stop-order-1",
+            stock_address=stock_address,
+            side=SpotSide.SELL,
+            order_type="stop",
+            price=45000.0,
+            amount=0.3,
+            timestamp=1234567910,
+            stop_price=48000.0,
+        )
+
+        assert order.stop_price == 48000.0
+        assert order.order_type == "stop"
 
 
-class TestOrderFillByValueAmount:
-    """Order fill_by_value_amount 테스트"""
+class TestFillByAssetAmount:
+    """Test fill_by_asset_amount method."""
 
-    def test_fill_by_value_amount_partial(self):
-        """value 기준 부분 체결"""
-        info = OrderInfo(
-            stock_address=StockAddress(
-                archetype="crypto",
-                exchange="binance",
-                tradetype="spot",
-                base="btc",
-                quote="usd",
-                timeframe="1d"
-            ),
-            order_id="order-789",
-            side="buy",
+    def test_partial_fill_by_asset_amount(self, stock_address):
+        """Test partial fill using asset amount."""
+        order = SpotOrder(
+            order_id="order-partial",
+            stock_address=stock_address,
+            side=SpotSide.BUY,
             order_type="limit",
             price=50000.0,
-            quantity=1.0,
-            filled_quantity=0.0,
-            status=OrderStatus.OPEN,
+            amount=1.0,
             timestamp=1234567890,
         )
-        # 1.0 BTC = 50000 USD
-        assets = PairStack([Pair(Token("BTC", 1.0), Token("USD", 50000.0))])
-        order = Order(info=info, assets=assets)
 
-        # 15000 USD만큼 체결 (30%)
-        filled = order.fill_by_value_amount(15000.0)
-
-        # 체결된 자산
-        assert abs(filled.total_value_amount() - 15000.0) < 0.01
-        assert abs(filled.total_asset_amount() - 0.3) < 0.0001
-
-        # 남은 자산
-        assert abs(order.assets.total_value_amount() - 35000.0) < 0.01
-        assert abs(order.assets.total_asset_amount() - 0.7) < 0.0001
-
-    def test_fill_by_value_amount_full(self):
-        """value 기준 전량 체결"""
-        info = OrderInfo(
-            stock_address=StockAddress(
-                archetype="crypto",
-                exchange="binance",
-                tradetype="spot",
-                base="btc",
-                quote="usd",
-                timeframe="1d"
-            ),
-            order_id="order-abc",
-            side="sell",
-            order_type="limit",
-            price=52000.0,
-            quantity=0.5,
-            filled_quantity=0.0,
-            status=OrderStatus.OPEN,
-            timestamp=1234567890,
+        trade = order.fill_by_asset_amount(
+            amount=0.3, price=50100.0, timestamp=1234567900
         )
-        assets = PairStack([Pair(Token("BTC", 0.5), Token("USD", 26000.0))])
-        order = Order(info=info, assets=assets)
 
-        # 전량 체결
-        filled = order.fill_by_value_amount(26000.0)
+        # Verify Trade object
+        assert isinstance(trade, SpotTrade)
+        assert trade.trade_id == "order-partial"
+        assert trade.side == SpotSide.BUY
+        assert trade.pair.get_asset() == 0.3
+        assert trade.pair.get_value() == 0.3 * 50100.0
+        assert trade.timestamp == 1234567900
 
-        # 체결된 자산
-        assert filled.total_value_amount() == 26000.0
-        assert filled.total_asset_amount() == 0.5
+        # Verify Order state
+        assert order.filled_amount == 0.3
+        assert order.status == "partial"
+        assert order.remaining_asset() == pytest.approx(0.7)
 
-        # 남은 자산 없음
-        assert order.assets.is_empty()
-
-    def test_fill_by_value_amount_multiple_layers(self):
-        """여러 레이어 걸쳐 value 기준 체결"""
-        info = OrderInfo(
-            stock_address=StockAddress(
-                archetype="crypto",
-                exchange="binance",
-                tradetype="spot",
-                base="btc",
-                quote="usd",
-                timeframe="1d"
-            ),
-            order_id="order-multi",
-            side="buy",
-            order_type="limit",
-            price=50000.0,
-            quantity=2.3,
-            filled_quantity=0.0,
-            status=OrderStatus.OPEN,
-            timestamp=1234567890,
-        )
-        assets = PairStack([
-            Pair(Token("BTC", 1.0), Token("USD", 50000.0)),
-            Pair(Token("BTC", 0.8), Token("USD", 42000.0)),
-            Pair(Token("BTC", 0.5), Token("USD", 27000.0)),
-        ])
-        order = Order(info=info, assets=assets)
-
-        # 60000 USD만큼 체결
-        filled = order.fill_by_value_amount(60000.0)
-
-        # 체결된 자산
-        assert abs(filled.total_value_amount() - 60000.0) < 0.01
-
-        # 남은 자산
-        assert abs(order.assets.total_value_amount() - 59000.0) < 0.01
-
-    def test_fill_by_value_amount_exceeds_raises(self):
-        """총 value 초과 체결 시 에러"""
-        info = OrderInfo(
-            stock_address=StockAddress(
-                archetype="crypto",
-                exchange="binance",
-                tradetype="spot",
-                base="btc",
-                quote="usd",
-                timeframe="1d"
-            ),
-            order_id="order-err",
-            side="buy",
-            order_type="limit",
-            price=50000.0,
-            quantity=1.0,
-            filled_quantity=0.0,
-            status=OrderStatus.OPEN,
-            timestamp=1234567890,
-        )
-        assets = PairStack([Pair(Token("BTC", 1.0), Token("USD", 50000.0))])
-        order = Order(info=info, assets=assets)
-
-        with pytest.raises(ValueError, match="exceeds total"):
-            order.fill_by_value_amount(100000.0)
-
-
-class TestOrderFillByAssetAmount:
-    """Order fill_by_asset_amount 테스트"""
-
-    def test_fill_by_asset_amount_partial(self):
-        """asset 기준 부분 체결"""
-        info = OrderInfo(
-            stock_address=StockAddress(
-                archetype="crypto",
-                exchange="binance",
-                tradetype="spot",
-                base="btc",
-                quote="usd",
-                timeframe="1d"
-            ),
-            order_id="order-asset",
-            side="sell",
-            order_type="limit",
-            price=51000.0,
-            quantity=1.0,
-            filled_quantity=0.0,
-            status=OrderStatus.OPEN,
-            timestamp=1234567890,
-        )
-        assets = PairStack([Pair(Token("BTC", 1.0), Token("USD", 51000.0))])
-        order = Order(info=info, assets=assets)
-
-        # 0.4 BTC 체결
-        filled = order.fill_by_asset_amount(0.4)
-
-        # 체결된 자산
-        assert abs(filled.total_asset_amount() - 0.4) < 0.0001
-        assert abs(filled.total_value_amount() - 20400.0) < 0.01
-
-        # 남은 자산
-        assert abs(order.assets.total_asset_amount() - 0.6) < 0.0001
-        assert abs(order.assets.total_value_amount() - 30600.0) < 0.01
-
-    def test_fill_by_asset_amount_full(self):
-        """asset 기준 전량 체결"""
-        info = OrderInfo(
-            stock_address=StockAddress(
-                archetype="crypto",
-                exchange="binance",
-                tradetype="spot",
-                base="btc",
-                quote="usd",
-                timeframe="1d"
-            ),
+    def test_full_fill_by_asset_amount(self, stock_address):
+        """Test complete fill using asset amount."""
+        order = SpotOrder(
             order_id="order-full",
-            side="buy",
-            order_type="limit",
-            price=49000.0,
-            quantity=2.0,
-            filled_quantity=0.0,
-            status=OrderStatus.OPEN,
-            timestamp=1234567890,
-        )
-        assets = PairStack([Pair(Token("BTC", 2.0), Token("USD", 98000.0))])
-        order = Order(info=info, assets=assets)
-
-        # 전량 체결
-        filled = order.fill_by_asset_amount(2.0)
-
-        assert filled.total_asset_amount() == 2.0
-        assert order.assets.is_empty()
-
-    def test_fill_by_asset_amount_multiple_layers(self):
-        """여러 레이어 걸쳐 asset 기준 체결"""
-        info = OrderInfo(
-            stock_address=StockAddress(
-                archetype="crypto",
-                exchange="binance",
-                tradetype="spot",
-                base="btc",
-                quote="usd",
-                timeframe="1d"
-            ),
-            order_id="order-layers",
-            side="sell",
+            stock_address=stock_address,
+            side=SpotSide.BUY,
             order_type="limit",
             price=50000.0,
-            quantity=1.8,
-            filled_quantity=0.0,
-            status=OrderStatus.OPEN,
+            amount=1.0,
             timestamp=1234567890,
         )
-        assets = PairStack([
-            Pair(Token("BTC", 1.0), Token("USD", 50000.0)),
-            Pair(Token("BTC", 0.8), Token("USD", 42000.0)),
-        ])
-        order = Order(info=info, assets=assets)
 
-        # 1.5 BTC 체결 (비율 기반)
-        filled = order.fill_by_asset_amount(1.5)
-
-        # 체결된 자산
-        assert abs(filled.total_asset_amount() - 1.5) < 0.01
-
-        # 남은 자산
-        assert abs(order.assets.total_asset_amount() - 0.3) < 0.01
-
-    def test_fill_by_asset_amount_exceeds_raises(self):
-        """총 asset 초과 체결 시 에러"""
-        info = OrderInfo(
-            stock_address=StockAddress(
-                archetype="crypto",
-                exchange="binance",
-                tradetype="spot",
-                base="btc",
-                quote="usd",
-                timeframe="1d"
-            ),
-            order_id="order-exceed",
-            side="buy",
-            order_type="limit",
-            price=50000.0,
-            quantity=1.0,
-            filled_quantity=0.0,
-            status=OrderStatus.OPEN,
-            timestamp=1234567890,
+        trade = order.fill_by_asset_amount(
+            amount=1.0, price=50050.0, timestamp=1234567900
         )
-        assets = PairStack([Pair(Token("BTC", 1.0), Token("USD", 50000.0))])
-        order = Order(info=info, assets=assets)
 
-        with pytest.raises(ValueError, match="exceeds total"):
-            order.fill_by_asset_amount(2.0)
+        assert trade.pair.get_asset() == 1.0
+        assert order.filled_amount == 1.0
+        assert order.status == "filled"
+        assert order.remaining_asset() == pytest.approx(0.0)
+        assert order.is_filled() is True
 
-
-class TestOrderEquality:
-    """Order 동등성 비교 테스트"""
-
-    def test_orders_with_same_ticker_are_equal(self):
-        """같은 ticker의 Order는 같음"""
-        info1 = OrderInfo(
-            stock_address=StockAddress(
-                archetype="crypto",
-                exchange="binance",
-                tradetype="spot",
-                base="btc",
-                quote="usd",
-                timeframe="1d"
-            ),
-            order_id="order-1",
-            side="buy",
-            order_type="limit",
-            price=50000.0,
-            quantity=1.0,
-            filled_quantity=0.0,
-            status=OrderStatus.OPEN,
-            timestamp=1234567890,
-        )
-        assets1 = PairStack([Pair(Token("BTC", 1.0), Token("USD", 50000.0))])
-
-        info2 = OrderInfo(
-            stock_address=StockAddress(
-                archetype="crypto",
-                exchange="binance",
-                tradetype="spot",
-                base="btc",
-                quote="usd",
-                timeframe="1d"
-            ),
-            order_id="order-2",  # 다른 ID
-            side="sell",
-            order_type="limit",
-            price=51000.0,  # 다른 가격
-            quantity=2.0,  # 다른 수량
-            filled_quantity=0.0,
-            status=OrderStatus.OPEN,
-            timestamp=1234567891,  # 다른 시간
-        )
-        assets2 = PairStack([Pair(Token("BTC", 2.0), Token("USD", 102000.0))])
-
-        order1 = Order(info=info1, assets=assets1)
-        order2 = Order(info=info2, assets=assets2)
-
-        # PairStack의 ticker가 같으면 같음
-        assert order1 == order2
-
-    def test_orders_with_different_ticker_are_not_equal(self):
-        """다른 ticker의 Order는 다름"""
-        info1 = OrderInfo(
-            stock_address=StockAddress(
-                archetype="crypto",
-                exchange="binance",
-                tradetype="spot",
-                base="btc",
-                quote="usd",
-                timeframe="1d"
-            ),
-            order_id="order-btc",
-            side="buy",
-            order_type="limit",
-            price=50000.0,
-            quantity=1.0,
-            filled_quantity=0.0,
-            status=OrderStatus.OPEN,
-            timestamp=1234567890,
-        )
-        assets1 = PairStack([Pair(Token("BTC", 1.0), Token("USD", 50000.0))])
-
-        info2 = OrderInfo(
-            stock_address=StockAddress(
-                archetype="crypto",
-                exchange="binance",
-                tradetype="spot",
-                base="btc",
-                quote="usd",
-                timeframe="1d"
-            ),
-            order_id="order-eth",
-            side="buy",
-            order_type="limit",
-            price=3000.0,
-            quantity=10.0,
-            filled_quantity=0.0,
-            status=OrderStatus.OPEN,
-            timestamp=1234567890,
-        )
-        assets2 = PairStack([Pair(Token("ETH", 10.0), Token("USD", 30000.0))])
-
-        order1 = Order(info=info1, assets=assets1)
-        order2 = Order(info=info2, assets=assets2)
-
-        assert order1 != order2
-
-    def test_order_equality_with_non_order_object(self):
-        """Order가 아닌 객체와 비교 시 False"""
-        info = OrderInfo(
-            stock_address=StockAddress(
-                archetype="crypto",
-                exchange="binance",
-                tradetype="spot",
-                base="btc",
-                quote="usd",
-                timeframe="1d"
-            ),
-            order_id="order-test",
-            side="buy",
-            order_type="limit",
-            price=50000.0,
-            quantity=1.0,
-            filled_quantity=0.0,
-            status=OrderStatus.OPEN,
-            timestamp=1234567890,
-        )
-        assets = PairStack([Pair(Token("BTC", 1.0), Token("USD", 50000.0))])
-        order = Order(info=info, assets=assets)
-
-        assert order != "not an order"
-        assert order != 123
-        assert order != None
-
-
-class TestOrderStringRepresentations:
-    """Order 문자열 표현 테스트"""
-
-    def test_order_repr(self):
-        """Order __repr__ 테스트"""
-        info = OrderInfo(
-            stock_address=StockAddress(
-                archetype="crypto",
-                exchange="binance",
-                tradetype="spot",
-                base="btc",
-                quote="usd",
-                timeframe="1d"
-            ),
-            order_id="order-repr",
-            side="buy",
-            order_type="limit",
-            price=50000.0,
-            quantity=1.0,
-            filled_quantity=0.0,
-            status=OrderStatus.OPEN,
-            timestamp=1234567890,
-        )
-        assets = PairStack([Pair(Token("BTC", 1.0), Token("USD", 50000.0))])
-        order = Order(info=info, assets=assets)
-
-        repr_str = repr(order)
-        assert "Order" in repr_str
-        assert "info=" in repr_str
-        assert "assets=" in repr_str
-
-    def test_order_str(self):
-        """Order __str__ 테스트"""
-        info = OrderInfo(
-            stock_address=StockAddress(
-                archetype="crypto",
-                exchange="binance",
-                tradetype="spot",
-                base="btc",
-                quote="usd",
-                timeframe="1d"
-            ),
-            order_id="order-str",
-            side="sell",
+    def test_multiple_partial_fills(self, stock_address):
+        """Test multiple partial fills."""
+        order = SpotOrder(
+            order_id="order-multi",
+            stock_address=stock_address,
+            side=SpotSide.SELL,
             order_type="limit",
             price=51000.0,
-            quantity=2.0,
-            filled_quantity=0.5,
-            status=OrderStatus.PARTIALLY_FILLED,
+            amount=2.0,
             timestamp=1234567890,
         )
-        assets = PairStack([Pair(Token("BTC", 1.5), Token("USD", 76500.0))])
-        order = Order(info=info, assets=assets)
 
-        str_str = str(order)
-        assert "Order" in str_str
-        assert "order-str" in str_str
-        assert "51000" in str_str
-        assert "2.0" in str_str
-        assert "0.5" in str_str
-        assert "PARTIALLY_FILLED" in str_str
+        # First fill: 0.5 BTC
+        trade1 = order.fill_by_asset_amount(0.5, 51000.0, 1234567900)
+        assert order.filled_amount == 0.5
+        assert order.status == "partial"
+
+        # Second fill: 0.8 BTC
+        trade2 = order.fill_by_asset_amount(0.8, 51000.0, 1234567910)
+        assert order.filled_amount == 1.3
+        assert order.status == "partial"
+
+        # Third fill: 0.7 BTC (complete)
+        trade3 = order.fill_by_asset_amount(0.7, 51000.0, 1234567920)
+        assert order.filled_amount == 2.0
+        assert order.status == "filled"
+        assert order.is_filled() is True
+
+
+class TestFillByValueAmount:
+    """Test fill_by_value_amount method."""
+
+    def test_partial_fill_by_value_amount(self, stock_address):
+        """Test partial fill using value amount."""
+        order = SpotOrder(
+            order_id="order-value",
+            stock_address=stock_address,
+            side=SpotSide.BUY,
+            order_type="limit",
+            price=50000.0,
+            amount=1.0,
+            timestamp=1234567890,
+        )
+
+        trade = order.fill_by_value_amount(
+            amount=15000.0, price=50000.0, timestamp=1234567900
+        )
+
+        # 15000 USDT = 0.3 BTC at 50000
+        assert trade.pair.get_asset() == 0.3
+        assert trade.pair.get_value() == 15000.0
+        assert order.filled_amount == 0.3
+        assert order.status == "partial"
+
+    def test_full_fill_by_value_amount(self, stock_address):
+        """Test complete fill using value amount."""
+        order = SpotOrder(
+            order_id="order-value-full",
+            stock_address=stock_address,
+            side=SpotSide.BUY,
+            order_type="limit",
+            price=50000.0,
+            amount=1.0,
+            timestamp=1234567890,
+        )
+
+        trade = order.fill_by_value_amount(
+            amount=50000.0, price=50000.0, timestamp=1234567900
+        )
+
+        assert trade.pair.get_asset() == 1.0
+        assert order.is_filled() is True
+
+    def test_fill_by_value_amount_zero_price_raises_error(self, stock_address):
+        """Test that zero price raises ValueError."""
+        order = SpotOrder(
+            order_id="order-zero-price",
+            stock_address=stock_address,
+            side=SpotSide.BUY,
+            order_type="limit",
+            price=50000.0,
+            amount=1.0,
+            timestamp=1234567890,
+        )
+
+        with pytest.raises(ValueError, match="Price cannot be zero"):
+            order.fill_by_value_amount(amount=1000.0, price=0.0, timestamp=1234567900)
+
+
+class TestRemainingMethods:
+    """Test remaining amount/rate methods."""
+
+    def test_remaining_asset(self, stock_address):
+        """Test remaining_asset calculation."""
+        order = SpotOrder(
+            order_id="order-remain",
+            stock_address=stock_address,
+            side=SpotSide.BUY,
+            order_type="limit",
+            price=50000.0,
+            amount=2.0,
+            timestamp=1234567890,
+        )
+
+        assert order.remaining_asset() == 2.0
+
+        order.fill_by_asset_amount(0.7, 50000.0, 1234567900)
+        assert order.remaining_asset() == pytest.approx(1.3)
+
+        order.fill_by_asset_amount(1.3, 50000.0, 1234567910)
+        assert order.remaining_asset() == pytest.approx(0.0)
+
+    def test_remaining_value(self, stock_address):
+        """Test remaining_value calculation."""
+        order = SpotOrder(
+            order_id="order-remain-value",
+            stock_address=stock_address,
+            side=SpotSide.BUY,
+            order_type="limit",
+            price=50000.0,
+            amount=1.0,
+            timestamp=1234567890,
+        )
+
+        # Initial remaining_value = 1.0 * 50000.0 = 50000.0
+        assert order.remaining_value() == 50000.0
+
+        # After filling 0.3 BTC
+        order.fill_by_asset_amount(0.3, 50000.0, 1234567900)
+        # remaining = 0.7 * 50000.0 = 35000.0
+        assert order.remaining_value() == pytest.approx(35000.0)
+
+    def test_remaining_value_market_order_raises_error(self, stock_address):
+        """Test that remaining_value raises error for market orders."""
+        order = SpotOrder(
+            order_id="market-order",
+            stock_address=stock_address,
+            side=SpotSide.BUY,
+            order_type="market",
+            price=None,
+            amount=1.0,
+            timestamp=1234567890,
+        )
+
+        with pytest.raises(ValueError, match="Cannot calculate remaining_value"):
+            order.remaining_value()
+
+    def test_remaining_rate(self, stock_address):
+        """Test remaining_rate calculation."""
+        order = SpotOrder(
+            order_id="order-rate",
+            stock_address=stock_address,
+            side=SpotSide.BUY,
+            order_type="limit",
+            price=50000.0,
+            amount=1.0,
+            timestamp=1234567890,
+        )
+
+        # Initial state: 100% remaining
+        assert order.remaining_rate() == 1.0
+
+        # 30% filled
+        order.fill_by_asset_amount(0.3, 50000.0, 1234567900)
+        assert order.remaining_rate() == pytest.approx(0.7)
+
+        # Completely filled
+        order.fill_by_asset_amount(0.7, 50000.0, 1234567910)
+        assert order.remaining_rate() == pytest.approx(0.0)
+
+
+class TestSpotOrderStatus:
+    """Test order status management."""
+
+    def test_status_transitions(self, stock_address):
+        """Test status transitions: pending → partial → filled."""
+        order = SpotOrder(
+            order_id="order-status",
+            stock_address=stock_address,
+            side=SpotSide.BUY,
+            order_type="limit",
+            price=50000.0,
+            amount=1.0,
+            timestamp=1234567890,
+        )
+
+        # Initial status
+        assert order.status == "pending"
+        assert order.is_filled() is False
+
+        # Partial fill
+        order.fill_by_asset_amount(0.4, 50000.0, 1234567900)
+        assert order.status == "partial"
+        assert order.is_filled() is False
+
+        # Complete fill
+        order.fill_by_asset_amount(0.6, 50000.0, 1234567910)
+        assert order.status == "filled"
+        assert order.is_filled() is True
+
+    def test_cancel_order(self, stock_address):
+        """Test order cancellation."""
+        order = SpotOrder(
+            order_id="order-cancel",
+            stock_address=stock_address,
+            side=SpotSide.BUY,
+            order_type="limit",
+            price=50000.0,
+            amount=1.0,
+            timestamp=1234567890,
+        )
+
+        # Partial fill then cancel
+        order.fill_by_asset_amount(0.3, 50000.0, 1234567900)
+        assert order.status == "partial"
+
+        order.cancel()
+        assert order.status == "canceled"
+
+    def test_cannot_fill_canceled_order(self, stock_address):
+        """Test that canceled orders cannot be filled."""
+        order = SpotOrder(
+            order_id="order-canceled",
+            stock_address=stock_address,
+            side=SpotSide.BUY,
+            order_type="limit",
+            price=50000.0,
+            amount=1.0,
+            timestamp=1234567890,
+        )
+
+        order.cancel()
+
+        with pytest.raises(ValueError, match="Cannot fill a canceled order"):
+            order.fill_by_asset_amount(0.1, 50000.0, 1234567920)
+
+
+class TestTradeFactory:
+    """Test Trade object creation from Order fills."""
+
+    def test_trade_object_validation(self, stock_address):
+        """Test that fill methods create valid Trade objects."""
+        order = SpotOrder(
+            order_id="order-factory",
+            stock_address=stock_address,
+            side=SpotSide.BUY,
+            order_type="limit",
+            price=50000.0,
+            amount=1.0,
+            timestamp=1234567890,
+        )
+
+        trade = order.fill_by_asset_amount(0.5, 50100.0, 1234567900)
+
+        # Verify Trade properties
+        assert isinstance(trade, SpotTrade)
+        assert trade.stock_address == stock_address
+        assert trade.trade_id == "order-factory"
+        assert trade.side == SpotSide.BUY
+        assert trade.timestamp == 1234567900
+
+        # Verify Pair
+        assert isinstance(trade.pair, Pair)
+        assert trade.pair.get_asset() == 0.5
+        assert trade.pair.get_value() == 0.5 * 50100.0
+        assert trade.pair.get_asset_token().symbol == stock_address.base
+        assert trade.pair.get_value_token().symbol == stock_address.quote
+
+    def test_sell_order_trade_creation(self, stock_address):
+        """Test Trade creation from SELL order."""
+        order = SpotOrder(
+            order_id="sell-order",
+            stock_address=stock_address,
+            side=SpotSide.SELL,
+            order_type="limit",
+            price=51000.0,
+            amount=2.0,
+            timestamp=1234567890,
+        )
+
+        trade = order.fill_by_asset_amount(1.0, 51000.0, 1234567900)
+
+        assert trade.side == SpotSide.SELL
+        assert trade.pair.get_asset() == 1.0
+        assert trade.pair.get_value() == 51000.0
+
+
+class TestErrorHandling:
+    """Test error handling for invalid operations."""
+
+    def test_fill_exceeds_remaining_asset(self, stock_address):
+        """Test that exceeding remaining amount raises error."""
+        order = SpotOrder(
+            order_id="order-exceed",
+            stock_address=stock_address,
+            side=SpotSide.BUY,
+            order_type="limit",
+            price=50000.0,
+            amount=1.0,
+            timestamp=1234567890,
+        )
+
+        with pytest.raises(ValueError, match="exceeds remaining amount"):
+            order.fill_by_asset_amount(1.5, 50000.0, 1234567900)
+
+    def test_fill_exceeds_remaining_value(self, stock_address):
+        """Test that exceeding remaining value raises error."""
+        order = SpotOrder(
+            order_id="order-exceed-value",
+            stock_address=stock_address,
+            side=SpotSide.BUY,
+            order_type="limit",
+            price=50000.0,
+            amount=1.0,
+            timestamp=1234567890,
+        )
+
+        with pytest.raises(ValueError, match="exceeds remaining amount"):
+            order.fill_by_value_amount(60000.0, 50000.0, 1234567900)
+
+    def test_negative_fill_amount_raises_error(self, stock_address):
+        """Test that negative fill amount raises error."""
+        order = SpotOrder(
+            order_id="order-negative",
+            stock_address=stock_address,
+            side=SpotSide.BUY,
+            order_type="limit",
+            price=50000.0,
+            amount=1.0,
+            timestamp=1234567890,
+        )
+
+        with pytest.raises(ValueError, match="cannot be negative"):
+            order.fill_by_asset_amount(-0.1, 50000.0, 1234567900)
+
+
+class TestStringRepresentation:
+    """Test string representations."""
+
+    def test_str_representation(self, stock_address):
+        """Test readable string output."""
+        order = SpotOrder(
+            order_id="order-str",
+            stock_address=stock_address,
+            side=SpotSide.BUY,
+            order_type="limit",
+            price=50000.0,
+            amount=1.0,
+            timestamp=1234567890,
+        )
+
+        order_str = str(order)
+        assert "order-str" in order_str
+        assert "BUY" in order_str
+        assert "50000" in order_str or "50000.0" in order_str
+
+    def test_repr_representation(self, stock_address):
+        """Test detailed string representation."""
+        order = SpotOrder(
+            order_id="order-repr",
+            stock_address=stock_address,
+            side=SpotSide.BUY,
+            order_type="limit",
+            price=50000.0,
+            amount=1.0,
+            timestamp=1234567890,
+        )
+
+        order_repr = repr(order)
+        assert "Order" in order_repr
+        assert "order-repr" in order_repr

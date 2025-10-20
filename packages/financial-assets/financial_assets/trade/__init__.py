@@ -1,12 +1,13 @@
-"""Trade module for financial assets.
+"""Spot trade module for financial assets.
 
-This module provides data structures for representing completed trade records.
+This module provides data structures for representing completed spot trade records.
+Spot trading involves immediate exchange of assets.
 
-The Trade dataclass encapsulates information about executed trades from either
-trading simulations or real trading API responses.
+The SpotTrade dataclass encapsulates information about executed spot trades from
+either trading simulations or real trading API responses.
 """
 
-from .trade import Trade
-from .trade_side import TradeSide
+from .spot_trade import SpotTrade
+from .spot_side import SpotSide
 
-__all__ = ["Trade", "TradeSide"]
+__all__ = ["SpotTrade", "SpotSide"]

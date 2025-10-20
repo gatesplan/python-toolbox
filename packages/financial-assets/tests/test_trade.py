@@ -1,43 +1,37 @@
-"""Tests for Trade module."""
+"""Tests for SpotTrade module."""
 
 import pytest
-from financial_assets.trade import Trade, TradeSide
+from financial_assets.trade import SpotTrade, SpotSide
 from financial_assets.token import Token
 from financial_assets.pair import Pair
 from financial_assets.stock_address import StockAddress
 
 
-class TestTradeSide:
-    """TradeSide enum 테스트"""
+class TestSpotSide:
+    """SpotSide enum 테스트"""
 
-    def test_all_trade_sides_exist(self):
-        """모든 TradeSide 값이 존재하는지 확인"""
-        assert TradeSide.BUY
-        assert TradeSide.SELL
-        assert TradeSide.LONG
-        assert TradeSide.SHORT
+    def test_all_spot_sides_exist(self):
+        """모든 SpotSide 값이 존재하는지 확인"""
+        assert SpotSide.BUY
+        assert SpotSide.SELL
 
-    def test_trade_side_equality(self):
-        """TradeSide enum 동등성 비교"""
-        side = TradeSide.BUY
-        assert side == TradeSide.BUY
-        assert side != TradeSide.SELL
-        assert side != TradeSide.LONG
-        assert side != TradeSide.SHORT
+    def test_spot_side_equality(self):
+        """SpotSide enum 동등성 비교"""
+        side = SpotSide.BUY
+        assert side == SpotSide.BUY
+        assert side != SpotSide.SELL
 
-    def test_trade_side_values(self):
-        """TradeSide enum 값 확인"""
-        assert TradeSide.BUY.value == "buy"
-        assert TradeSide.SELL.value == "sell"
-        assert TradeSide.LONG.value == "long"
-        assert TradeSide.SHORT.value == "short"
+    def test_spot_side_values(self):
+        """SpotSide enum 값 확인"""
+        assert SpotSide.BUY.value == "buy"
+        assert SpotSide.SELL.value == "sell"
 
 
-class TestTradeCreation:
-    """Trade 객체 생성 테스트"""
+class TestSpotTradeCreation:
+    """SpotTrade 객체 생성 테스트"""
 
-    def test_basic_trade_creation(self):
-        """기본 Trade 객체 생성"""
+    def test_basic_spot_trade_creation(self):
+        """기본 SpotTrade 객체 생성"""
         stock_address = StockAddress(
             archetype="crypto",
             exchange="binance",
@@ -49,11 +43,11 @@ class TestTradeCreation:
 
         pair = Pair(asset=Token("BTC", 1.5), value=Token("USD", 75000.0))
 
-        trade = Trade(
+        trade = SpotTrade(
             stock_address=stock_address,
             trade_id="trade-123",
             fill_id="fill-456",
-            side=TradeSide.BUY,
+            side=SpotSide.BUY,
             pair=pair,
             timestamp=1234567890,
         )
@@ -61,12 +55,12 @@ class TestTradeCreation:
         assert trade.stock_address == stock_address
         assert trade.trade_id == "trade-123"
         assert trade.fill_id == "fill-456"
-        assert trade.side == TradeSide.BUY
+        assert trade.side == SpotSide.BUY
         assert trade.pair == pair
         assert trade.timestamp == 1234567890
 
-    def test_trade_with_all_sides(self):
-        """모든 TradeSide로 Trade 객체 생성"""
+    def test_spot_trade_with_all_sides(self):
+        """모든 SpotSide로 SpotTrade 객체 생성"""
         stock_address = StockAddress(
             archetype="crypto",
             exchange="binance",
@@ -78,8 +72,8 @@ class TestTradeCreation:
 
         pair = Pair(asset=Token("BTC", 1.0), value=Token("USD", 50000.0))
 
-        for side in [TradeSide.BUY, TradeSide.SELL, TradeSide.LONG, TradeSide.SHORT]:
-            trade = Trade(
+        for side in [SpotSide.BUY, SpotSide.SELL]:
+            trade = SpotTrade(
                 stock_address=stock_address,
                 trade_id=f"trade-{side.value}",
                 fill_id=f"fill-{side.value}",
@@ -90,7 +84,7 @@ class TestTradeCreation:
             assert trade.side == side
 
 
-class TestTradeImmutability:
+class TestSpotTradeImmutability:
     """Trade 불변성 테스트"""
 
     def test_trade_is_frozen(self):
@@ -106,11 +100,11 @@ class TestTradeImmutability:
 
         pair = Pair(asset=Token("BTC", 1.0), value=Token("USD", 50000.0))
 
-        trade = Trade(
+        trade = SpotTrade(
             stock_address=stock_address,
             trade_id="trade-frozen",
             fill_id="fill-frozen",
-            side=TradeSide.BUY,
+            side=SpotSide.BUY,
             pair=pair,
             timestamp=1234567890,
         )
@@ -120,13 +114,13 @@ class TestTradeImmutability:
             trade.trade_id = "modified"
 
         with pytest.raises(Exception):
-            trade.side = TradeSide.SELL
+            trade.side = SpotSide.SELL
 
         with pytest.raises(Exception):
             trade.timestamp = 9999999999
 
 
-class TestTradeIntegration:
+class TestSpotTradeIntegration:
     """Trade와 기존 모듈 통합 테스트"""
 
     def test_pair_integration(self):
@@ -142,11 +136,11 @@ class TestTradeIntegration:
 
         pair = Pair(asset=Token("BTC", 2.0), value=Token("USD", 100000.0))
 
-        trade = Trade(
+        trade = SpotTrade(
             stock_address=stock_address,
             trade_id="trade-pair",
             fill_id="fill-pair",
-            side=TradeSide.BUY,
+            side=SpotSide.BUY,
             pair=pair,
             timestamp=1234567890,
         )
@@ -169,11 +163,11 @@ class TestTradeIntegration:
 
         pair = Pair(asset=Token("ETH", 10.0), value=Token("KRW", 30000000.0))
 
-        trade = Trade(
+        trade = SpotTrade(
             stock_address=stock_address,
             trade_id="trade-eth",
             fill_id="fill-eth",
-            side=TradeSide.LONG,
+            side=SpotSide.BUY,
             pair=pair,
             timestamp=1234567890,
         )
@@ -184,7 +178,7 @@ class TestTradeIntegration:
         assert trade.stock_address.timeframe == "1h"
 
 
-class TestTradeStringRepresentation:
+class TestSpotTradeStringRepresentation:
     """Trade 문자열 표현 테스트"""
 
     def test_trade_str(self):
@@ -200,11 +194,11 @@ class TestTradeStringRepresentation:
 
         pair = Pair(asset=Token("BTC", 0.5), value=Token("USD", 25000.0))
 
-        trade = Trade(
+        trade = SpotTrade(
             stock_address=stock_address,
             trade_id="trade-str",
             fill_id="fill-str",
-            side=TradeSide.SELL,
+            side=SpotSide.SELL,
             pair=pair,
             timestamp=1234567890,
         )
@@ -226,22 +220,22 @@ class TestTradeStringRepresentation:
 
         pair = Pair(asset=Token("BTC", 1.0), value=Token("USD", 50000.0))
 
-        trade = Trade(
+        trade = SpotTrade(
             stock_address=stock_address,
             trade_id="trade-repr",
             fill_id="fill-repr",
-            side=TradeSide.BUY,
+            side=SpotSide.BUY,
             pair=pair,
             timestamp=1234567890,
         )
 
         trade_repr = repr(trade)
-        assert "Trade" in trade_repr
+        assert "SpotTrade" in trade_repr
         assert "trade-repr" in trade_repr
         assert "fill-repr" in trade_repr
 
 
-class TestTradeFee:
+class TestSpotTradeFee:
     """Trade fee 필드 테스트"""
 
     def test_trade_with_fee(self):
@@ -258,11 +252,11 @@ class TestTradeFee:
         pair = Pair(asset=Token("BTC", 1.0), value=Token("USD", 50000.0))
         fee = Token("USD", 0.5)
 
-        trade = Trade(
+        trade = SpotTrade(
             stock_address=stock_address,
             trade_id="trade-with-fee",
             fill_id="fill-with-fee",
-            side=TradeSide.BUY,
+            side=SpotSide.BUY,
             pair=pair,
             timestamp=1234567890,
             fee=fee,
@@ -285,11 +279,11 @@ class TestTradeFee:
 
         pair = Pair(asset=Token("BTC", 0.5), value=Token("USD", 25000.0))
 
-        trade = Trade(
+        trade = SpotTrade(
             stock_address=stock_address,
             trade_id="trade-no-fee",
             fill_id="fill-no-fee",
-            side=TradeSide.SELL,
+            side=SpotSide.SELL,
             pair=pair,
             timestamp=1234567890,
             # fee 파라미터 생략
@@ -311,11 +305,11 @@ class TestTradeFee:
         pair = Pair(asset=Token("BTC", 0.1), value=Token("KRW", 7000000.0))
         fee = Token("KRW", 7000.0)
 
-        trade = Trade(
+        trade = SpotTrade(
             stock_address=stock_address,
             trade_id="trade-krw-fee",
             fill_id="fill-krw-fee",
-            side=TradeSide.BUY,
+            side=SpotSide.BUY,
             pair=pair,
             timestamp=1234567890,
             fee=fee,
@@ -338,11 +332,11 @@ class TestTradeFee:
         pair = Pair(asset=Token("BTC", 1.0), value=Token("USD", 50000.0))
         fee = Token("USD", 1.0)
 
-        trade = Trade(
+        trade = SpotTrade(
             stock_address=stock_address,
             trade_id="trade-immutable-fee",
             fill_id="fill-immutable-fee",
-            side=TradeSide.BUY,
+            side=SpotSide.BUY,
             pair=pair,
             timestamp=1234567890,
             fee=fee,
@@ -366,11 +360,11 @@ class TestTradeFee:
         pair = Pair(asset=Token("BTC", 1.0), value=Token("USD", 50000.0))
         fee = Token("USD", 0.25)
 
-        trade = Trade(
+        trade = SpotTrade(
             stock_address=stock_address,
             trade_id="trade-repr-fee",
             fill_id="fill-repr-fee",
-            side=TradeSide.BUY,
+            side=SpotSide.BUY,
             pair=pair,
             timestamp=1234567890,
             fee=fee,
