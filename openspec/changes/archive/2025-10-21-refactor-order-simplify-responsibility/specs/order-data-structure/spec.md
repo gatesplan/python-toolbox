@@ -1,8 +1,95 @@
-# order-data-structure Specification
+# order-data-structure Spec Delta
 
-## Purpose
-TBD - created by archiving change add-order-module. Update Purpose after archive.
-## Requirements
+## REMOVED Requirements
+
+### Requirement: SpotTrade 팩토리 기능
+**Reason**: SpotOrder가 SpotTrade 생성을 담당하는 것은 책임 범위를 벗어납니다.
+**Migration**: 외부 거래 처리 시스템에서 fill 결과를 활용하여 SpotTrade를 생성하세요.
+
+## ADDED Requirements
+
+### Requirement: 상태 변경 - 불변 복제
+SpotOrder MUST provide state transition methods that return new instances with updated status, preserving immutability.
+
+#### Scenario: to_pending_state()로 pending 상태 복제
+```python
+order = SpotOrder(
+    order_id="order-1",
+    stock_address=stock_address,
+    side=SpotSide.BUY,
+    order_type="limit",
+    price=50000.0,
+    amount=1.0,
+    timestamp=1234567890
+)
+order.status = "partial"  # 임시로 상태 변경
+
+# pending 상태로 복제
+pending_order = order.to_pending_state()
+
+assert pending_order.status == "pending"
+assert pending_order.order_id == order.order_id
+assert pending_order.amount == order.amount
+# 원본은 변경되지 않음
+assert order.status == "partial"
+```
+
+#### Scenario: to_partial_state()로 partial 상태 복제
+```python
+order = SpotOrder(
+    order_id="order-2",
+    stock_address=stock_address,
+    side=SpotSide.BUY,
+    order_type="limit",
+    price=50000.0,
+    amount=1.0,
+    timestamp=1234567890
+)
+
+partial_order = order.to_partial_state()
+
+assert partial_order.status == "partial"
+assert order.status == "pending"  # 원본 불변
+```
+
+#### Scenario: to_filled_state()로 filled 상태 복제
+```python
+order = SpotOrder(
+    order_id="order-3",
+    stock_address=stock_address,
+    side=SpotSide.BUY,
+    order_type="limit",
+    price=50000.0,
+    amount=1.0,
+    timestamp=1234567890
+)
+
+filled_order = order.to_filled_state()
+
+assert filled_order.status == "filled"
+assert order.status == "pending"  # 원본 불변
+```
+
+#### Scenario: to_canceled_state()로 canceled 상태 복제
+```python
+order = SpotOrder(
+    order_id="order-4",
+    stock_address=stock_address,
+    side=SpotSide.BUY,
+    order_type="limit",
+    price=50000.0,
+    amount=1.0,
+    timestamp=1234567890
+)
+
+canceled_order = order.to_canceled_state()
+
+assert canceled_order.status == "canceled"
+assert order.status == "pending"  # 원본 불변
+```
+
+## MODIFIED Requirements
+
 ### Requirement: 부분 체결 처리 - Asset 기준
 SpotOrder MUST support updating filled_amount based on asset amount and return a new SpotOrder instance with updated state, without creating SpotTrade objects.
 
@@ -137,6 +224,62 @@ assert updated_order.filled_amount == 1.0
 assert updated_order.is_filled() == True
 ```
 
+### Requirement: 주문 상태 관리
+SpotOrder MUST automatically determine status based on filled_amount when using fill methods.
+
+**Note**: 기존 cancel() 메서드는 제거되고 to_canceled_state()로 대체됩니다.
+
+#### Scenario: 상태 자동 판단 - pending → partial → filled
+```python
+order = SpotOrder(
+    order_id="order-status",
+    stock_address=stock_address,
+    side=SpotSide.BUY,
+    order_type="limit",
+    price=50000.0,
+    amount=1.0,
+    timestamp=1234567890
+)
+
+# 초기 상태
+assert order.status == "pending"
+assert order.is_filled() == False
+
+# 부분 체결 → 자동으로 partial 상태
+order1 = order.fill_by_asset_amount(0.4)
+assert order1.status == "partial"
+assert order1.is_filled() == False
+
+# 완전 체결 → 자동으로 filled 상태
+order2 = order1.fill_by_asset_amount(0.6)
+assert order2.status == "filled"
+assert order2.is_filled() == True
+```
+
+#### Scenario: 주문 취소
+```python
+order = SpotOrder(
+    order_id="order-cancel",
+    stock_address=stock_address,
+    side=SpotSide.BUY,
+    order_type="limit",
+    price=50000.0,
+    amount=1.0,
+    timestamp=1234567890
+)
+
+# 부분 체결 후 취소
+order1 = order.fill_by_asset_amount(0.3)
+assert order1.status == "partial"
+
+canceled_order = order1.to_canceled_state()
+assert canceled_order.status == "canceled"
+
+# 원본들은 불변
+assert order.status == "pending"
+assert order1.status == "partial"
+```
+
 ### Requirement: 미체결 수량 조회
 SpotOrder MUST provide read-only methods to query amounts without any side effects.
 
@@ -198,62 +341,6 @@ assert order1.remaining_rate() == 0.7
 
 order2 = order1.fill_by_asset_amount(0.7)
 assert order2.remaining_rate() == 0.0
-```
-
-### Requirement: 주문 상태 관리
-SpotOrder MUST automatically determine status based on filled_amount when using fill methods.
-
-**Note**: 기존 cancel() 메서드는 제거되고 to_canceled_state()로 대체됩니다.
-
-#### Scenario: 상태 자동 판단 - pending → partial → filled
-```python
-order = SpotOrder(
-    order_id="order-status",
-    stock_address=stock_address,
-    side=SpotSide.BUY,
-    order_type="limit",
-    price=50000.0,
-    amount=1.0,
-    timestamp=1234567890
-)
-
-# 초기 상태
-assert order.status == "pending"
-assert order.is_filled() == False
-
-# 부분 체결 → 자동으로 partial 상태
-order1 = order.fill_by_asset_amount(0.4)
-assert order1.status == "partial"
-assert order1.is_filled() == False
-
-# 완전 체결 → 자동으로 filled 상태
-order2 = order1.fill_by_asset_amount(0.6)
-assert order2.status == "filled"
-assert order2.is_filled() == True
-```
-
-#### Scenario: 주문 취소
-```python
-order = SpotOrder(
-    order_id="order-cancel",
-    stock_address=stock_address,
-    side=SpotSide.BUY,
-    order_type="limit",
-    price=50000.0,
-    amount=1.0,
-    timestamp=1234567890
-)
-
-# 부분 체결 후 취소
-order1 = order.fill_by_asset_amount(0.3)
-assert order1.status == "partial"
-
-canceled_order = order1.to_canceled_state()
-assert canceled_order.status == "canceled"
-
-# 원본들은 불변
-assert order.status == "pending"
-assert order1.status == "partial"
 ```
 
 ### Requirement: 에러 처리
@@ -456,85 +543,5 @@ trade_fee = Token(
 )
 
 assert trade_fee.amount == 15.03
-```
-
-### Requirement: 상태 변경 - 불변 복제
-SpotOrder MUST provide state transition methods that return new instances with updated status, preserving immutability.
-
-#### Scenario: to_pending_state()로 pending 상태 복제
-```python
-order = SpotOrder(
-    order_id="order-1",
-    stock_address=stock_address,
-    side=SpotSide.BUY,
-    order_type="limit",
-    price=50000.0,
-    amount=1.0,
-    timestamp=1234567890
-)
-order.status = "partial"  # 임시로 상태 변경
-
-# pending 상태로 복제
-pending_order = order.to_pending_state()
-
-assert pending_order.status == "pending"
-assert pending_order.order_id == order.order_id
-assert pending_order.amount == order.amount
-# 원본은 변경되지 않음
-assert order.status == "partial"
-```
-
-#### Scenario: to_partial_state()로 partial 상태 복제
-```python
-order = SpotOrder(
-    order_id="order-2",
-    stock_address=stock_address,
-    side=SpotSide.BUY,
-    order_type="limit",
-    price=50000.0,
-    amount=1.0,
-    timestamp=1234567890
-)
-
-partial_order = order.to_partial_state()
-
-assert partial_order.status == "partial"
-assert order.status == "pending"  # 원본 불변
-```
-
-#### Scenario: to_filled_state()로 filled 상태 복제
-```python
-order = SpotOrder(
-    order_id="order-3",
-    stock_address=stock_address,
-    side=SpotSide.BUY,
-    order_type="limit",
-    price=50000.0,
-    amount=1.0,
-    timestamp=1234567890
-)
-
-filled_order = order.to_filled_state()
-
-assert filled_order.status == "filled"
-assert order.status == "pending"  # 원본 불변
-```
-
-#### Scenario: to_canceled_state()로 canceled 상태 복제
-```python
-order = SpotOrder(
-    order_id="order-4",
-    stock_address=stock_address,
-    side=SpotSide.BUY,
-    order_type="limit",
-    price=50000.0,
-    amount=1.0,
-    timestamp=1234567890
-)
-
-canceled_order = order.to_canceled_state()
-
-assert canceled_order.status == "canceled"
-assert order.status == "pending"  # 원본 불변
 ```
 

@@ -92,22 +92,17 @@ class TestFillByAssetAmount:
             timestamp=1234567890,
         )
 
-        trade = order.fill_by_asset_amount(
-            amount=0.3, price=50100.0, timestamp=1234567900
-        )
+        updated_order = order.fill_by_asset_amount(amount=0.3)
 
-        # Verify Trade object
-        assert isinstance(trade, SpotTrade)
-        assert trade.trade_id == "order-partial"
-        assert trade.side == SpotSide.BUY
-        assert trade.pair.get_asset() == 0.3
-        assert trade.pair.get_value() == 0.3 * 50100.0
-        assert trade.timestamp == 1234567900
+        # Verify updated order
+        assert isinstance(updated_order, SpotOrder)
+        assert updated_order.filled_amount == 0.3
+        assert updated_order.status == "partial"
+        assert updated_order.remaining_asset() == pytest.approx(0.7)
 
-        # Verify Order state
-        assert order.filled_amount == 0.3
-        assert order.status == "partial"
-        assert order.remaining_asset() == pytest.approx(0.7)
+        # Verify original order is unchanged (immutability)
+        assert order.filled_amount == 0.0
+        assert order.status == "pending"
 
     def test_full_fill_by_asset_amount(self, stock_address):
         """Test complete fill using asset amount."""
@@ -121,18 +116,19 @@ class TestFillByAssetAmount:
             timestamp=1234567890,
         )
 
-        trade = order.fill_by_asset_amount(
-            amount=1.0, price=50050.0, timestamp=1234567900
-        )
+        updated_order = order.fill_by_asset_amount(amount=1.0)
 
-        assert trade.pair.get_asset() == 1.0
-        assert order.filled_amount == 1.0
-        assert order.status == "filled"
-        assert order.remaining_asset() == pytest.approx(0.0)
-        assert order.is_filled() is True
+        assert updated_order.filled_amount == 1.0
+        assert updated_order.status == "filled"
+        assert updated_order.remaining_asset() == pytest.approx(0.0)
+        assert updated_order.is_filled() is True
+
+        # Verify original order is unchanged
+        assert order.filled_amount == 0.0
+        assert order.status == "pending"
 
     def test_multiple_partial_fills(self, stock_address):
-        """Test multiple partial fills."""
+        """Test multiple partial fills with chaining."""
         order = SpotOrder(
             order_id="order-multi",
             stock_address=stock_address,
@@ -144,20 +140,24 @@ class TestFillByAssetAmount:
         )
 
         # First fill: 0.5 BTC
-        trade1 = order.fill_by_asset_amount(0.5, 51000.0, 1234567900)
-        assert order.filled_amount == 0.5
-        assert order.status == "partial"
+        order1 = order.fill_by_asset_amount(0.5)
+        assert order1.filled_amount == 0.5
+        assert order1.status == "partial"
 
         # Second fill: 0.8 BTC
-        trade2 = order.fill_by_asset_amount(0.8, 51000.0, 1234567910)
-        assert order.filled_amount == 1.3
-        assert order.status == "partial"
+        order2 = order1.fill_by_asset_amount(0.8)
+        assert order2.filled_amount == 1.3
+        assert order2.status == "partial"
 
         # Third fill: 0.7 BTC (complete)
-        trade3 = order.fill_by_asset_amount(0.7, 51000.0, 1234567920)
-        assert order.filled_amount == 2.0
-        assert order.status == "filled"
-        assert order.is_filled() is True
+        order3 = order2.fill_by_asset_amount(0.7)
+        assert order3.filled_amount == 2.0
+        assert order3.status == "filled"
+        assert order3.is_filled() is True
+
+        # Verify original order is still unchanged
+        assert order.filled_amount == 0.0
+        assert order.status == "pending"
 
 
 class TestFillByValueAmount:
@@ -175,15 +175,15 @@ class TestFillByValueAmount:
             timestamp=1234567890,
         )
 
-        trade = order.fill_by_value_amount(
-            amount=15000.0, price=50000.0, timestamp=1234567900
-        )
+        updated_order = order.fill_by_value_amount(amount=15000.0)
 
         # 15000 USDT = 0.3 BTC at 50000
-        assert trade.pair.get_asset() == 0.3
-        assert trade.pair.get_value() == 15000.0
-        assert order.filled_amount == 0.3
-        assert order.status == "partial"
+        assert updated_order.filled_amount == 0.3
+        assert updated_order.status == "partial"
+
+        # Verify original order is unchanged
+        assert order.filled_amount == 0.0
+        assert order.status == "pending"
 
     def test_full_fill_by_value_amount(self, stock_address):
         """Test complete fill using value amount."""
@@ -197,12 +197,13 @@ class TestFillByValueAmount:
             timestamp=1234567890,
         )
 
-        trade = order.fill_by_value_amount(
-            amount=50000.0, price=50000.0, timestamp=1234567900
-        )
+        updated_order = order.fill_by_value_amount(amount=50000.0)
 
-        assert trade.pair.get_asset() == 1.0
-        assert order.is_filled() is True
+        assert updated_order.filled_amount == 1.0
+        assert updated_order.is_filled() is True
+
+        # Verify original order is unchanged
+        assert order.filled_amount == 0.0
 
     def test_fill_by_value_amount_zero_price_raises_error(self, stock_address):
         """Test that zero price raises ValueError."""
@@ -211,13 +212,28 @@ class TestFillByValueAmount:
             stock_address=stock_address,
             side=SpotSide.BUY,
             order_type="limit",
-            price=50000.0,
+            price=0.0,
             amount=1.0,
             timestamp=1234567890,
         )
 
         with pytest.raises(ValueError, match="Price cannot be zero"):
-            order.fill_by_value_amount(amount=1000.0, price=0.0, timestamp=1234567900)
+            order.fill_by_value_amount(amount=1000.0)
+
+    def test_fill_by_value_amount_market_order_raises_error(self, stock_address):
+        """Test that market order (price=None) raises ValueError."""
+        order = SpotOrder(
+            order_id="market-order",
+            stock_address=stock_address,
+            side=SpotSide.BUY,
+            order_type="market",
+            price=None,
+            amount=1.0,
+            timestamp=1234567890,
+        )
+
+        with pytest.raises(ValueError, match="Cannot use fill_by_value_amount for market orders"):
+            order.fill_by_value_amount(amount=1000.0)
 
 
 class TestRemainingMethods:
@@ -237,11 +253,11 @@ class TestRemainingMethods:
 
         assert order.remaining_asset() == 2.0
 
-        order.fill_by_asset_amount(0.7, 50000.0, 1234567900)
-        assert order.remaining_asset() == pytest.approx(1.3)
+        order1 = order.fill_by_asset_amount(0.7)
+        assert order1.remaining_asset() == pytest.approx(1.3)
 
-        order.fill_by_asset_amount(1.3, 50000.0, 1234567910)
-        assert order.remaining_asset() == pytest.approx(0.0)
+        order2 = order1.fill_by_asset_amount(1.3)
+        assert order2.remaining_asset() == pytest.approx(0.0)
 
     def test_remaining_value(self, stock_address):
         """Test remaining_value calculation."""
@@ -259,9 +275,9 @@ class TestRemainingMethods:
         assert order.remaining_value() == 50000.0
 
         # After filling 0.3 BTC
-        order.fill_by_asset_amount(0.3, 50000.0, 1234567900)
+        order1 = order.fill_by_asset_amount(0.3)
         # remaining = 0.7 * 50000.0 = 35000.0
-        assert order.remaining_value() == pytest.approx(35000.0)
+        assert order1.remaining_value() == pytest.approx(35000.0)
 
     def test_remaining_value_market_order_raises_error(self, stock_address):
         """Test that remaining_value raises error for market orders."""
@@ -294,12 +310,12 @@ class TestRemainingMethods:
         assert order.remaining_rate() == 1.0
 
         # 30% filled
-        order.fill_by_asset_amount(0.3, 50000.0, 1234567900)
-        assert order.remaining_rate() == pytest.approx(0.7)
+        order1 = order.fill_by_asset_amount(0.3)
+        assert order1.remaining_rate() == pytest.approx(0.7)
 
         # Completely filled
-        order.fill_by_asset_amount(0.7, 50000.0, 1234567910)
-        assert order.remaining_rate() == pytest.approx(0.0)
+        order2 = order1.fill_by_asset_amount(0.7)
+        assert order2.remaining_rate() == pytest.approx(0.0)
 
 
 class TestSpotOrderStatus:
@@ -322,17 +338,17 @@ class TestSpotOrderStatus:
         assert order.is_filled() is False
 
         # Partial fill
-        order.fill_by_asset_amount(0.4, 50000.0, 1234567900)
-        assert order.status == "partial"
-        assert order.is_filled() is False
+        order1 = order.fill_by_asset_amount(0.4)
+        assert order1.status == "partial"
+        assert order1.is_filled() is False
 
         # Complete fill
-        order.fill_by_asset_amount(0.6, 50000.0, 1234567910)
-        assert order.status == "filled"
-        assert order.is_filled() is True
+        order2 = order1.fill_by_asset_amount(0.6)
+        assert order2.status == "filled"
+        assert order2.is_filled() is True
 
-    def test_cancel_order(self, stock_address):
-        """Test order cancellation."""
+    def test_to_canceled_state(self, stock_address):
+        """Test order cancellation using to_canceled_state."""
         order = SpotOrder(
             order_id="order-cancel",
             stock_address=stock_address,
@@ -344,11 +360,15 @@ class TestSpotOrderStatus:
         )
 
         # Partial fill then cancel
-        order.fill_by_asset_amount(0.3, 50000.0, 1234567900)
-        assert order.status == "partial"
+        order1 = order.fill_by_asset_amount(0.3)
+        assert order1.status == "partial"
 
-        order.cancel()
-        assert order.status == "canceled"
+        canceled_order = order1.to_canceled_state()
+        assert canceled_order.status == "canceled"
+
+        # Verify original orders are unchanged
+        assert order.status == "pending"
+        assert order1.status == "partial"
 
     def test_cannot_fill_canceled_order(self, stock_address):
         """Test that canceled orders cannot be filled."""
@@ -362,19 +382,36 @@ class TestSpotOrderStatus:
             timestamp=1234567890,
         )
 
-        order.cancel()
+        canceled_order = order.to_canceled_state()
 
         with pytest.raises(ValueError, match="Cannot fill a canceled order"):
-            order.fill_by_asset_amount(0.1, 50000.0, 1234567920)
+            canceled_order.fill_by_asset_amount(0.1)
 
 
-class TestTradeFactory:
-    """Test Trade object creation from Order fills."""
+class TestStateChangeMethods:
+    """Test state change methods (to_*_state)."""
 
-    def test_trade_object_validation(self, stock_address):
-        """Test that fill methods create valid Trade objects."""
+    def test_to_pending_state(self, stock_address):
+        """Test to_pending_state method."""
         order = SpotOrder(
-            order_id="order-factory",
+            order_id="order-pending",
+            stock_address=stock_address,
+            side=SpotSide.BUY,
+            order_type="limit",
+            price=50000.0,
+            amount=1.0,
+            timestamp=1234567890,
+            status="partial",
+        )
+
+        pending_order = order.to_pending_state()
+        assert pending_order.status == "pending"
+        assert order.status == "partial"  # Original unchanged
+
+    def test_to_partial_state(self, stock_address):
+        """Test to_partial_state method."""
+        order = SpotOrder(
+            order_id="order-partial",
             stock_address=stock_address,
             side=SpotSide.BUY,
             order_type="limit",
@@ -383,39 +420,99 @@ class TestTradeFactory:
             timestamp=1234567890,
         )
 
-        trade = order.fill_by_asset_amount(0.5, 50100.0, 1234567900)
+        partial_order = order.to_partial_state()
+        assert partial_order.status == "partial"
+        assert order.status == "pending"  # Original unchanged
 
-        # Verify Trade properties
-        assert isinstance(trade, SpotTrade)
-        assert trade.stock_address == stock_address
-        assert trade.trade_id == "order-factory"
-        assert trade.side == SpotSide.BUY
-        assert trade.timestamp == 1234567900
-
-        # Verify Pair
-        assert isinstance(trade.pair, Pair)
-        assert trade.pair.get_asset() == 0.5
-        assert trade.pair.get_value() == 0.5 * 50100.0
-        assert trade.pair.get_asset_token().symbol == stock_address.base
-        assert trade.pair.get_value_token().symbol == stock_address.quote
-
-    def test_sell_order_trade_creation(self, stock_address):
-        """Test Trade creation from SELL order."""
+    def test_to_filled_state(self, stock_address):
+        """Test to_filled_state method."""
         order = SpotOrder(
-            order_id="sell-order",
+            order_id="order-filled",
             stock_address=stock_address,
-            side=SpotSide.SELL,
+            side=SpotSide.BUY,
             order_type="limit",
-            price=51000.0,
-            amount=2.0,
+            price=50000.0,
+            amount=1.0,
             timestamp=1234567890,
         )
 
-        trade = order.fill_by_asset_amount(1.0, 51000.0, 1234567900)
+        filled_order = order.to_filled_state()
+        assert filled_order.status == "filled"
+        assert order.status == "pending"  # Original unchanged
 
-        assert trade.side == SpotSide.SELL
-        assert trade.pair.get_asset() == 1.0
-        assert trade.pair.get_value() == 51000.0
+
+class TestFeeRate:
+    """Test fee_rate field functionality."""
+
+    def test_fee_rate_default_value(self, stock_address):
+        """Test that fee_rate defaults to 0.0."""
+        order = SpotOrder(
+            order_id="order-fee",
+            stock_address=stock_address,
+            side=SpotSide.BUY,
+            order_type="limit",
+            price=50000.0,
+            amount=1.0,
+            timestamp=1234567890,
+        )
+
+        assert order.fee_rate == 0.0
+
+    def test_fee_rate_custom_value(self, stock_address):
+        """Test setting custom fee_rate."""
+        order = SpotOrder(
+            order_id="order-fee-custom",
+            stock_address=stock_address,
+            side=SpotSide.BUY,
+            order_type="limit",
+            price=50000.0,
+            amount=1.0,
+            timestamp=1234567890,
+            fee_rate=0.001,  # 0.1%
+        )
+
+        assert order.fee_rate == 0.001
+
+    def test_fee_rate_preserved_in_clone(self, stock_address):
+        """Test that fee_rate is preserved when cloning."""
+        order = SpotOrder(
+            order_id="order-fee-clone",
+            stock_address=stock_address,
+            side=SpotSide.BUY,
+            order_type="limit",
+            price=50000.0,
+            amount=1.0,
+            timestamp=1234567890,
+            fee_rate=0.002,
+        )
+
+        updated_order = order.fill_by_asset_amount(0.3)
+        assert updated_order.fee_rate == 0.002
+
+        canceled_order = order.to_canceled_state()
+        assert canceled_order.fee_rate == 0.002
+
+    def test_fee_calculation_example(self, stock_address):
+        """Test external fee calculation using fee_rate."""
+        order = SpotOrder(
+            order_id="order-fee-calc",
+            stock_address=stock_address,
+            side=SpotSide.BUY,
+            order_type="limit",
+            price=50000.0,
+            amount=1.0,
+            timestamp=1234567890,
+            fee_rate=0.001,  # 0.1%
+        )
+
+        # Simulate external fee calculation
+        fill_amount = 0.5
+        fill_price = 50100.0
+
+        # BUY order: fee in quote currency
+        fee_amount = fill_amount * fill_price * order.fee_rate
+        assert fee_amount == pytest.approx(0.5 * 50100.0 * 0.001)
+        assert fee_amount == pytest.approx(25.05)
 
 
 class TestErrorHandling:
@@ -434,7 +531,7 @@ class TestErrorHandling:
         )
 
         with pytest.raises(ValueError, match="exceeds remaining amount"):
-            order.fill_by_asset_amount(1.5, 50000.0, 1234567900)
+            order.fill_by_asset_amount(1.5)
 
     def test_fill_exceeds_remaining_value(self, stock_address):
         """Test that exceeding remaining value raises error."""
@@ -449,7 +546,7 @@ class TestErrorHandling:
         )
 
         with pytest.raises(ValueError, match="exceeds remaining amount"):
-            order.fill_by_value_amount(60000.0, 50000.0, 1234567900)
+            order.fill_by_value_amount(60000.0)
 
     def test_negative_fill_amount_raises_error(self, stock_address):
         """Test that negative fill amount raises error."""
@@ -464,7 +561,7 @@ class TestErrorHandling:
         )
 
         with pytest.raises(ValueError, match="cannot be negative"):
-            order.fill_by_asset_amount(-0.1, 50000.0, 1234567900)
+            order.fill_by_asset_amount(-0.1)
 
 
 class TestStringRepresentation:
