@@ -2,6 +2,7 @@ from __future__ import annotations
 from typing import Optional
 from .pair import Pair
 from ..token import Token
+from simple_logger import logger
 
 
 class PairStack:
@@ -121,17 +122,22 @@ class PairStack:
         Returns:
             bool: 추가 성공 시 True, 다른 ticker로 거부 시 False
         """
+        logger.debug(f"PairStack.append 시작: pair={pair.ticker}, asset={pair.get_asset()}")
+
         # 빈 스택이면 symbol 설정
         if self.is_empty():
             self._asset_symbol = pair.get_asset_token().symbol
             self._value_symbol = pair.get_value_token().symbol
             self._pairs.append(pair)
+            logger.debug("PairStack.append: 빈 스택에 첫 Pair 추가")
             return True
 
         # ticker 일치 검증
         if pair.get_asset_token().symbol != self._asset_symbol:
+            logger.error(f"PairStack.append: asset symbol 불일치 ({pair.get_asset_token().symbol} vs {self._asset_symbol})")
             return False
         if pair.get_value_token().symbol != self._value_symbol:
+            logger.error(f"PairStack.append: value symbol 불일치 ({pair.get_value_token().symbol} vs {self._value_symbol})")
             return False
 
         # 최상단 Pair와 평단가 비교
@@ -155,8 +161,10 @@ class PairStack:
         if diff_ratio <= self.MERGE_THRESHOLD:
             merged = top_pair + pair
             self._pairs[-1] = merged
+            logger.debug(f"PairStack.append: Pair 병합됨 (diff_ratio={diff_ratio:.6f})")
         else:
             self._pairs.append(pair)
+            logger.debug(f"PairStack.append: 새 레이어 추가 (diff_ratio={diff_ratio:.6f})")
 
         return True
 
@@ -221,14 +229,19 @@ class PairStack:
             ValueError: amount가 음수이거나 총 asset 수량을 초과할 때
             RuntimeError: 총 asset 수량이 0일 때
         """
+        logger.debug(f"PairStack.split_by_asset_amount 시작: total_asset={self.total_asset_amount()}, split_amount={amount}")
+
         if amount < 0:
+            logger.error(f"분할 수량이 음수: {amount}")
             raise ValueError(f"Amount must be non-negative, got {amount}")
 
         total_asset = self.total_asset_amount()
         if total_asset == 0:
+            logger.error("총 asset 수량이 0")
             raise RuntimeError("Cannot split: total asset amount is zero")
 
         if amount > total_asset:
+            logger.error(f"분할 수량이 총량 초과: split={amount}, total={total_asset}")
             raise ValueError(
                 f"Amount {amount} exceeds total asset amount {total_asset}"
             )
@@ -251,14 +264,19 @@ class PairStack:
             ValueError: amount가 음수이거나 총 value 수량을 초과할 때
             RuntimeError: 총 value 수량이 0일 때
         """
+        logger.debug(f"PairStack.split_by_value_amount 시작: total_value={self.total_value_amount()}, split_amount={amount}")
+
         if amount < 0:
+            logger.error(f"분할 수량이 음수: {amount}")
             raise ValueError(f"Amount must be non-negative, got {amount}")
 
         total_value = self.total_value_amount()
         if total_value == 0:
+            logger.error("총 value 수량이 0")
             raise RuntimeError("Cannot split: total value amount is zero")
 
         if amount > total_value:
+            logger.error(f"분할 수량이 총량 초과: split={amount}, total={total_value}")
             raise ValueError(
                 f"Amount {amount} exceeds total value amount {total_value}"
             )
@@ -281,7 +299,10 @@ class PairStack:
             ValueError: ratio가 0~1 범위를 벗어날 때
             RuntimeError: 총 value 수량이 0일 때
         """
+        logger.debug(f"PairStack.split_by_ratio 시작: layers={len(self._pairs)}, ratio={ratio}")
+
         if not 0 <= ratio <= 1:
+            logger.error(f"비율이 범위를 벗어남: {ratio}")
             raise ValueError(f"Ratio must be between 0 and 1, got {ratio}")
 
         if ratio == 0:
@@ -324,6 +345,8 @@ class PairStack:
             self._pairs.clear()
             self._asset_symbol = None
             self._value_symbol = None
+
+        logger.debug(f"PairStack.split_by_ratio 완료: splitted_layers={len(splitted_pairs)}, remaining_layers={len(self._pairs)}")
 
         return PairStack(splitted_pairs)
 

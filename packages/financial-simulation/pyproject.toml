@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "financial-simulation"
+version = "0.0.1"
+description = "금융 시뮬레이션 모듈"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [
+    {name = "생선공장", email = "gatesplan@gmail.com"}
+]
+license = {text = "MIT"}
+dependencies = [
+    "simple-logger",
+    "financial-assets",
+    "numpy>=1.24.0",
+    "pandas>=2.0.0"
+]
+
+[project.urls]
+Homepage = "https://github.com/gatesplan/python-toolbox"
+Repository = "https://github.com/gatesplan/python-toolbox"

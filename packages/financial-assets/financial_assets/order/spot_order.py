@@ -10,6 +10,7 @@ from ..trade import SpotTrade, SpotSide
 from ..stock_address import StockAddress
 from ..token import Token
 from ..pair import Pair
+from simple_logger import init_logging, logger
 
 
 class SpotOrder:
@@ -70,6 +71,7 @@ class SpotOrder:
         0.7
     """
 
+    @init_logging(level="INFO", log_params=True)
     def __init__(
         self,
         order_id: str,
@@ -139,6 +141,8 @@ class SpotOrder:
             >>> trade.pair.get_value()
             15030.0
         """
+        logger.info(f"주문 체결 시작: order_id={self.order_id}, fill_amount={amount}, price={price}")
+
         self._validate_fill(amount)
 
         # 체결 수량 업데이트
@@ -147,8 +151,10 @@ class SpotOrder:
         # 상태 업데이트
         if self.filled_amount >= self.amount:
             self.status = "filled"
+            logger.info(f"주문 완전 체결: order_id={self.order_id}, filled={self.filled_amount}/{self.amount}")
         else:
             self.status = "partial"
+            logger.info(f"주문 부분 체결: order_id={self.order_id}, filled={self.filled_amount}/{self.amount}")
 
         # SpotTrade 객체 생성
         asset_token = Token(self.stock_address.base, amount)
@@ -335,6 +341,7 @@ class SpotOrder:
             >>> order.status
             'canceled'
         """
+        logger.info(f"주문 취소: order_id={self.order_id}, filled={self.filled_amount}/{self.amount}")
         self.status = "canceled"
 
     def _validate_fill(self, amount: float) -> None:
@@ -349,12 +356,15 @@ class SpotOrder:
             ValueError: 주문이 이미 취소된 경우
         """
         if self.status == "canceled":
+            logger.error(f"취소된 주문 체결 시도: order_id={self.order_id}")
             raise ValueError("Cannot fill a canceled order")
 
         if amount < 0:
+            logger.error(f"음수 체결 수량: order_id={self.order_id}, amount={amount}")
             raise ValueError("Fill amount cannot be negative")
 
         if self.filled_amount + amount > self.amount:
+            logger.error(f"체결 수량 초과: order_id={self.order_id}, requested={amount}, remaining={self.remaining_asset()}")
             raise ValueError(
                 f"Fill amount {amount} exceeds remaining amount {self.remaining_asset()}"
             )

@@ -3,6 +3,7 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 import pandas as pd
+from simple_logger import init_logging
 
 from .worker import (
     TotalValueWorker,
@@ -44,6 +45,7 @@ class WalletInspector:
         100000.0
     """
 
+    @init_logging(level="DEBUG")
     def __init__(self, wallet: SpotWallet) -> None:
         """
         WalletInspector 초기화.

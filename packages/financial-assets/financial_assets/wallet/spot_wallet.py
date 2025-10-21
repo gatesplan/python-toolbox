@@ -6,6 +6,7 @@ from ..token import Token
 from ..pair import Pair, PairStack
 from ..trade import SpotTrade, SpotSide
 from ..ledger import SpotLedger
+from simple_logger import init_logging, logger
 
 
 class SpotWallet:
@@ -53,6 +54,7 @@ class SpotWallet:
         1.0
     """
 
+    @init_logging(level="INFO")
     def __init__(self) -> None:
         """SpotWallet 초기화."""
         self._currencies: dict[str, Token] = {}
@@ -73,10 +75,12 @@ class SpotWallet:
             >>> wallet.get_currency_balance("USD")
             10000.0
         """
+        logger.info(f"화폐 입금: symbol={symbol}, amount={amount}")
         if symbol in self._currencies:
             self._currencies[symbol] = self._currencies[symbol] + Token(symbol, amount)
         else:
             self._currencies[symbol] = Token(symbol, amount)
+        logger.info(f"입금 완료: symbol={symbol}, new_balance={self._currencies[symbol].amount}")
 
     def withdraw_currency(self, symbol: str, amount: float) -> None:
         """
@@ -96,14 +100,17 @@ class SpotWallet:
             >>> wallet.get_currency_balance("USD")
             7000.0
         """
+        logger.info(f"화폐 출금 요청: symbol={symbol}, amount={amount}")
         current_balance = self.get_currency_balance(symbol)
         if current_balance < amount:
+            logger.error(f"잔액 부족: symbol={symbol}, requested={amount}, available={current_balance}")
             raise ValueError(
                 f"Insufficient balance for {symbol}: "
                 f"requested {amount}, available {current_balance}"
             )
 
         self._currencies[symbol] = self._currencies[symbol] - Token(symbol, amount)
+        logger.info(f"출금 완료: symbol={symbol}, new_balance={self._currencies[symbol].amount}")
 
     def get_currency_balance(self, symbol: str) -> float:
         """
@@ -232,10 +239,15 @@ class SpotWallet:
             >>> wallet.get_currency_balance("USD")
             50000.0
         """
+        ticker = self._get_ticker(trade.pair)
+        logger.info(f"거래 처리 시작: ticker={ticker}, side={trade.side.value}, trade_id={trade.trade_id}")
+
         if trade.side == SpotSide.BUY:
             self._process_buy_trade(trade)
         else:  # SpotSide.SELL
             self._process_sell_trade(trade)
+
+        logger.info(f"거래 처리 완료: ticker={ticker}, side={trade.side.value}")
 
     def _process_buy_trade(self, trade: SpotTrade) -> None:
         """
@@ -248,6 +260,8 @@ class SpotWallet:
         Args:
             trade: BUY SpotTrade
         """
+        logger.debug(f"BUY 거래 처리: asset={trade.pair.get_asset()}, value={trade.pair.get_value()}")
+
         # 1. quote 화폐 차감
         quote_token = trade.pair.get_value_token()
         quote_symbol = quote_token.symbol
@@ -255,6 +269,7 @@ class SpotWallet:
 
         current_balance = self.get_currency_balance(quote_symbol)
         if current_balance < quote_amount:
+            logger.error(f"BUY 거래 실패 - 잔액 부족: symbol={quote_symbol}, requested={quote_amount}, available={current_balance}")
             raise ValueError(
                 f"Insufficient balance for {quote_symbol}: "
                 f"requested {quote_amount}, available {current_balance}"
@@ -275,6 +290,9 @@ class SpotWallet:
 
         self._ledgers[ticker].add_trade(trade)
 
+        # 4. 수수료 처리
+        self._process_fee(trade)
+
     def _process_sell_trade(self, trade: SpotTrade) -> None:
         """
         SELL 거래 처리.
@@ -287,9 +305,11 @@ class SpotWallet:
             trade: SELL SpotTrade
         """
         ticker = self._get_ticker(trade.pair)
+        logger.debug(f"SELL 거래 처리: ticker={ticker}, asset={trade.pair.get_asset()}")
 
         # 1. PairStack에서 자산 분리
         if ticker not in self._pair_stacks or self._pair_stacks[ticker].is_empty():
+            logger.error(f"SELL 거래 실패 - 포지션 없음: ticker={ticker}")
             raise ValueError(
                 f"Insufficient assets for {ticker}: no position available"
             )
@@ -298,6 +318,7 @@ class SpotWallet:
         current_asset = self._pair_stacks[ticker].total_asset_amount()
 
         if current_asset < asset_amount:
+            logger.error(f"SELL 거래 실패 - 자산 부족: ticker={ticker}, requested={asset_amount}, available={current_asset}")
             raise ValueError(
                 f"Insufficient assets for {ticker}: "
                 f"requested {asset_amount}, available {current_asset}"
@@ -315,6 +336,24 @@ class SpotWallet:
             self._ledgers[ticker] = SpotLedger(ticker=ticker)
 
         self._ledgers[ticker].add_trade(trade)
+
+        # 4. 수수료 처리
+        self._process_fee(trade)
+
+    def _process_fee(self, trade: SpotTrade) -> None:
+        """
+        거래 수수료 처리.
+
+        trade.fee가 있으면 해당 화폐에서 차감합니다.
+
+        Args:
+            trade: SpotTrade 객체
+        """
+        if trade.fee is not None:
+            fee_symbol = trade.fee.symbol
+            fee_amount = trade.fee.amount
+            logger.info(f"수수료 차감: symbol={fee_symbol}, amount={fee_amount}")
+            self.withdraw_currency(fee_symbol, fee_amount)
 
     def _get_ticker(self, pair: Pair) -> str:
         """

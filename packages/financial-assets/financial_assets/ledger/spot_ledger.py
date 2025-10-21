@@ -9,6 +9,7 @@ from typing import Optional
 import pandas as pd
 from ..trade import SpotTrade, SpotSide
 from .spot_ledger_entry import SpotLedgerEntry
+from simple_logger import init_logging, logger
 
 
 class SpotLedger:
@@ -64,6 +65,7 @@ class SpotLedger:
         1
     """
 
+    @init_logging(level="DEBUG")
     def __init__(self, ticker: str) -> None:
         """
         SpotLedger 초기화.
@@ -123,6 +125,8 @@ class SpotLedger:
         value_amount = trade.pair.get_value()
         trade_price = trade.pair.mean_value()
 
+        logger.debug(f"SpotLedger.add_trade: ticker={self.ticker}, side={trade.side.value}, asset={asset_amount}, price={trade_price}")
+
         if trade.side == SpotSide.BUY:
             # BUY: 자산 증가, 가치 감소 (투자금 증가)
             asset_change = asset_amount
@@ -135,9 +139,11 @@ class SpotLedger:
                 )
                 new_asset = self._cumulative_asset + asset_amount
                 new_average_price = total_value / new_asset
+                logger.debug(f"평균가 재계산: 기존={self._average_price:.2f}, 신규={new_average_price:.2f}")
             else:
                 # 첫 매수
                 new_average_price = trade_price
+                logger.debug(f"첫 매수: 평균가={new_average_price:.2f}")
 
             self._cumulative_asset += asset_change
             self._cumulative_value += value_change
@@ -153,9 +159,11 @@ class SpotLedger:
             # 실현 손익 계산
             if self._average_price is not None:
                 realized_pnl = (trade_price - self._average_price) * asset_amount
+                logger.debug(f"실현 손익 계산: avg_price={self._average_price:.2f}, sell_price={trade_price:.2f}, pnl={realized_pnl:.2f}")
             else:
                 # 평균가가 없는 상태에서 매도 (비정상 상황)
                 realized_pnl = 0.0
+                logger.warning("평균가 없이 매도 발생 (비정상)")
 
             self._cumulative_asset += asset_change
             self._cumulative_value += value_change
@@ -164,6 +172,7 @@ class SpotLedger:
             if abs(self._cumulative_asset) < 1e-8:  # Floating point tolerance
                 self._average_price = None
                 self._cumulative_asset = 0.0  # 정확히 0으로
+                logger.debug("포지션 완전 청산: 평균가 리셋")
 
         # Entry 생성
         entry = SpotLedgerEntry(

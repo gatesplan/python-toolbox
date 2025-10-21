@@ -1,6 +1,7 @@
 from __future__ import annotations
 import math
 from typing import Union
+from simple_logger import logger
 
 
 class Token:
@@ -79,9 +80,13 @@ class Token:
             >>> reduced, splitted = token.split_by_amount(0.3)
             >>> # reduced.amount + splitted.amount == 1.0
         """
+        logger.debug(f"Token.split_by_amount 시작: symbol={self._symbol}, amount={self._amount}, split_amount={amount}")
+
         if amount < 0:
+            logger.error(f"분할 금액이 음수: {amount}")
             raise ValueError("Split amount cannot be negative")
         if amount > self._amount:
+            logger.error(f"분할 금액이 보유량 초과: split={amount}, total={self._amount}")
             raise ValueError(
                 f"Split amount {amount} exceeds token amount {self._amount}"
             )
@@ -99,6 +104,8 @@ class Token:
         reduced_amount, splitted_amount = self._adjust_split_error(
             reduced_amount, splitted_amount
         )
+
+        logger.debug(f"Token.split_by_amount 완료: reduced={reduced_amount}, splitted={splitted_amount}")
 
         return (
             Token(symbol=self._symbol, amount=reduced_amount, decimal=self._decimal),
@@ -128,7 +135,10 @@ class Token:
             >>> # splitted.amount ≈ 0.3, reduced.amount ≈ 0.7
             >>> # reduced.amount + splitted.amount == 1.0
         """
+        logger.debug(f"Token.split_by_ratio 시작: symbol={self._symbol}, amount={self._amount}, ratio={ratio}")
+
         if not 0 <= ratio <= 1:
+            logger.error(f"비율이 범위를 벗어남: {ratio}")
             raise ValueError(f"Ratio must be between 0 and 1, got {ratio}")
 
         # splitted를 올림 처리 (원본 decimal 사용)
@@ -147,6 +157,8 @@ class Token:
             reduced_amount, splitted_amount
         )
 
+        logger.debug(f"Token.split_by_ratio 완료: reduced={reduced_amount}, splitted={splitted_amount}")
+
         return (
             Token(symbol=self._symbol, amount=reduced_amount, decimal=self._decimal),
             Token(symbol=self._symbol, amount=splitted_amount, decimal=self._decimal),
@@ -164,6 +176,7 @@ class Token:
             ValueError: symbol이 일치하지 않을 때
         """
         if self._symbol != other._symbol:
+            logger.error(f"Token symbol 불일치: {operation} 연산 실패 ({self._symbol} vs {other._symbol})")
             raise ValueError(
                 f"Cannot {operation} tokens with different symbols: "
                 f"{self._symbol} and {other._symbol}"

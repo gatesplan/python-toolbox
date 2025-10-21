@@ -1,6 +1,7 @@
 from __future__ import annotations
 from typing import Union
 from ..token import Token
+from simple_logger import logger
 
 
 class Pair:
@@ -71,6 +72,8 @@ class Pair:
             >>> # reduced: 0.7 BTC worth $35,000
             >>> # splitted: 0.3 BTC worth $15,000
         """
+        logger.debug(f"Pair.split_by_asset_amount 시작: ticker={self._ticker}, asset={self._asset.amount}, split_amount={amount}")
+
         # asset을 분할
         reduced_asset, splitted_asset = self._asset.split_by_amount(amount)
 
@@ -82,6 +85,8 @@ class Pair:
 
         # value를 같은 비율로 분할
         reduced_value, splitted_value = self._value.split_by_ratio(ratio)
+
+        logger.debug(f"Pair.split_by_asset_amount 완료: reduced_asset={reduced_asset.amount}, splitted_asset={splitted_asset.amount}")
 
         return (
             Pair(asset=reduced_asset, value=reduced_value),
@@ -111,6 +116,8 @@ class Pair:
             >>> # reduced: 0.7 BTC worth $35,000
             >>> # splitted: 0.3 BTC worth $15,000
         """
+        logger.debug(f"Pair.split_by_value_amount 시작: ticker={self._ticker}, value={self._value.amount}, split_amount={amount}")
+
         # value를 분할
         reduced_value, splitted_value = self._value.split_by_amount(amount)
 
@@ -122,6 +129,8 @@ class Pair:
 
         # asset을 같은 비율로 분할
         reduced_asset, splitted_asset = self._asset.split_by_ratio(ratio)
+
+        logger.debug(f"Pair.split_by_value_amount 완료: reduced_value={reduced_value.amount}, splitted_value={splitted_value.amount}")
 
         return (
             Pair(asset=reduced_asset, value=reduced_value),
@@ -151,9 +160,13 @@ class Pair:
             >>> # reduced: 0.7 BTC worth $35,000
             >>> # splitted: 0.3 BTC worth $15,000
         """
+        logger.debug(f"Pair.split_by_ratio 시작: ticker={self._ticker}, ratio={ratio}")
+
         # asset과 value를 같은 비율로 분할
         reduced_asset, splitted_asset = self._asset.split_by_ratio(ratio)
         reduced_value, splitted_value = self._value.split_by_ratio(ratio)
+
+        logger.debug(f"Pair.split_by_ratio 완료: reduced_asset={reduced_asset.amount}, splitted_asset={splitted_asset.amount}")
 
         return (
             Pair(asset=reduced_asset, value=reduced_value),
@@ -194,11 +207,13 @@ class Pair:
             ValueError: asset 또는 value symbol이 일치하지 않을 때
         """
         if self._asset.symbol != other._asset.symbol:
+            logger.error(f"Pair asset symbol 불일치: {operation} 연산 실패 ({self._asset.symbol} vs {other._asset.symbol})")
             raise ValueError(
                 f"Cannot {operation} pairs with different asset symbols: "
                 f"{self._asset.symbol} and {other._asset.symbol}"
             )
         if self._value.symbol != other._value.symbol:
+            logger.error(f"Pair value symbol 불일치: {operation} 연산 실패 ({self._value.symbol} vs {other._value.symbol})")
             raise ValueError(
                 f"Cannot {operation} pairs with different value symbols: "
                 f"{self._value.symbol} and {other._value.symbol}"

@@ -4,6 +4,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Any, TYPE_CHECKING
 import pandas as pd
+from simple_logger import func_logging
 
 if TYPE_CHECKING:
     from .spot_wallet import SpotWallet
@@ -53,6 +54,7 @@ class TotalValueWorker(WalletWorker):
     특정 quote 화폐 기준 총 자산 가치를 계산합니다.
     """
 
+    @func_logging(level="DEBUG")
     def analyze(
         self,
         wallet: SpotWallet,
@@ -110,6 +112,7 @@ class RealizedPnLWorker(WalletWorker):
     모든 ledger의 realized_pnl을 합산합니다.
     """
 
+    @func_logging(level="DEBUG")
     def analyze(self, wallet: SpotWallet) -> float:
         """
         총 실현 손익 계산.
@@ -152,6 +155,7 @@ class UnrealizedPnLWorker(WalletWorker):
     보유 자산의 (현재가 - 평균가) × 보유량을 계산합니다.
     """
 
+    @func_logging(level="DEBUG")
     def analyze(
         self,
         wallet: SpotWallet,
@@ -205,6 +209,7 @@ class PositionSummaryWorker(WalletWorker):
     각 ticker별 보유량, 평균가, 투자금, 현재 가치, 미실현 손익을 정리합니다.
     """
 
+    @func_logging(level="DEBUG")
     def analyze(
         self,
         wallet: SpotWallet,
@@ -281,6 +286,7 @@ class CurrencySummaryWorker(WalletWorker):
     화폐 잔액 요약 DataFrame 생성 Worker.
     """
 
+    @func_logging(level="DEBUG")
     def analyze(self, wallet: SpotWallet) -> pd.DataFrame:
         """
         화폐 잔액 요약 DataFrame 생성.
