@@ -6,6 +6,44 @@ from simple_logger import init_logging, logger
 
 
 class SpotOrder:
+    """Represents a spot trading order with immutable update pattern.
+
+    SpotOrder encapsulates all information needed for stateless trade processing,
+    including order details, fill state, fees, and minimum trade constraints.
+    All state modifications return new instances, preserving immutability.
+
+    Attributes:
+        order_id: Unique identifier for the order
+        stock_address: Market information (exchange, trading pair, etc.)
+        side: BUY or SELL
+        order_type: "limit", "market", or "stop"
+        price: Limit price (None for market orders)
+        amount: Total order amount in base currency
+        timestamp: Order creation time
+        stop_price: Stop price for stop orders (optional)
+        filled_amount: Amount already filled (default: 0.0)
+        status: Order status - "pending", "partial", "filled", or "canceled"
+        fee_rate: Trading fee rate (default: 0.0)
+        min_trade_amount: Minimum trade unit for partial fills (optional)
+            When set, enforces realistic exchange constraints in simulations.
+            Final fills are allowed even if below minimum.
+
+    Example:
+        >>> order = SpotOrder(
+        ...     order_id="order-1",
+        ...     stock_address=stock_address,
+        ...     side=SpotSide.BUY,
+        ...     order_type="limit",
+        ...     price=50000.0,
+        ...     amount=1.0,
+        ...     timestamp=1234567890,
+        ...     min_trade_amount=0.001  # Min 0.001 BTC per fill
+        ... )
+        >>> filled = order.fill_by_asset_amount(0.5)  # OK: above minimum
+        >>> filled.is_remaining_below_min()  # Check if remainder is too small
+        False
+    """
+
     @init_logging(level="INFO", log_params=True)
     def __init__(
         self,
@@ -20,6 +58,7 @@ class SpotOrder:
         filled_amount: float = 0.0,
         status: str = "pending",
         fee_rate: float = 0.0,
+        min_trade_amount: Optional[float] = None,
     ):
         self.order_id = order_id
         self.stock_address = stock_address
@@ -32,6 +71,7 @@ class SpotOrder:
         self.timestamp = timestamp
         self.stop_price = stop_price
         self.fee_rate = fee_rate
+        self.min_trade_amount = min_trade_amount
 
     def _clone(self, **overrides) -> SpotOrder:
         return SpotOrder(
@@ -46,6 +86,7 @@ class SpotOrder:
             filled_amount=overrides.get("filled_amount", self.filled_amount),
             status=overrides.get("status", self.status),
             fee_rate=overrides.get("fee_rate", self.fee_rate),
+            min_trade_amount=overrides.get("min_trade_amount", self.min_trade_amount),
         )
 
     def fill_by_asset_amount(self, amount: float) -> SpotOrder:
@@ -103,6 +144,16 @@ class SpotOrder:
         logger.info(f"주문 취소: order_id={self.order_id}, filled={self.filled_amount}/{self.amount}")
         return self._clone(status="canceled")
 
+    def is_remaining_below_min(self) -> bool:
+        """Check if remaining amount is below minimum trade amount.
+
+        Returns:
+            True if min_trade_amount is set and remaining amount is below it, False otherwise.
+        """
+        if self.min_trade_amount is None:
+            return False
+        return self.remaining_asset() < self.min_trade_amount
+
     def _validate_fill(self, amount: float) -> None:
         if self.status == "canceled":
             logger.error(f"취소된 주문 체결 시도: order_id={self.order_id}")
@@ -118,6 +169,20 @@ class SpotOrder:
                 f"Fill amount {amount} exceeds remaining amount {self.remaining_asset()}"
             )
 
+        # Check minimum trade amount (but allow final fill even if below minimum)
+        if self.min_trade_amount is not None:
+            new_filled = self.filled_amount + amount
+            is_complete_fill = new_filled >= self.amount
+
+            if not is_complete_fill and amount < self.min_trade_amount:
+                logger.error(
+                    f"체결 수량이 최소 거래 단위 미만: order_id={self.order_id}, "
+                    f"amount={amount}, min_trade_amount={self.min_trade_amount}"
+                )
+                raise ValueError(
+                    f"Fill amount {amount} is below minimum trade amount {self.min_trade_amount}"
+                )
+
     def __str__(self) -> str:
         return (
             f"SpotOrder(id={self.order_id}, side={self.side.name}, "
@@ -132,5 +197,6 @@ class SpotOrder:
             f"stock_address={self.stock_address!r}, "
             f"side={self.side!r}, order_type={self.order_type!r}, "
             f"price={self.price}, amount={self.amount}, "
-            f"timestamp={self.timestamp}, stop_price={self.stop_price})"
+            f"timestamp={self.timestamp}, stop_price={self.stop_price}, "
+            f"min_trade_amount={self.min_trade_amount})"
         )

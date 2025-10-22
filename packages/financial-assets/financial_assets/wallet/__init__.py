@@ -8,6 +8,6 @@ This module provides:
 
 from .spot_wallet import SpotWallet
 from .wallet_inspector import WalletInspector
-from .worker import WalletWorker
+from .workers import WalletWorker
 
 __all__ = ["SpotWallet", "WalletInspector", "WalletWorker"]

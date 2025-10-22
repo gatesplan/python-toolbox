@@ -599,3 +599,163 @@ class TestStringRepresentation:
         order_repr = repr(order)
         assert "Order" in order_repr
         assert "order-repr" in order_repr
+
+
+class TestMinTradeAmount:
+    """Test minimum trade amount functionality."""
+
+    def test_order_creation_with_min_trade_amount(self, stock_address):
+        """Test creating order with min_trade_amount."""
+        order = SpotOrder(
+            order_id="order-with-min",
+            stock_address=stock_address,
+            side=SpotSide.BUY,
+            order_type="limit",
+            price=50000.0,
+            amount=1.0,
+            timestamp=1234567890,
+            min_trade_amount=0.001,
+        )
+
+        assert order.min_trade_amount == 0.001
+
+    def test_min_trade_amount_default_none(self, stock_address):
+        """Test that min_trade_amount defaults to None."""
+        order = SpotOrder(
+            order_id="order-no-min",
+            stock_address=stock_address,
+            side=SpotSide.BUY,
+            order_type="limit",
+            price=50000.0,
+            amount=1.0,
+            timestamp=1234567890,
+        )
+
+        assert order.min_trade_amount is None
+
+    def test_fill_above_min_trade_amount(self, stock_address):
+        """Test that fills above minimum are allowed."""
+        order = SpotOrder(
+            order_id="order-min-1",
+            stock_address=stock_address,
+            side=SpotSide.BUY,
+            order_type="limit",
+            price=50000.0,
+            amount=1.0,
+            timestamp=1234567890,
+            min_trade_amount=0.001,
+        )
+
+        updated_order = order.fill_by_asset_amount(0.5)
+        assert updated_order.filled_amount == 0.5
+        assert updated_order.status == "partial"
+
+    def test_fill_below_min_trade_amount_raises_error(self, stock_address):
+        """Test that partial fills below minimum are rejected."""
+        order = SpotOrder(
+            order_id="order-min-2",
+            stock_address=stock_address,
+            side=SpotSide.BUY,
+            order_type="limit",
+            price=50000.0,
+            amount=1.0,
+            timestamp=1234567890,
+            min_trade_amount=0.001,
+        )
+
+        with pytest.raises(ValueError, match="below minimum trade amount"):
+            order.fill_by_asset_amount(0.0005)
+
+    def test_final_fill_below_min_allowed(self, stock_address):
+        """Test that final fill is allowed even if below minimum."""
+        order = SpotOrder(
+            order_id="order-min-3",
+            stock_address=stock_address,
+            side=SpotSide.BUY,
+            order_type="limit",
+            price=50000.0,
+            amount=1.0,
+            timestamp=1234567890,
+            min_trade_amount=0.001,
+        )
+
+        # Fill 0.9995 BTC, leaving 0.0005 BTC
+        order1 = order.fill_by_asset_amount(0.9995)
+        assert order1.filled_amount == 0.9995
+        assert order1.remaining_asset() == pytest.approx(0.0005)
+
+        # Final fill of 0.0005 BTC should be allowed
+        order2 = order1.fill_by_asset_amount(0.0005)
+        assert order2.filled_amount == 1.0
+        assert order2.status == "filled"
+
+    def test_no_min_check_when_none(self, stock_address):
+        """Test that very small fills are allowed when min_trade_amount is None."""
+        order = SpotOrder(
+            order_id="order-no-min",
+            stock_address=stock_address,
+            side=SpotSide.BUY,
+            order_type="limit",
+            price=50000.0,
+            amount=1.0,
+            timestamp=1234567890,
+            # min_trade_amount not specified (None)
+        )
+
+        # Very small fill should be allowed
+        updated_order = order.fill_by_asset_amount(0.00001)
+        assert updated_order.filled_amount == 0.00001
+
+    def test_is_remaining_below_min(self, stock_address):
+        """Test is_remaining_below_min method."""
+        order = SpotOrder(
+            order_id="order-check",
+            stock_address=stock_address,
+            side=SpotSide.BUY,
+            order_type="limit",
+            price=50000.0,
+            amount=1.0,
+            timestamp=1234567890,
+            min_trade_amount=0.01,
+        )
+
+        # Initially has sufficient remaining
+        assert order.is_remaining_below_min() is False
+
+        # After filling 0.995, remaining is 0.005 (below 0.01)
+        order1 = order.fill_by_asset_amount(0.995)
+        assert order1.is_remaining_below_min() is True
+
+    def test_is_remaining_below_min_when_none(self, stock_address):
+        """Test is_remaining_below_min returns False when min_trade_amount is None."""
+        order = SpotOrder(
+            order_id="order-no-min",
+            stock_address=stock_address,
+            side=SpotSide.BUY,
+            order_type="limit",
+            price=50000.0,
+            amount=0.0001,
+            timestamp=1234567890,
+            # No min_trade_amount
+        )
+
+        assert order.is_remaining_below_min() is False
+
+    def test_min_trade_amount_preserved_in_clone(self, stock_address):
+        """Test that min_trade_amount is preserved when cloning."""
+        order = SpotOrder(
+            order_id="order-min-clone",
+            stock_address=stock_address,
+            side=SpotSide.BUY,
+            order_type="limit",
+            price=50000.0,
+            amount=1.0,
+            timestamp=1234567890,
+            min_trade_amount=0.005,
+        )
+
+        updated_order = order.fill_by_asset_amount(0.3)
+        assert updated_order.min_trade_amount == 0.005
+
+        canceled_order = order.to_canceled_state()
+        assert canceled_order.min_trade_amount == 0.005

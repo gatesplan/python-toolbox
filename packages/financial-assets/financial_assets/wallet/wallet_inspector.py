@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 import pandas as pd
 from simple_logger import init_logging
 
-from .worker import (
+from .workers import (
     TotalValueWorker,
     RealizedPnLWorker,
     UnrealizedPnLWorker,
