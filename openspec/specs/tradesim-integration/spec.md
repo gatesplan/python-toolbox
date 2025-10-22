@@ -1,11 +1,8 @@
-# Spec: TradeSimulation Integration
+# tradesim-integration Specification
 
-## Overview
-
-TradeSimulation과 CalculationTool을 통합하여 워커들이 계산 기능을 활용할 수 있도록 합니다.
-
-## MODIFIED Requirements
-
+## Purpose
+TBD - created by archiving change implement-tradesim-simulation. Update Purpose after archive.
+## Requirements
 ### Requirement: TradeSimulation MUST initialize with CalculationTool
 
 TradeSimulation MUST create and hold a CalculationTool instance upon initialization.
@@ -83,8 +80,6 @@ All workers MUST access CalculationTool through the TradeSimulation instance.
 **When** 워커 내부에서 계산을 수행하면
 **Then** `sim.calc_tool.get_separated_amount_sequence()`를 호출해야 합니다
 
-## ADDED Requirements
-
 ### Requirement: TradeSimulation MUST expose calc_tool as public attribute
 
 TradeSimulation MUST expose calc_tool as a public attribute for testing and extensibility.
@@ -100,3 +95,4 @@ TradeSimulation MUST expose calc_tool as a public attribute for testing and exte
 **Given** 테스트 환경에서 mock calc_tool을 사용하고 싶을 때
 **When** `sim.calc_tool = mock_calc_tool`을 설정하면
 **Then** 워커들이 mock_calc_tool을 사용해야 합니다
+

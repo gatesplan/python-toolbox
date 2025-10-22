@@ -8,6 +8,7 @@ from .spot_limit_buy import SpotLimitBuyWorker
 from .spot_limit_sell import SpotLimitSellWorker
 from .spot_market_buy import SpotMarketBuyWorker
 from .spot_market_sell import SpotMarketSellWorker
+from .calculation_tool import CalculationTool
 
 
 class TradeSimulation:
@@ -20,7 +21,8 @@ class TradeSimulation:
 
     @init_logging(level="INFO")
     def __init__(self):
-        """TradeSimulation 초기화 - 4개 워커 인스턴스 생성."""
+        """TradeSimulation 초기화 - CalculationTool과 4개 워커 인스턴스 생성."""
+        self.calc_tool = CalculationTool()
         self._limit_buy_worker = SpotLimitBuyWorker()
         self._limit_sell_worker = SpotLimitSellWorker()
         self._market_buy_worker = SpotMarketBuyWorker()
@@ -53,14 +55,14 @@ class TradeSimulation:
 
         if order_type == "limit":
             if side == SpotSide.BUY:
-                return self._limit_buy_worker(order, price)
+                return self._limit_buy_worker(self.calc_tool, order, price)
             elif side == SpotSide.SELL:
-                return self._limit_sell_worker(order, price)
+                return self._limit_sell_worker(self.calc_tool, order, price)
         elif order_type == "market":
             if side == SpotSide.BUY:
-                return self._market_buy_worker(price)
+                return self._market_buy_worker(self.calc_tool, order, price)
             elif side == SpotSide.SELL:
-                return self._market_sell_worker(price)
+                return self._market_sell_worker(self.calc_tool, order, price)
 
         raise ValueError(f"Unknown order_type or side: {order_type}, {side}")
 

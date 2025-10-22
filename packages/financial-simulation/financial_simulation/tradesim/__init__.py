@@ -5,6 +5,7 @@ from .spot_limit_buy import SpotLimitBuyWorker
 from .spot_limit_sell import SpotLimitSellWorker
 from .spot_market_buy import SpotMarketBuyWorker
 from .spot_market_sell import SpotMarketSellWorker
+from .calculation_tool import CalculationTool
 
 __all__ = [
     "TradeSimulation",
@@ -12,4 +13,5 @@ __all__ = [
     "SpotLimitSellWorker",
     "SpotMarketBuyWorker",
     "SpotMarketSellWorker",
+    "CalculationTool",
 ]
