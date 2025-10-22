@@ -124,6 +124,60 @@ class TestGetSeparatedAmountSequence:
         assert pieces1 == pieces2
 
 
+class TestGetPriceRange:
+    """Tests for get_price_range method."""
+
+    def test_price_in_body_range(self):
+        """가격이 body 범위에 있을 때."""
+        from financial_assets.price import Price
+
+        calc = CalculationTool()
+        # o=50500, c=49500 → bodybottom=49500, bodytop=50500
+        price = Price("binance", "BTC/USD", 1234567890, 51000, 49000, 50500, 49500, 100)
+
+        # Body 범위 내 가격들
+        assert calc.get_price_range(price, 49500) == "body"
+        assert calc.get_price_range(price, 50000) == "body"
+        assert calc.get_price_range(price, 50500) == "body"
+
+    def test_price_in_head_range(self):
+        """가격이 head 범위에 있을 때."""
+        from financial_assets.price import Price
+
+        calc = CalculationTool()
+        # o=50500, c=49500, h=51000 → bodytop=50500, head: 50500 ~ 51000
+        price = Price("binance", "BTC/USD", 1234567890, 51000, 49000, 50500, 49500, 100)
+
+        # Head 범위 (bodytop < x <= h)
+        assert calc.get_price_range(price, 50600) == "head"
+        assert calc.get_price_range(price, 50800) == "head"
+        assert calc.get_price_range(price, 51000) == "head"
+
+    def test_price_in_tail_range(self):
+        """가격이 tail 범위에 있을 때."""
+        from financial_assets.price import Price
+
+        calc = CalculationTool()
+        # o=50500, c=49500, l=49000 → bodybottom=49500, tail: 49000 ~ 49500
+        price = Price("binance", "BTC/USD", 1234567890, 51000, 49000, 50500, 49500, 100)
+
+        # Tail 범위 (l <= x < bodybottom)
+        assert calc.get_price_range(price, 49000) == "tail"
+        assert calc.get_price_range(price, 49200) == "tail"
+        assert calc.get_price_range(price, 49499) == "tail"
+
+    def test_price_outside_range(self):
+        """가격이 캔들 범위 밖에 있을 때."""
+        from financial_assets.price import Price
+
+        calc = CalculationTool()
+        price = Price("binance", "BTC/USD", 1234567890, 51000, 49000, 50500, 49500, 100)
+
+        # 범위 밖
+        assert calc.get_price_range(price, 48999) == "none"  # low보다 낮음
+        assert calc.get_price_range(price, 51001) == "none"  # high보다 높음
+
+
 class TestCalculationToolStateless:
     """Tests for stateless behavior."""
 

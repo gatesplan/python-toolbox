@@ -10,12 +10,12 @@ if TYPE_CHECKING:
     from financial_assets.price import Price
     from financial_assets.trade import SpotTrade
     from .calculation_tool import CalculationTool
+    from .trade_factory import TradeFactory
 
 
 class SpotMarketSellWorker:
     """
     시장가 매도 주문 워커.
-
     항상 체결되며 슬리피지를 반영합니다 (tail 범위 내 불리한 가격).
     """
 
@@ -23,25 +23,12 @@ class SpotMarketSellWorker:
     def __call__(
         self,
         calc_tool: CalculationTool,
+        trade_factory: TradeFactory,
         order: SpotOrder,
         price: Price,
     ) -> List[SpotTrade]:
-        """
-        시장가 매도 체결.
-
-        Args:
-            calc_tool: CalculationTool 인스턴스
-            order: SpotOrder 주문 객체
-            price: Price 시장 가격 정보
-
-        Returns:
-            List[SpotTrade]: 체결된 거래 리스트 (1~3개)
-        """
-        from financial_assets.trade import SpotTrade, SpotSide
-        from financial_assets.pair import Pair
-        from financial_assets.token import Token
-
-        trades = []
+        """시장가 매도 체결."""
+        from financial_assets.trade import SpotSide
 
         # 슬리피지 범위: tail (l ~ bodybottom)
         tail_min = price.l
@@ -55,33 +42,24 @@ class SpotMarketSellWorker:
         # 총 수량 분할
         total_amount = order.remaining_asset()
 
-        # TODO: min_trade_amount를 어떻게 가져올지 결정 필요
-        # 임시로 total_amount의 1%를 최소 단위로 사용
-        min_trade_amount = total_amount * 0.01
+        # min_trade_amount: order에서 가져오거나 기본값 사용
+        min_trade_amount = order.min_trade_amount or (total_amount * 0.01)
 
         amounts = calc_tool.get_separated_amount_sequence(
             total_amount, min_trade_amount, split_count
         )
 
         # 각 조각마다 Trade 생성 (가격은 개별 샘플링)
-        for idx, amount in enumerate(amounts, 1):
-            # 각 Trade마다 다른 가격 샘플링
-            fill_price = calc_tool.get_price_sample(
-                tail_min, tail_max, tail_mean, tail_std
-            )
-
-            trade = SpotTrade(
-                stock_address=order.stock_address,
-                trade_id=f"{order.order_id}-fill",
-                fill_id=f"{order.order_id}-fill-{idx}",
-                side=SpotSide.SELL,
-                pair=Pair(
-                    asset=Token(order.stock_address.base.upper(), amount),
-                    value=Token(order.stock_address.quote.upper(), fill_price * amount)
-                ),
-                timestamp=price.t,
-                fee=None
-            )
-            trades.append(trade)
+        trades = trade_factory.create_market_trades_with_slippage(
+            calc_tool,
+            order,
+            SpotSide.SELL,
+            amounts,
+            tail_min,
+            tail_max,
+            tail_mean,
+            tail_std,
+            price.t,
+        )
 
         return trades

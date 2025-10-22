@@ -6,28 +6,10 @@ import numpy as np
 
 
 class CalculationTool:
-    """
-    시뮬레이션에 필요한 수치 계산을 제공하는 도구 클래스.
-
-    모든 메서드는 stateless하며 순수 함수입니다.
-    """
+    """시뮬레이션 수치 계산 도구 (stateless 순수 함수)."""
 
     def round_to_min_amount(self, amount: float, min_amount: float) -> float:
-        """
-        금액을 최소 거래 단위의 배수로 내림.
-
-        Args:
-            amount: 반올림할 금액
-            min_amount: 최소 거래 단위
-
-        Returns:
-            float: min_amount의 배수로 내림된 금액
-
-        Example:
-            >>> calc = CalculationTool()
-            >>> calc.round_to_min_amount(1.234, 0.01)
-            1.23
-        """
+        """금액을 최소 거래 단위의 배수로 내림."""
         if amount <= 0:
             return 0.0
 
@@ -42,25 +24,7 @@ class CalculationTool:
         min_z: float = -2.0,
         max_z: float = 2.0,
     ) -> float:
-        """
-        정규분포에서 가격을 샘플링하고 범위 내로 클리핑.
-
-        Args:
-            min: 최소 가격
-            max: 최대 가격
-            mean: 정규분포 평균
-            std: 정규분포 표준편차
-            min_z: 최소 z-score (기본값: -2.0)
-            max_z: 최대 z-score (기본값: 2.0)
-
-        Returns:
-            float: [min, max] 범위 내의 샘플링된 가격
-
-        Example:
-            >>> calc = CalculationTool()
-            >>> price = calc.get_price_sample(100, 110, 105, 2)
-            >>> assert 100 <= price <= 110
-        """
+        """정규분포 기반 가격 샘플링 (범위 클리핑 적용)."""
         # 정규분포에서 샘플링
         z_score = np.random.normal(0, 1)
 
@@ -79,25 +43,7 @@ class CalculationTool:
         min_trade_amount: float,
         split_to: int,
     ) -> List[float]:
-        """
-        금액을 랜덤하게 여러 조각으로 분할.
-
-        각 조각은 min_trade_amount의 배수이며, 합은 정확히 base입니다.
-
-        Args:
-            base: 분할할 총 금액
-            min_trade_amount: 최소 거래 단위
-            split_to: 분할할 조각 개수
-
-        Returns:
-            List[float]: split_to 개의 금액 리스트
-
-        Example:
-            >>> calc = CalculationTool()
-            >>> pieces = calc.get_separated_amount_sequence(10.0, 0.1, 3)
-            >>> assert len(pieces) == 3
-            >>> assert sum(pieces) == 10.0
-        """
+        """금액을 랜덤하게 여러 조각으로 분할."""
         if split_to == 1:
             return [base]
 
@@ -121,3 +67,23 @@ class CalculationTool:
         rounded_pieces[-1] += remainder
 
         return rounded_pieces
+
+    def get_price_range(self, price, target_price: float) -> str:
+        """target_price가 캔들의 어느 범위에 위치하는지 판단."""
+        body_bottom = price.bodybottom()
+        body_top = price.bodytop()
+
+        # Body 범위 확인
+        if body_bottom <= target_price <= body_top:
+            return "body"
+
+        # Head 범위 확인 (위쪽 꼬리)
+        if body_top < target_price <= price.h:
+            return "head"
+
+        # Tail 범위 확인 (아래쪽 꼬리)
+        if price.l <= target_price < body_bottom:
+            return "tail"
+
+        # 범위 밖
+        return "none"

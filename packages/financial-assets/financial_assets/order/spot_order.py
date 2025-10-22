@@ -6,42 +6,8 @@ from simple_logger import init_logging, logger
 
 
 class SpotOrder:
-    """Represents a spot trading order with immutable update pattern.
-
-    SpotOrder encapsulates all information needed for stateless trade processing,
-    including order details, fill state, fees, and minimum trade constraints.
-    All state modifications return new instances, preserving immutability.
-
-    Attributes:
-        order_id: Unique identifier for the order
-        stock_address: Market information (exchange, trading pair, etc.)
-        side: BUY or SELL
-        order_type: "limit", "market", or "stop"
-        price: Limit price (None for market orders)
-        amount: Total order amount in base currency
-        timestamp: Order creation time
-        stop_price: Stop price for stop orders (optional)
-        filled_amount: Amount already filled (default: 0.0)
-        status: Order status - "pending", "partial", "filled", or "canceled"
-        fee_rate: Trading fee rate (default: 0.0)
-        min_trade_amount: Minimum trade unit for partial fills (optional)
-            When set, enforces realistic exchange constraints in simulations.
-            Final fills are allowed even if below minimum.
-
-    Example:
-        >>> order = SpotOrder(
-        ...     order_id="order-1",
-        ...     stock_address=stock_address,
-        ...     side=SpotSide.BUY,
-        ...     order_type="limit",
-        ...     price=50000.0,
-        ...     amount=1.0,
-        ...     timestamp=1234567890,
-        ...     min_trade_amount=0.001  # Min 0.001 BTC per fill
-        ... )
-        >>> filled = order.fill_by_asset_amount(0.5)  # OK: above minimum
-        >>> filled.is_remaining_below_min()  # Check if remainder is too small
-        False
+    """현물 거래 주문 (불변 복제 패턴).
+    주문 정보, 체결 상태, 수수료, 최소 거래 제약을 캡슐화합니다.
     """
 
     @init_logging(level="INFO", log_params=True)
@@ -60,6 +26,7 @@ class SpotOrder:
         fee_rate: float = 0.0,
         min_trade_amount: Optional[float] = None,
     ):
+        """SpotOrder 초기화."""
         self.order_id = order_id
         self.stock_address = stock_address
         self.side = side
@@ -74,6 +41,7 @@ class SpotOrder:
         self.min_trade_amount = min_trade_amount
 
     def _clone(self, **overrides) -> SpotOrder:
+        """속성을 덮어쓴 새 SpotOrder 복제."""
         return SpotOrder(
             order_id=overrides.get("order_id", self.order_id),
             stock_address=overrides.get("stock_address", self.stock_address),
@@ -90,6 +58,7 @@ class SpotOrder:
         )
 
     def fill_by_asset_amount(self, amount: float) -> SpotOrder:
+        """자산 수량만큼 주문 체결."""
         logger.info(f"주문 체결 시작: order_id={self.order_id}, fill_amount={amount}")
         self._validate_fill(amount)
 
@@ -107,6 +76,7 @@ class SpotOrder:
         return self._clone(filled_amount=new_filled, status=new_status)
 
     def fill_by_value_amount(self, amount: float) -> SpotOrder:
+        """가치 금액만큼 주문 체결."""
         if self.price is None:
             raise ValueError("Cannot use fill_by_value_amount for market orders (price=None)")
         if self.price == 0:
@@ -116,9 +86,11 @@ class SpotOrder:
         return self.fill_by_asset_amount(asset_amount)
 
     def remaining_asset(self) -> float:
+        """미체결 자산 수량 반환."""
         return self.amount - self.filled_amount
 
     def remaining_value(self) -> float:
+        """미체결 가치 금액 반환."""
         if self.price is None:
             raise ValueError("Cannot calculate remaining_value for market orders")
         return self.remaining_asset() * self.price
@@ -129,6 +101,7 @@ class SpotOrder:
         return self.remaining_asset() / self.amount
 
     def is_filled(self) -> bool:
+        """주문 완전 체결 여부."""
         return self.status == "filled"
 
     def to_pending_state(self) -> SpotOrder:
@@ -141,20 +114,18 @@ class SpotOrder:
         return self._clone(status="filled")
 
     def to_canceled_state(self) -> SpotOrder:
+        """주문을 취소 상태로 변경."""
         logger.info(f"주문 취소: order_id={self.order_id}, filled={self.filled_amount}/{self.amount}")
         return self._clone(status="canceled")
 
     def is_remaining_below_min(self) -> bool:
-        """Check if remaining amount is below minimum trade amount.
-
-        Returns:
-            True if min_trade_amount is set and remaining amount is below it, False otherwise.
-        """
+        """잔여 수량이 최소 거래량 미만인지 확인."""
         if self.min_trade_amount is None:
             return False
         return self.remaining_asset() < self.min_trade_amount
 
     def _validate_fill(self, amount: float) -> None:
+        """체결 수량 유효성 검증."""
         if self.status == "canceled":
             logger.error(f"취소된 주문 체결 시도: order_id={self.order_id}")
             raise ValueError("Cannot fill a canceled order")
@@ -192,6 +163,7 @@ class SpotOrder:
         )
 
     def __repr__(self) -> str:
+        """SpotOrder 문자열 표현."""
         return (
             f"SpotOrder(order_id={self.order_id!r}, "
             f"stock_address={self.stock_address!r}, "

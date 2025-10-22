@@ -7,26 +7,15 @@ from simple_logger import logger
 
 class PairStack:
     """
-    같은 ticker(symbol pair)의 Pair들을 스택으로 관리.
-    평단가가 유사한(0.01% 이내) Pair는 자동으로 병합됩니다.
-    하나의 Pair처럼 동작하지만, 내부적으로는 여러 레이어로 관리됩니다.
-
-    Attributes:
-        _pairs (list[Pair]): Pair들의 스택
-        _asset_symbol (str | None): 관리하는 asset symbol
-        _value_symbol (str | None): 관리하는 value symbol
+    평균 단가가 다른 Pair들을 레이어로 관리하는 스택.
+    LIFO 방식으로 포지션을 추적합니다.
     """
 
     # 평단가 차이 임계값 (0.01%)
     MERGE_THRESHOLD = 0.0001
 
     def __init__(self, pairs: Optional[list[Pair]] = None):
-        """
-        PairStack 초기화.
-
-        Args:
-            pairs: 초기 Pair 리스트 (선택, 자동 병합 적용됨)
-        """
+        """PairStack 초기화."""
         self._pairs: list[Pair] = []
         self._asset_symbol: Optional[str] = None
         self._value_symbol: Optional[str] = None
@@ -37,91 +26,42 @@ class PairStack:
 
     @property
     def ticker(self) -> str:
-        """
-        티커 문자열을 반환합니다 (예: "BTC-USD").
-
-        Returns:
-            str: 티커 문자열
-
-        Raises:
-            ValueError: 스택이 비어있을 때
-        """
+        """티커 문자열 반환."""
         if self.is_empty():
             raise ValueError("Cannot get ticker: stack is empty")
 
         return f"{self._asset_symbol}-{self._value_symbol}"
 
     def get_asset_token(self) -> Token:
-        """
-        전체 asset을 하나의 Token으로 반환합니다.
-
-        Returns:
-            Token: 총 asset 수량의 Token
-
-        Raises:
-            ValueError: 스택이 비어있을 때
-        """
+        """전체 asset Token 반환."""
         if self.is_empty():
             raise ValueError("Cannot get asset token: stack is empty")
 
         return Token(symbol=self._asset_symbol, amount=self.total_asset_amount())
 
     def get_value_token(self) -> Token:
-        """
-        전체 value를 하나의 Token으로 반환합니다.
-
-        Returns:
-            Token: 총 value 수량의 Token
-
-        Raises:
-            ValueError: 스택이 비어있을 때
-        """
+        """전체 value Token 반환."""
         if self.is_empty():
             raise ValueError("Cannot get value token: stack is empty")
 
         return Token(symbol=self._value_symbol, amount=self.total_value_amount())
 
     def get_asset(self) -> float:
-        """
-        전체 asset 수량을 반환합니다.
-
-        Returns:
-            float: 총 asset 수량
-
-        Raises:
-            ValueError: 스택이 비어있을 때
-        """
+        """전체 asset 수량 반환."""
         if self.is_empty():
             raise ValueError("Cannot get asset: stack is empty")
 
         return self.total_asset_amount()
 
     def get_value(self) -> float:
-        """
-        전체 value 수량을 반환합니다.
-
-        Returns:
-            float: 총 value 수량
-
-        Raises:
-            ValueError: 스택이 비어있을 때
-        """
+        """전체 value 수량 반환."""
         if self.is_empty():
             raise ValueError("Cannot get value: stack is empty")
 
         return self.total_value_amount()
 
     def append(self, pair: Pair) -> bool:
-        """
-        Pair를 스택에 추가.
-        최상단 Pair와 평단가 차이가 0.01% 이내면 자동으로 병합됩니다.
-
-        Args:
-            pair: 추가할 Pair
-
-        Returns:
-            bool: 추가 성공 시 True, 다른 ticker로 거부 시 False
-        """
+        """Pair를 스택에 추가하고 필요시 최상단 Pair와 병합."""
         logger.debug(f"PairStack.append 시작: pair={pair.ticker}, asset={pair.get_asset()}")
 
         # 빈 스택이면 symbol 설정
@@ -169,15 +109,7 @@ class PairStack:
         return True
 
     def mean_value(self) -> float:
-        """
-        전체 스택의 평단가 반환.
-
-        Returns:
-            float: 전체 value 합계 / 전체 asset 합계
-
-        Raises:
-            ValueError: 스택이 비어있거나 총 asset amount가 0일 때
-        """
+        """전체 스택의 평단가 반환."""
         if self.is_empty():
             raise ValueError("Cannot calculate mean_value: stack is empty")
 
@@ -197,15 +129,7 @@ class PairStack:
         return sum(pair.get_value() for pair in self._pairs)
 
     def flatten(self) -> Pair:
-        """
-        모든 Pair를 하나로 합산하여 단일 Pair 반환.
-
-        Returns:
-            Pair: 합산된 단일 Pair
-
-        Raises:
-            ValueError: 스택이 비어있을 때
-        """
+        """모든 Pair를 하나로 합산하여 단일 Pair 반환."""
         if self.is_empty():
             raise ValueError("Cannot flatten: stack is empty")
 
@@ -215,20 +139,7 @@ class PairStack:
         return result
 
     def split_by_asset_amount(self, amount: float) -> PairStack:
-        """
-        asset 수량 기준으로 분할. 원본 수정, 분리된 PairStack 반환.
-        모든 레이어를 같은 비율로 분할합니다.
-
-        Args:
-            amount: 분리할 asset 수량
-
-        Returns:
-            PairStack: 분리된 PairStack
-
-        Raises:
-            ValueError: amount가 음수이거나 총 asset 수량을 초과할 때
-            RuntimeError: 총 asset 수량이 0일 때
-        """
+        """asset 수량 기준으로 스택 분할."""
         logger.debug(f"PairStack.split_by_asset_amount 시작: total_asset={self.total_asset_amount()}, split_amount={amount}")
 
         if amount < 0:
@@ -250,20 +161,7 @@ class PairStack:
         return self.split_by_ratio(ratio)
 
     def split_by_value_amount(self, amount: float) -> PairStack:
-        """
-        value 수량 기준으로 분할. 원본 수정, 분리된 PairStack 반환.
-        모든 레이어를 같은 비율로 분할합니다.
-
-        Args:
-            amount: 분리할 value 수량
-
-        Returns:
-            PairStack: 분리된 PairStack
-
-        Raises:
-            ValueError: amount가 음수이거나 총 value 수량을 초과할 때
-            RuntimeError: 총 value 수량이 0일 때
-        """
+        """value 수량 기준으로 스택 분할."""
         logger.debug(f"PairStack.split_by_value_amount 시작: total_value={self.total_value_amount()}, split_amount={amount}")
 
         if amount < 0:
@@ -285,20 +183,7 @@ class PairStack:
         return self.split_by_ratio(ratio)
 
     def split_by_ratio(self, ratio: float) -> PairStack:
-        """
-        비율 기준으로 분할. 원본 수정, 분리된 PairStack 반환.
-        총 value 기준으로 ratio만큼 분할하며, 스택 위(index 0)부터 순서대로 뽑습니다.
-
-        Args:
-            ratio: 분할 비율 (0.0 ~ 1.0)
-
-        Returns:
-            PairStack: 분리된 PairStack
-
-        Raises:
-            ValueError: ratio가 0~1 범위를 벗어날 때
-            RuntimeError: 총 value 수량이 0일 때
-        """
+        """비율 기준으로 스택 분할."""
         logger.debug(f"PairStack.split_by_ratio 시작: layers={len(self._pairs)}, ratio={ratio}")
 
         if not 0 <= ratio <= 1:
@@ -371,16 +256,7 @@ class PairStack:
         return f"PairStack({len(self)} layers):\n  {layers}"
 
     def __eq__(self, other: object) -> bool:
-        """
-        PairStack 동등성 비교.
-        asset_symbol과 value_symbol이 같으면 같은 종류로 판단합니다.
-
-        Args:
-            other: 비교 대상 객체
-
-        Returns:
-            bool: 같은 종류의 PairStack이면 True
-        """
+        """PairStack 동등성 비교."""
         if not isinstance(other, PairStack):
             return False
 

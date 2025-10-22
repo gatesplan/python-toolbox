@@ -10,48 +10,8 @@ from simple_logger import init_logging, logger
 
 
 class SpotWallet:
-    """
-    단일 현물 거래 계정의 자산 및 거래 내역 관리.
-
-    SpotWallet은 화폐 계정(USD, KRW 등)과 자산 포지션(BTC-USD, ETH-USD 등)을
-    관리하며, 거래를 처리하고 내역을 자동으로 기록합니다.
-
-    - 화폐 관리: 입금/출금, 잔액 조회
-    - 거래 처리: BUY/SELL 거래 시 자산 조정 및 장부 기록
-    - 포지션 관리: PairStack을 통한 평단가별 레이어 관리
-    - 거래 기록: SpotLedger를 통한 자동 내역 기록
-
-    Attributes:
-        _currencies (dict[str, Token]): 화폐 계정 (symbol -> Token)
-        _pair_stacks (dict[str, PairStack]): 자산 포지션 (ticker -> PairStack)
-        _ledgers (dict[str, SpotLedger]): 거래 내역 (ticker -> SpotLedger)
-
-    Examples:
-        >>> from financial_assets.wallet import SpotWallet
-        >>> from financial_assets.trade import SpotTrade, SpotSide
-        >>> from financial_assets.pair import Pair
-        >>> from financial_assets.token import Token
-        >>> from financial_assets.stock_address import StockAddress
-        >>>
-        >>> wallet = SpotWallet()
-        >>> wallet.deposit_currency(symbol="USD", amount=100000.0)
-        >>>
-        >>> # BUY 거래 처리
-        >>> stock_address = StockAddress("crypto", "binance", "spot", "btc", "usd", "1d")
-        >>> trade = SpotTrade(
-        ...     stock_address=stock_address,
-        ...     trade_id="t1",
-        ...     fill_id="f1",
-        ...     side=SpotSide.BUY,
-        ...     pair=Pair(Token("BTC", 1.0), Token("USD", 50000.0)),
-        ...     timestamp=1234567890
-        ... )
-        >>> wallet.process_trade(trade)
-        >>>
-        >>> wallet.get_currency_balance("USD")
-        50000.0
-        >>> wallet.get_pair_stack("BTC-USD").total_asset_amount()
-        1.0
+    """현물 거래 지갑.
+    화폐 계정, 자산 포지션, 거래 내역을 관리하고 BUY/SELL 거래를 처리합니다.
     """
 
     @init_logging(level="INFO")
@@ -62,19 +22,7 @@ class SpotWallet:
         self._ledgers: dict[str, SpotLedger] = {}
 
     def deposit_currency(self, symbol: str, amount: float) -> None:
-        """
-        화폐 입금.
-
-        Args:
-            symbol: 화폐 심볼 (예: "USD", "KRW")
-            amount: 입금 금액
-
-        Examples:
-            >>> wallet = SpotWallet()
-            >>> wallet.deposit_currency("USD", 10000.0)
-            >>> wallet.get_currency_balance("USD")
-            10000.0
-        """
+        """화폐 입금."""
         logger.info(f"화폐 입금: symbol={symbol}, amount={amount}")
         if symbol in self._currencies:
             self._currencies[symbol] = self._currencies[symbol] + Token(symbol, amount)
@@ -83,23 +31,7 @@ class SpotWallet:
         logger.info(f"입금 완료: symbol={symbol}, new_balance={self._currencies[symbol].amount}")
 
     def withdraw_currency(self, symbol: str, amount: float) -> None:
-        """
-        화폐 출금.
-
-        Args:
-            symbol: 화폐 심볼
-            amount: 출금 금액
-
-        Raises:
-            ValueError: 잔액이 부족한 경우
-
-        Examples:
-            >>> wallet = SpotWallet()
-            >>> wallet.deposit_currency("USD", 10000.0)
-            >>> wallet.withdraw_currency("USD", 3000.0)
-            >>> wallet.get_currency_balance("USD")
-            7000.0
-        """
+        """화폐 출금."""
         logger.info(f"화폐 출금 요청: symbol={symbol}, amount={amount}")
         current_balance = self.get_currency_balance(symbol)
         if current_balance < amount:
@@ -113,42 +45,13 @@ class SpotWallet:
         logger.info(f"출금 완료: symbol={symbol}, new_balance={self._currencies[symbol].amount}")
 
     def get_currency_balance(self, symbol: str) -> float:
-        """
-        화폐 잔액 조회.
-
-        Args:
-            symbol: 화폐 심볼
-
-        Returns:
-            float: 잔액 (없으면 0.0)
-
-        Examples:
-            >>> wallet = SpotWallet()
-            >>> wallet.get_currency_balance("USD")
-            0.0
-            >>> wallet.deposit_currency("USD", 1000.0)
-            >>> wallet.get_currency_balance("USD")
-            1000.0
-        """
+        """화폐 잔액 조회."""
         if symbol not in self._currencies:
             return 0.0
         return self._currencies[symbol].amount
 
     def get_pair_stack(self, ticker: str) -> Optional[PairStack]:
-        """
-        특정 거래쌍의 PairStack 조회.
-
-        Args:
-            ticker: 거래쌍 티커 (예: "BTC-USD")
-
-        Returns:
-            Optional[PairStack]: PairStack 또는 None (없거나 빈 경우)
-
-        Examples:
-            >>> wallet = SpotWallet()
-            >>> wallet.get_pair_stack("BTC-USD")
-            None
-        """
+        """특정 거래쌍의 PairStack 조회."""
         if ticker not in self._pair_stacks:
             return None
         stack = self._pair_stacks[ticker]
@@ -157,50 +60,15 @@ class SpotWallet:
         return stack
 
     def get_ledger(self, ticker: str) -> Optional[SpotLedger]:
-        """
-        특정 거래쌍의 거래 내역(Ledger) 조회.
-
-        Args:
-            ticker: 거래쌍 티커
-
-        Returns:
-            Optional[SpotLedger]: SpotLedger 또는 None (없으면)
-
-        Examples:
-            >>> wallet = SpotWallet()
-            >>> wallet.get_ledger("BTC-USD")
-            None
-        """
+        """특정 거래쌍의 장부 조회."""
         return self._ledgers.get(ticker)
 
     def list_currencies(self) -> list[str]:
-        """
-        보유 화폐 목록 조회.
-
-        Returns:
-            list[str]: 화폐 심볼 리스트
-
-        Examples:
-            >>> wallet = SpotWallet()
-            >>> wallet.deposit_currency("USD", 1000.0)
-            >>> wallet.deposit_currency("KRW", 100000.0)
-            >>> sorted(wallet.list_currencies())
-            ['KRW', 'USD']
-        """
+        """보유 화폐 목록 조회."""
         return list(self._currencies.keys())
 
     def list_tickers(self) -> list[str]:
-        """
-        보유 자산 티커 목록 조회.
-
-        Returns:
-            list[str]: 티커 리스트
-
-        Examples:
-            >>> wallet = SpotWallet()
-            >>> wallet.list_tickers()
-            []
-        """
+        """보유 자산 티커 목록 조회."""
         # 빈 PairStack은 제외
         return [
             ticker
@@ -209,36 +77,7 @@ class SpotWallet:
         ]
 
     def process_trade(self, trade: SpotTrade) -> None:
-        """
-        거래 처리 및 자산 조정.
-
-        BUY: quote 화폐 차감, PairStack 추가, Ledger 기록
-        SELL: PairStack 분리(FIFO), quote 화폐 증가, Ledger 기록
-
-        Args:
-            trade: 처리할 SpotTrade 객체
-
-        Raises:
-            ValueError: 잔액 또는 자산 부족 시
-
-        Examples:
-            >>> from financial_assets.stock_address import StockAddress
-            >>> wallet = SpotWallet()
-            >>> wallet.deposit_currency("USD", 100000.0)
-            >>>
-            >>> stock_address = StockAddress("crypto", "binance", "spot", "btc", "usd", "1d")
-            >>> trade = SpotTrade(
-            ...     stock_address=stock_address,
-            ...     trade_id="t1",
-            ...     fill_id="f1",
-            ...     side=SpotSide.BUY,
-            ...     pair=Pair(Token("BTC", 1.0), Token("USD", 50000.0)),
-            ...     timestamp=1234567890
-            ... )
-            >>> wallet.process_trade(trade)
-            >>> wallet.get_currency_balance("USD")
-            50000.0
-        """
+        """거래 처리 및 장부 기록."""
         ticker = self._get_ticker(trade.pair)
         logger.info(f"거래 처리 시작: ticker={ticker}, side={trade.side.value}, trade_id={trade.trade_id}")
 
@@ -250,16 +89,7 @@ class SpotWallet:
         logger.info(f"거래 처리 완료: ticker={ticker}, side={trade.side.value}")
 
     def _process_buy_trade(self, trade: SpotTrade) -> None:
-        """
-        BUY 거래 처리.
-
-        1. quote 화폐 잔액 확인 및 차감
-        2. PairStack에 Pair 추가
-        3. SpotLedger에 거래 기록
-
-        Args:
-            trade: BUY SpotTrade
-        """
+        """BUY 거래 처리: 화폐 차감, PairStack 추가, 장부 기록."""
         logger.debug(f"BUY 거래 처리: asset={trade.pair.get_asset()}, value={trade.pair.get_value()}")
 
         # 1. quote 화폐 차감
@@ -294,16 +124,7 @@ class SpotWallet:
         self._process_fee(trade)
 
     def _process_sell_trade(self, trade: SpotTrade) -> None:
-        """
-        SELL 거래 처리.
-
-        1. PairStack에서 자산 분리 (FIFO)
-        2. quote 화폐 증가
-        3. SpotLedger에 거래 기록
-
-        Args:
-            trade: SELL SpotTrade
-        """
+        """SELL 거래 처리: PairStack 분리(FIFO), 화폐 증가, 장부 기록."""
         ticker = self._get_ticker(trade.pair)
         logger.debug(f"SELL 거래 처리: ticker={ticker}, asset={trade.pair.get_asset()}")
 
@@ -341,14 +162,7 @@ class SpotWallet:
         self._process_fee(trade)
 
     def _process_fee(self, trade: SpotTrade) -> None:
-        """
-        거래 수수료 처리.
-
-        trade.fee가 있으면 해당 화폐에서 차감합니다.
-
-        Args:
-            trade: SpotTrade 객체
-        """
+        """거래 수수료 처리."""
         if trade.fee is not None:
             fee_symbol = trade.fee.symbol
             fee_amount = trade.fee.amount
@@ -356,37 +170,19 @@ class SpotWallet:
             self.withdraw_currency(fee_symbol, fee_amount)
 
     def _get_ticker(self, pair: Pair) -> str:
-        """
-        Pair로부터 ticker 문자열 생성.
-
-        Args:
-            pair: Pair 객체
-
-        Returns:
-            str: ticker (예: "BTC-USD")
-        """
+        """Pair로부터 ticker 문자열 생성."""
         asset_symbol = pair.get_asset_token().symbol
         value_symbol = pair.get_value_token().symbol
         return f"{asset_symbol}-{value_symbol}"
 
     def __str__(self) -> str:
-        """
-        SpotWallet의 읽기 쉬운 문자열 표현.
-
-        Returns:
-            str: 화폐 및 자산 정보
-        """
+        """읽기 쉬운 문자열 표현 반환."""
         currency_count = len(self._currencies)
         ticker_count = len(self.list_tickers())
         return f"SpotWallet(currencies={currency_count}, tickers={ticker_count})"
 
     def __repr__(self) -> str:
-        """
-        SpotWallet의 상세한 문자열 표현.
-
-        Returns:
-            str: 상세 정보
-        """
+        """상세한 문자열 표현 반환."""
         return (
             f"SpotWallet(currencies={list(self._currencies.keys())}, "
             f"tickers={self.list_tickers()})"

@@ -15,10 +15,11 @@ class TestTradeSimulation:
         """TradeSimulation 초기화 테스트"""
         sim = TradeSimulation()
 
-        assert sim._limit_buy_worker is not None
-        assert sim._limit_sell_worker is not None
+        assert sim._limit_worker is not None
         assert sim._market_buy_worker is not None
         assert sim._market_sell_worker is not None
+        assert sim.calc_tool is not None
+        assert sim.trade_factory is not None
 
     def test_route_limit_buy(self):
         """Limit Buy 주문 라우팅 테스트"""

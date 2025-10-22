@@ -6,26 +6,12 @@ from simple_logger import logger
 
 class Token:
     """
-    거래 가능한 자산을 표현하는 기본 단위.
-
-    Token은 특정 심볼(symbol)과 수량(amount)을 가지며, 역할 중립적으로 설계됩니다.
-    같은 symbol끼리만 연산 및 비교가 가능합니다.
-
-    Attributes:
-        symbol (str): 자산 식별자 (예: BTC, ETH, USD)
-        amount (float): 자산 수량
-        decimal (int): 소수점 정밀도 (기본값: 8)
+    거래 가능한 자산의 기본 단위.
+    특정 심볼과 수량을 가지며, 같은 symbol끼리만 연산 가능합니다.
     """
 
     def __init__(self, symbol: str, amount: float, decimal: int = 8):
-        """
-        Token 초기화.
-
-        Args:
-            symbol: 자산 식별자
-            amount: 자산 수량 (decimal 자리로 자동 반올림됨)
-            decimal: 소수점 정밀도 (기본값: 8)
-        """
+        """Token 초기화."""
         self._symbol = symbol
         self._decimal = decimal
         self._amount = round(amount, decimal)
@@ -46,40 +32,11 @@ class Token:
         return self._decimal
 
     def round(self, n: int) -> Token:
-        """
-        수량을 반올림한 새로운 Token을 반환합니다.
-        decimal 정밀도도 n으로 변경됩니다.
-
-        Args:
-            n: 반올림할 소수점 자리수
-
-        Returns:
-            반올림된 수량과 decimal을 가진 새 Token
-        """
+        """수량을 반올림한 새 Token 반환."""
         return Token(symbol=self._symbol, amount=round(self._amount, n), decimal=n)
 
     def split_by_amount(self, amount: float) -> tuple[Token, Token]:
-        """
-        특정 금액으로 토큰을 분할합니다.
-
-        splitted는 올림 처리되고, reduced는 원본에서 splitted를 뺀 값입니다.
-        이를 통해 reduced + splitted = 원본이 보장됩니다.
-        decimal 정밀도는 원본 Token의 값을 승계합니다.
-
-        Args:
-            amount: 분할할 금액
-
-        Returns:
-            (reduced, splitted): reduced는 남은 금액, splitted는 분할된 금액
-
-        Raises:
-            ValueError: amount가 음수이거나 원본보다 클 때
-
-        Examples:
-            >>> token = Token(symbol="BTC", amount=1.0)
-            >>> reduced, splitted = token.split_by_amount(0.3)
-            >>> # reduced.amount + splitted.amount == 1.0
-        """
+        """특정 금액으로 토큰 분할."""
         logger.debug(f"Token.split_by_amount 시작: symbol={self._symbol}, amount={self._amount}, split_amount={amount}")
 
         if amount < 0:
@@ -113,28 +70,7 @@ class Token:
         )
 
     def split_by_ratio(self, ratio: float) -> tuple[Token, Token]:
-        """
-        비율로 토큰을 분할합니다.
-
-        splitted는 올림 처리되고, reduced는 원본에서 splitted를 뺀 값입니다.
-        이를 통해 reduced + splitted = 원본이 보장됩니다.
-        decimal 정밀도는 원본 Token의 값을 승계합니다.
-
-        Args:
-            ratio: 분할 비율 (0.0 ~ 1.0)
-
-        Returns:
-            (reduced, splitted): reduced는 남은 금액, splitted는 분할된 금액
-
-        Raises:
-            ValueError: ratio가 0~1 범위를 벗어날 때
-
-        Examples:
-            >>> token = Token(symbol="BTC", amount=1.0)
-            >>> reduced, splitted = token.split_by_ratio(0.3)
-            >>> # splitted.amount ≈ 0.3, reduced.amount ≈ 0.7
-            >>> # reduced.amount + splitted.amount == 1.0
-        """
+        """비율로 토큰 분할."""
         logger.debug(f"Token.split_by_ratio 시작: symbol={self._symbol}, amount={self._amount}, ratio={ratio}")
 
         if not 0 <= ratio <= 1:
@@ -165,16 +101,7 @@ class Token:
         )
 
     def _check_symbol_match(self, other: Token, operation: str) -> None:
-        """
-        다른 Token과 symbol이 일치하는지 확인합니다.
-
-        Args:
-            other: 비교할 Token
-            operation: 수행하려는 연산 이름 (에러 메시지용)
-
-        Raises:
-            ValueError: symbol이 일치하지 않을 때
-        """
+        """다른 Token과 symbol 일치 확인."""
         if self._symbol != other._symbol:
             logger.error(f"Token symbol 불일치: {operation} 연산 실패 ({self._symbol} vs {other._symbol})")
             raise ValueError(
@@ -185,20 +112,7 @@ class Token:
     def _adjust_split_error(
         self, reduced_amount: float, splitted_amount: float
     ) -> tuple[float, float]:
-        """
-        split 연산 후 부동소수점 오차를 조정합니다.
-
-        총합이 원본과 일치하도록 reduced 또는 splitted를 조정합니다.
-        - 부족분: reduced에 추가
-        - 초과분: splitted에서 제거
-
-        Args:
-            reduced_amount: 남은 금액
-            splitted_amount: 분할된 금액
-
-        Returns:
-            조정된 (reduced_amount, splitted_amount) 튜플
-        """
+        """분할 후 부동소수점 오차 조정."""
         total = reduced_amount + splitted_amount
         if total < self._amount:
             # 부족분을 reduced에 추가
@@ -240,10 +154,7 @@ class Token:
 
     # 산술 연산자
     def __add__(self, other: Token) -> Token:
-        """
-        같은 symbol의 Token끼리 덧셈을 수행합니다.
-        결과의 decimal은 두 Token 중 더 높은 정밀도를 따릅니다.
-        """
+        """같은 symbol의 Token끼리 덧셈."""
         self._check_symbol_match(other, "add")
         max_decimal = max(self._decimal, other._decimal)
         return Token(
@@ -253,10 +164,7 @@ class Token:
         )
 
     def __sub__(self, other: Token) -> Token:
-        """
-        같은 symbol의 Token끼리 뺄셈을 수행합니다.
-        결과의 decimal은 두 Token 중 더 높은 정밀도를 따릅니다.
-        """
+        """같은 symbol의 Token끼리 뺄셈."""
         self._check_symbol_match(other, "subtract")
         max_decimal = max(self._decimal, other._decimal)
         return Token(
@@ -266,10 +174,7 @@ class Token:
         )
 
     def __mul__(self, scalar: Union[int, float]) -> Token:
-        """
-        Token에 스칼라를 곱합니다.
-        결과의 decimal은 원본 Token의 값을 유지합니다.
-        """
+        """Token에 스칼라 곱셈."""
         if not isinstance(scalar, (int, float)):
             raise TypeError(f"Cannot multiply Token by {type(scalar).__name__}")
         return Token(
