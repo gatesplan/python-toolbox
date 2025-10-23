@@ -60,3 +60,6 @@ Thumbs.db
 
 # Project specific
 *.log
+
+# Legacy code
+legacy/
