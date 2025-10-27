@@ -49,41 +49,43 @@
 - 각각의 모듈 폴더에 기술문서 `for-agent-moduleinfo.md`를 작성한다. `__init__.py` 파일과 함께 작성하며, 
 해당 디렉토리에 있는 각 모듈에 대한 기능의 간단한 목적과 정보를 설명한다.
 - 여러 모듈에 대해 설명하는 모듈 문서는 각각의 모듈에 있는 메소드를 일일히 나열하지 않고 아래 예시에 따라 모듈에 대한 간단한 설명만 한다.
-```
+```markdown
+    # modulename
+    모듈의 목적과 책임범위에 대한 간단한 설명
+    
+    `property: type = default` 간단한 설명
+    `property: type = default` 간단한 설명
+    `method(args: type, args: type = default) -> return_type`
+    - raise ExceptionOrError
+    메서드의 간단한 설명
+    
+
     # modulename
     모듈의 목적과 책임범위에 대한 간단한 설명
 
-    property: type = default    # 간단한 설명
-    property: type = default    # 간단한 설명
-    method(args: type, args: type = default) -> return_type
-        raise ExceptionOrError
-        메서드의 간단한 설명
-
-    # modulename
-    모듈의 목적과 책임범위에 대한 간단한 설명
-
-    property: type = default    # 간단한 설명
-    property: type = default    # 간단한 설명
-    method(args: type, args: type = default) -> return_type
-        raise ExceptionOrError
-        메서드의 간단한 설명
+    `property: type = default` 간단한 설명
+    `property: type = default` 간단한 설명
+    `method(args: type, args: type = default) -> return_type`
+    - raise ExceptionOrError
+    메서드의 간단한 설명
 
     ...
 ```
 - 하나의 모듈에 대하여 설명하는 모듈 문서는 메서드를 다음 예시와 같이 설명한다.
-```
+```markdown
     # modulename
     모듈의 목적과 책임범위에 대한 간단한 설명
 
-    property: type = default    # 간단한 설명
-    property: type = default    # 간단한 설명
+    `property: type = default` 간단한 설명
+    `property: type = default` 간단한 설명
 
-    method(args: type, args: type = default) -> return_type
-        raise ExceptionOrError
-        메서드의 간단한 설명
+    `method(args: type, args: type = default) -> return_type`
+    - raise ExceptionOrError
+    메서드의 간단한 설명
 
-    method usecase
-
+    ```
+    method usecase sample
+    ```
     ...
 ```
 

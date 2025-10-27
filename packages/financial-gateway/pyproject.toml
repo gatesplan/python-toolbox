@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "financial-gateway"
+version = "0.0.1"
+description = "거래소 및 시뮬레이션과의 통합 인터페이스 게이트웨이"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [
+    {name = "생선공장", email = "gatesplan@gmail.com"}
+]
+license = {text = "MIT"}
+dependencies = [
+    "financial-assets",
+    "binance-connector>=3.12.0",
+    "python-upbit-api>=1.9.1",
+]
+
+[project.urls]
+Homepage = "https://github.com/gatesplan/python-toolbox"
+Repository = "https://github.com/gatesplan/python-toolbox"

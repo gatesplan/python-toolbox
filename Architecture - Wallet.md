@@ -4,39 +4,62 @@
 
 통합 자산 관리 시스템. 현물(Spot), 선물(Futures), 채권(Bond) 등 다양한 자산 유형을 통합 관리하며, 각 티커별 포지션을 단일 책임으로 분리하여 정교한 자산 추적과 손익 계산을 지원한다.
 
+## 설계 철학
+
+### Account의 독립성
+- 각 Account는 독립적으로 운용되며, 다른 Account의 존재를 알 필요 없음
+- 거래소별/전략별 인스턴스 구분: `upbit_spot`, `binance_spot`, `binance_futures`
+- 운용 손익은 각 Account 내부에서 격리되어 관리
+
+### Capital의 역할
+- **집합체(Aggregator)**: Account들의 컨테이너, 통합 조회 제공
+- **NOT 관여**: 각 Account의 세부 운용 의사결정에 간섭하지 않음
+- **권한**: 자본 재배치(harvest 등)는 Capital의 고유 권한
+
+### 거래 실행 분리
+- **Account**: 상태 관리만 담당 (잔액, Position 보유)
+- **TradingAgent**: 거래 전략 실행 및 조율 (외부 패키지)
+- **APIAdapter**: 거래소 API 연동 (별도 패키지 `trading-adapters`)
+
 ## 아키텍처 구조
 
 ```
-Capital (최상위 자산 관리)
+Capital (Account 집합체)
 ├─ MasterLedger (전체 거래 통합 기록)
-├─ SpotAccount (현물 계정)
-│   ├─ SpotPosition(BTC-USDT)
-│   ├─ SpotPosition(ETH-USDT)
-│   └─ SpotPosition(...)
-├─ FuturesAccount (선물 계정)
-│   ├─ FuturesPosition(BTCUSDT-PERP)
-│   └─ FuturesPosition(...)
-└─ BondAccount (채권 계정)
-    └─ ...
+├─ _accounts: dict[str, Account]
+│   ├─ "upbit_spot": SpotAccount
+│   │   ├─ SpotPosition(BTC-USDT)
+│   │   └─ SpotPosition(ETH-USDT)
+│   ├─ "binance_spot": SpotAccount
+│   │   └─ SpotPosition(...)
+│   └─ "binance_futures": FuturesAccount
+│       └─ FuturesPosition(BTCUSDT-PERP)
+
+[외부 시스템 - 별도 패키지]
+TradingAgent (거래 전략 실행)
+    ↓ 조율
+Account ← → APIAdapter (거래소 API)
 ```
 
 ## 계층별 책임
 
-### 1. Capital (최상위)
-- **책임**: 전체 자산 통합 관리 및 비율 기반 할당
+### 1. Capital (Account 집합체)
+- **책임**: Account 통합 조회, 전체 기록 관리
+- **본질**: Aggregator - 각 Account의 독립 운용을 방해하지 않음
 - **주요 속성**:
   ```python
-  _total_balance: dict[str, float]  # 총 보유 자금
-  _accounts: dict[str, Account]  # account_id → Account
-  _allocation_ratios: dict[str, float]  # account_id → 비율 (0.0~1.0)
+  _accounts: dict[str, Account]  # account_id → Account (upbit_spot, binance_futures 등)
   _master_ledger: MasterLedger
   ```
 - **주요 기능**:
   ```python
-  deposit(token: Token)  # 총 자금 입금
-  withdraw(token: Token)  # 총 자금 출금
-  harvest()  # 각 계정의 자산을 일정 비율로 정리하고 현금화 (목표 설정 엔트리포인트)
+  get_account(account_id: str) → Account  # Account 조회
+  get_total_balance() → dict[str, float]  # 전체 잔액 집계 (각 Account 조회 합산)
+  harvest()  # 자본 재배치 (구체적 로직은 보류)
   ```
+- **보류 사항**:
+  - 자금 분배/재분배 메커니즘
+  - harvest() 구체적 동작
 
 ### 2. MasterLedger (통합 장부)
 - **책임**: 총자산 출납 기록 및 전체 포트폴리오 상황 추적
@@ -64,18 +87,26 @@ Capital (최상위 자산 관리)
   to_dataframe()  # DataFrame 변환
   ```
 
-### 3. Account (자산 유형별 계정)
-- **책임**: 자산 유형별 관리 및 자금 중개
+### 3. Account (상태 관리)
+- **책임**: 잔액 관리, Position 보유, 거래 결과 기록
+- **본질**: 수동적 상태 저장소 - 거래 의사결정 하지 않음
 - **주요 속성**:
   ```python
-  _used: dict[str, float]  # 현재 사용 중인 금액
+  _balance: dict[str, float]  # 현재 보유 잔액 (symbol → amount)
   _positions: dict[str, Position]  # ticker → Position
-  _capital: Capital  # 상위 참조
   ```
-- **자산 유형별**:
-  - **SpotAccount**: 현물 보유, FIFO 정산
+- **주요 기능**:
+  ```python
+  get_balance(symbol: str) → float  # 잔액 조회
+  record_trade(trade: Trade)  # 거래 결과 기록 (외부에서 수신)
+  get_position(ticker: str) → Position  # Position 조회
+  ```
+- **자산 유형별 클래스**:
+  - **SpotAccount**: 현물 보유, PairStack 기반 FIFO 정산
   - **FuturesAccount**: 마진, 청산가, 펀딩비
   - **BondAccount**: 만기, 이자
+- **인스턴스 구분**: 문자열 키로 여러 인스턴스 생성 가능
+  - 예: `upbit_spot`, `binance_spot`, `binance_futures`
 
 ### 4. Position (티커별 포지션)
 - **책임**: 단일 티커의 거래/포지션 관리 (단일 책임 원칙)
@@ -99,37 +130,80 @@ Capital (최상위 자산 관리)
 
 ### 1. 계층 분리
 - Spot과 Futures는 본질이 다름
-- Account 계층에서 분리하여 관리
+- Account 타입 계층에서 분리하여 관리
 
 ### 2. 단일 책임
 - Position은 하나의 티커만 관리
-- 상위 계층에서 통합/분배
+- Account는 상태 관리만 담당
+- 거래 의사결정은 외부 TradingAgent
 
 ### 3. 확장성
-- 새로운 자산 유형 추가 시 Account만 추가
+- 새로운 자산 유형: Account 클래스 추가
+- 새로운 거래소: Account 인스턴스 추가
+- 새로운 전략: TradingAgent 구현
+
+## 외부 시스템 (별도 패키지)
+
+### TradingAgent (미구현)
+- **패키지**: 별도 독립
+- **책임**: 거래 전략 실행, Account/APIAdapter 조율
+- **역할**:
+  - Account 상태 조회
+  - 거래 의사결정
+  - APIAdapter를 통한 주문 실행
+  - 체결 결과를 Account에 반영
+
+### APIAdapter (미구현)
+- **패키지**: `trading-adapters` (별도)
+- **책임**: 거래소 API 연동
+- **구현체**:
+  - BinanceAdapter
+  - UpbitAdapter
+  - SimulatorAdapter (테스트용)
 
 ## 자금 관리
 
-### 비율 기반 사전 할당
-- Capital이 총 자금 보유
-- 각 Account에 비율(0.0~1.0)로 할당
-- 실제 할당 금액은 런타임에 계산: `총액 * 비율`
+### Account 독립 운용
+- 각 Account는 초기 할당받은 잔액을 직접 보유
+- 거래로 인한 손익은 Account 내부에서만 변동
+- 다른 Account에 영향 없음 (완전 격리)
 
-### 자금 흐름
+### 거래 흐름 (TradingAgent 조율)
 ```
-Position → Account 자금 요청
-  ↓
-Account 가용 자금 확인 (allocated - used)
-  ↓ 충분: 승인 / 부족: 거부
-  ↓
-Account 자금 인출 (used 증가)
-  ↓
-Capital에 보고
-  ↓
-MasterLedger 기록
+[매수]
+TradingAgent
+  ↓ 1. 잔액 확인
+Account.get_balance()
+  ↓ 2. 거래 실행
+APIAdapter.place_order()
+  ↓ 3. 체결 결과
+TradingAgent
+  ↓ 4. 상태 업데이트
+Account.record_trade()
+  ↓ 5. Pair 저장
+Position._pair_stack.append(pair)
+  ↓ 6. 기록
+Capital.MasterLedger.store()
+
+[매도]
+TradingAgent
+  ↓ 1. Position 조회
+Account.get_position()
+  ↓ 2. Pair 분할/제거
+Position._pair_stack.split()
+  ↓ 3. 거래 실행
+APIAdapter.place_order()
+  ↓ 4. 잔액 증가
+Account.record_trade()
+  ↓ 5. 기록
+Capital.MasterLedger.store()
 ```
 
 ### 제약사항
-- Account는 할당량 초과 불가
-- Position은 직접 자금 보유 안함 (Account 중개)
-- 모든 자금 이동은 MasterLedger에 기록
+- Position은 직접 자금 보유 안함 (Account 잔액 참조)
+- 모든 거래 기록은 MasterLedger에 저장
+- 거래 의사결정은 외부 TradingAgent 책임
+
+### 보류 사항
+- Capital ↔ Account 간 자금 재분배 메커니즘
+- harvest() 동작 방식
