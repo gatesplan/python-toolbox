@@ -10,6 +10,8 @@ Spot 거래와 Futures 거래는 본질적으로 다르기 때문에 분리되�
 
 거래 요청과 결과의 생명주기는 Request → Order → Response → Trade/Info 순서로 진행된다. Request는 사용자가 생성하는 거래 의도이며, Order는 거래소나 시뮬레이션이 생성하는 등록된 주문(order_id 포함)이다. Response는 dict 타입의 반응 정보로 response_type과 source 메타데이터를 포함하며, 내부에 Trade 객체나 Order 객체가 담긴다. Market 주문과 Limit 주문 모두 Response 구조를 통해 처리되며, 조회 동작도 Response로 통일된다. Request 타입은 SpotMarketRequest, SpotLimitRequest처럼 주문 유형별로 분리하여 더 안정적인 타입 안정성을 확보한다.
 
+**Order 객체 처리의 환경별 차이**: Order의 의미와 처리 방식은 Gateway 구현체의 환경에 따라 본질적으로 다르다. SimulationSpotGateway는 시뮬레이션 환경 내부에서 financial-assets/order 모듈의 Order 객체를 직접 생성하고 관리하며, 이 객체가 시뮬레이션의 상태로 존재한다. 반면 BinanceSpotGateway, UpbitSpotGateway 등 실제 거래소 API와 통신하는 Gateway는 financial-assets/order 객체를 직접 다루지 않는다. 거래소 서버가 주문을 관리하고 있으며, Gateway는 API를 통해 서버로부터 주문 상태를 조회하여 받아올 뿐이다. 따라서 Response에 Order 정보가 담긴다는 것은, 시뮬레이션에서는 실제 Order 객체의 참조를, 거래소 API에서는 서버 응답을 파싱한 주문 상태 정보를 의미한다. 이 차이는 Gateway 내부 구현에만 영향을 주며, 사용자 입장에서는 동일한 Request/Response 인터페이스로 추상화되어 보인다.
+
 ## 컴포넌트 구조
 
 ```mermaid
