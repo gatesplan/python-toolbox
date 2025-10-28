@@ -24,6 +24,47 @@ Response는 financial-assets 패키지에 정의되며, 특정 Gateway 구현에
 
 모든 Response는 응답 생성 시점, 소스(거래소 식별자), 응답 처리에 필요한 메타데이터를 포함한다. 이를 통해 응답 추적, 디버깅, 로깅, 감사 등을 지원한다.
 
+## 공통 구조
+
+### BaseResponse
+
+모든 Response 클래스가 상속받는 기본 클래스다.
+
+**책임:**
+- 원본 요청 추적
+- 응답 생성 시점 및 Gateway 기록
+- 모든 응답에 공통된 상태 플래그 제공
+
+```mermaid
+classDiagram
+    class BaseResponse {
+        +source_request_id: str
+        +timestamp: int
+        +gateway: str
+        +is_success: bool = False
+        +is_permission_denied: bool = False
+        +is_network_error: bool = False
+        +is_rate_limit_exceeded: bool = False
+        +is_system_error: bool = False
+    }
+```
+
+**Properties:**
+
+**요청 추적:**
+- `source_request_id: str` - 원본 Request의 client_request_id
+
+**메타데이터:**
+- `timestamp: int` - 응답 생성 시각 (unix timestamp 초단위)
+- `gateway: str` - Gateway 식별자 (예: "binance", "upbit", "simulation")
+
+**공통 상태 플래그:**
+- `is_success: bool = False` - 작업 성공 여부
+- `is_permission_denied: bool = False` - API 권한 부족, IP 차단, 지역 제한 등
+- `is_network_error: bool = False` - 네트워크 오류
+- `is_rate_limit_exceeded: bool = False` - API 호출 제한 초과
+- `is_system_error: bool = False` - 거래소 내부 시스템 오류
+
 ## Response 명세
 
 ### OpenLimitOrderResponse
@@ -33,7 +74,6 @@ Response는 financial-assets 패키지에 정의되며, 특정 Gateway 구현에
 ```mermaid
 classDiagram
     class OpenLimitOrderResponse {
-        +is_success: bool = False
         +is_insufficient_balance: bool = False
         +is_min_notional_error: bool = False
         +is_max_notional_error: bool = False
@@ -41,21 +81,15 @@ classDiagram
         +is_quantity_step_size_error: bool = False
         +is_market_suspended: bool = False
         +is_invalid_market: bool = False
-        +is_permission_denied: bool = False
-        +is_network_error: bool = False
-        +is_rate_limit_exceeded: bool = False
         +is_post_only_rejected: bool = False
-        +is_system_error: bool = False
-        +timestamp: int
-        +source: str
-        +error_message: str
+        +order: Order
+        +immediate_fills: list[Trade]
     }
 ```
 
 **Properties:**
 
-**상태 플래그:**
-- `is_success: bool = False` - 주문 생성 성공 여부
+**고유 상태 플래그:**
 - `is_insufficient_balance: bool = False` - 잔고 부족 오류
 - `is_min_notional_error: bool = False` - 최소 주문 금액/수량 미달
 - `is_max_notional_error: bool = False` - 최대 주문 금액/수량 초과
@@ -63,18 +97,20 @@ classDiagram
 - `is_quantity_step_size_error: bool = False` - 수량 단위 위반
 - `is_market_suspended: bool = False` - 마켓 거래 정지 중
 - `is_invalid_market: bool = False` - 존재하지 않는 마켓
-- `is_permission_denied: bool = False` - API 권한 부족
-- `is_network_error: bool = False` - 네트워크 오류
-- `is_rate_limit_exceeded: bool = False` - API 호출 제한 초과
 - `is_post_only_rejected: bool = False` - post_only 옵션 위반으로 주문 거부
-- `is_system_error: bool = False` - 거래소 내부 시스템 오류
 
-**메타데이터:**
-- `timestamp: int` - 응답 생성 시각 (unix timestamp 초단위)
-- `source: str` - Gateway 식별자 (예: "binance", "upbit", "simulation")
-- `error_message: str` - 오류 메시지 (실패 시)
+**결과 데이터:**
 
-**결과 데이터:** (나중에 작성)
+성공 시 (`is_success=True`):
+- `order: Order` - 생성된 주문 객체 (order_id, status, filled_quantity 등 포함)
+- `immediate_fills: list[Trade]` - 주문 생성과 동시에 체결된 내역 (없으면 빈 리스트)
+
+**동작:**
+- 주문이 즉시 체결되면 `order.status`는 `FILLED` 또는 `PARTIALLY_FILLED`
+- Gateway는 거래소 특성에 따라 체결 내역 제공:
+  - Binance: 응답의 `fills` 배열 사용
+  - Upbit 등: 추가 조회 API 호출하여 체결 내역 획득
+- 사용자는 `order.status`로 즉시 체결 여부를 판단하고, 상세 내역은 `immediate_fills`에서 확인
 
 ### CloseLimitOrderResponse
 
@@ -83,36 +119,18 @@ classDiagram
 ```mermaid
 classDiagram
     class CloseLimitOrderResponse {
-        +is_success: bool = False
         +is_order_not_found: bool = False
         +is_already_filled: bool = False
         +is_already_cancelled: bool = False
-        +is_permission_denied: bool = False
-        +is_network_error: bool = False
-        +is_rate_limit_exceeded: bool = False
-        +is_system_error: bool = False
-        +timestamp: int
-        +source: str
-        +error_message: str
     }
 ```
 
 **Properties:**
 
-**상태 플래그:**
-- `is_success: bool = False` - 주문 취소 성공 여부
+**고유 상태 플래그:**
 - `is_order_not_found: bool = False` - 주문 ID가 존재하지 않음
 - `is_already_filled: bool = False` - 이미 전체 체결된 주문
 - `is_already_cancelled: bool = False` - 이미 취소된 주문
-- `is_permission_denied: bool = False` - API 권한 부족
-- `is_network_error: bool = False` - 네트워크 오류
-- `is_rate_limit_exceeded: bool = False` - API 호출 제한 초과
-- `is_system_error: bool = False` - 거래소 내부 시스템 오류
-
-**메타데이터:**
-- `timestamp: int` - 응답 생성 시각 (unix timestamp 초단위)
-- `source: str` - Gateway 식별자
-- `error_message: str` - 오류 메시지 (실패 시)
 
 **결과 데이터:** (나중에 작성)
 
@@ -123,44 +141,26 @@ classDiagram
 ```mermaid
 classDiagram
     class MarketOrderResponse {
-        +is_success: bool = False
         +is_insufficient_balance: bool = False
         +is_min_notional_error: bool = False
         +is_max_notional_error: bool = False
         +is_quantity_step_size_error: bool = False
         +is_market_suspended: bool = False
         +is_invalid_market: bool = False
-        +is_permission_denied: bool = False
-        +is_network_error: bool = False
-        +is_rate_limit_exceeded: bool = False
         +is_no_liquidity: bool = False
-        +is_system_error: bool = False
-        +timestamp: int
-        +source: str
-        +error_message: str
     }
 ```
 
 **Properties:**
 
-**상태 플래그:**
-- `is_success: bool = False` - 주문 생성 성공 여부
+**고유 상태 플래그:**
 - `is_insufficient_balance: bool = False` - 잔고 부족 오류
 - `is_min_notional_error: bool = False` - 최소 주문 금액/수량 미달
 - `is_max_notional_error: bool = False` - 최대 주문 금액/수량 초과
 - `is_quantity_step_size_error: bool = False` - 수량 단위 위반
 - `is_market_suspended: bool = False` - 마켓 거래 정지 중
 - `is_invalid_market: bool = False` - 존재하지 않는 마켓
-- `is_permission_denied: bool = False` - API 권한 부족
-- `is_network_error: bool = False` - 네트워크 오류
-- `is_rate_limit_exceeded: bool = False` - API 호출 제한 초과
 - `is_no_liquidity: bool = False` - 유동성 부족 (시장가 특유)
-- `is_system_error: bool = False` - 거래소 내부 시스템 오류
-
-**메타데이터:**
-- `timestamp: int` - 응답 생성 시각 (unix timestamp 초단위)
-- `source: str` - Gateway 식별자
-- `error_message: str` - 오류 메시지 (실패 시)
 
 **결과 데이터:** (나중에 작성)
 
@@ -171,7 +171,6 @@ classDiagram
 ```mermaid
 classDiagram
     class ModifyOrderResponse {
-        +is_success: bool = False
         +is_order_not_found: bool = False
         +is_already_filled: bool = False
         +is_already_cancelled: bool = False
@@ -179,20 +178,12 @@ classDiagram
         +is_price_tick_size_error: bool = False
         +is_quantity_step_size_error: bool = False
         +is_min_notional_error: bool = False
-        +is_permission_denied: bool = False
-        +is_network_error: bool = False
-        +is_rate_limit_exceeded: bool = False
-        +is_system_error: bool = False
-        +timestamp: int
-        +source: str
-        +error_message: str
     }
 ```
 
 **Properties:**
 
-**상태 플래그:**
-- `is_success: bool = False` - 주문 수정 성공 여부
+**고유 상태 플래그:**
 - `is_order_not_found: bool = False` - 주문 ID가 존재하지 않음
 - `is_already_filled: bool = False` - 이미 전체 체결된 주문
 - `is_already_cancelled: bool = False` - 이미 취소된 주문
@@ -200,15 +191,6 @@ classDiagram
 - `is_price_tick_size_error: bool = False` - 가격 틱 사이즈 위반
 - `is_quantity_step_size_error: bool = False` - 수량 단위 위반
 - `is_min_notional_error: bool = False` - 최소 주문 금액/수량 미달
-- `is_permission_denied: bool = False` - API 권한 부족
-- `is_network_error: bool = False` - 네트워크 오류
-- `is_rate_limit_exceeded: bool = False` - API 호출 제한 초과
-- `is_system_error: bool = False` - 거래소 내부 시스템 오류
-
-**메타데이터:**
-- `timestamp: int` - 응답 생성 시각 (unix timestamp 초단위)
-- `source: str` - Gateway 식별자
-- `error_message: str` - 오류 메시지 (실패 시)
 
 **결과 데이터:** (나중에 작성)
 
@@ -219,32 +201,14 @@ classDiagram
 ```mermaid
 classDiagram
     class OrderCurrentStateResponse {
-        +is_success: bool = False
         +is_order_not_found: bool = False
-        +is_permission_denied: bool = False
-        +is_network_error: bool = False
-        +is_rate_limit_exceeded: bool = False
-        +is_system_error: bool = False
-        +timestamp: int
-        +source: str
-        +error_message: str
     }
 ```
 
 **Properties:**
 
-**상태 플래그:**
-- `is_success: bool = False` - 조회 성공 여부
+**고유 상태 플래그:**
 - `is_order_not_found: bool = False` - 주문 ID가 존재하지 않음
-- `is_permission_denied: bool = False` - API 권한 부족
-- `is_network_error: bool = False` - 네트워크 오류
-- `is_rate_limit_exceeded: bool = False` - API 호출 제한 초과
-- `is_system_error: bool = False` - 거래소 내부 시스템 오류
-
-**메타데이터:**
-- `timestamp: int` - 응답 생성 시각 (unix timestamp 초단위)
-- `source: str` - Gateway 식별자
-- `error_message: str` - 오류 메시지 (실패 시)
 
 **결과 데이터:** (나중에 작성)
 
@@ -255,30 +219,12 @@ classDiagram
 ```mermaid
 classDiagram
     class OrderListResponse {
-        +is_success: bool = False
-        +is_permission_denied: bool = False
-        +is_network_error: bool = False
-        +is_rate_limit_exceeded: bool = False
-        +is_system_error: bool = False
-        +timestamp: int
-        +source: str
-        +error_message: str
     }
 ```
 
 **Properties:**
 
-**상태 플래그:**
-- `is_success: bool = False` - 조회 성공 여부
-- `is_permission_denied: bool = False` - API 권한 부족
-- `is_network_error: bool = False` - 네트워크 오류
-- `is_rate_limit_exceeded: bool = False` - API 호출 제한 초과
-- `is_system_error: bool = False` - 거래소 내부 시스템 오류
-
-**메타데이터:**
-- `timestamp: int` - 응답 생성 시각 (unix timestamp 초단위)
-- `source: str` - Gateway 식별자
-- `error_message: str` - 오류 메시지 (실패 시)
+고유 상태 플래그 없음 (BaseResponse의 공통 플래그만 사용)
 
 **결과 데이터:** (나중에 작성)
 
@@ -289,32 +235,14 @@ classDiagram
 ```mermaid
 classDiagram
     class TradeInfoResponse {
-        +is_success: bool = False
         +is_order_not_found: bool = False
-        +is_permission_denied: bool = False
-        +is_network_error: bool = False
-        +is_rate_limit_exceeded: bool = False
-        +is_system_error: bool = False
-        +timestamp: int
-        +source: str
-        +error_message: str
     }
 ```
 
 **Properties:**
 
-**상태 플래그:**
-- `is_success: bool = False` - 조회 성공 여부
+**고유 상태 플래그:**
 - `is_order_not_found: bool = False` - 주문 ID가 존재하지 않음
-- `is_permission_denied: bool = False` - API 권한 부족
-- `is_network_error: bool = False` - 네트워크 오류
-- `is_rate_limit_exceeded: bool = False` - API 호출 제한 초과
-- `is_system_error: bool = False` - 거래소 내부 시스템 오류
-
-**메타데이터:**
-- `timestamp: int` - 응답 생성 시각 (unix timestamp 초단위)
-- `source: str` - Gateway 식별자
-- `error_message: str` - 오류 메시지 (실패 시)
 
 **결과 데이터:** (나중에 작성)
 
@@ -325,30 +253,12 @@ classDiagram
 ```mermaid
 classDiagram
     class RecentTradesResponse {
-        +is_success: bool = False
-        +is_permission_denied: bool = False
-        +is_network_error: bool = False
-        +is_rate_limit_exceeded: bool = False
-        +is_system_error: bool = False
-        +timestamp: int
-        +source: str
-        +error_message: str
     }
 ```
 
 **Properties:**
 
-**상태 플래그:**
-- `is_success: bool = False` - 조회 성공 여부
-- `is_permission_denied: bool = False` - API 권한 부족
-- `is_network_error: bool = False` - 네트워크 오류
-- `is_rate_limit_exceeded: bool = False` - API 호출 제한 초과
-- `is_system_error: bool = False` - 거래소 내부 시스템 오류
-
-**메타데이터:**
-- `timestamp: int` - 응답 생성 시각 (unix timestamp 초단위)
-- `source: str` - Gateway 식별자
-- `error_message: str` - 오류 메시지 (실패 시)
+고유 상태 플래그 없음 (BaseResponse의 공통 플래그만 사용)
 
 **결과 데이터:** (나중에 작성)
 
@@ -359,30 +269,12 @@ classDiagram
 ```mermaid
 classDiagram
     class CurrentBalanceResponse {
-        +is_success: bool = False
-        +is_permission_denied: bool = False
-        +is_network_error: bool = False
-        +is_rate_limit_exceeded: bool = False
-        +is_system_error: bool = False
-        +timestamp: int
-        +source: str
-        +error_message: str
     }
 ```
 
 **Properties:**
 
-**상태 플래그:**
-- `is_success: bool = False` - 조회 성공 여부
-- `is_permission_denied: bool = False` - API 권한 부족
-- `is_network_error: bool = False` - 네트워크 오류
-- `is_rate_limit_exceeded: bool = False` - API 호출 제한 초과
-- `is_system_error: bool = False` - 거래소 내부 시스템 오류
-
-**메타데이터:**
-- `timestamp: int` - 응답 생성 시각 (unix timestamp 초단위)
-- `source: str` - Gateway 식별자
-- `error_message: str` - 오류 메시지 (실패 시)
+고유 상태 플래그 없음 (BaseResponse의 공통 플래그만 사용)
 
 **결과 데이터:** (나중에 작성)
 
@@ -393,36 +285,20 @@ classDiagram
 ```mermaid
 classDiagram
     class PriceDataResponse {
-        +is_success: bool = False
         +is_invalid_market: bool = False
         +is_invalid_interval: bool = False
         +is_invalid_time_range: bool = False
         +is_data_not_available: bool = False
-        +is_network_error: bool = False
-        +is_rate_limit_exceeded: bool = False
-        +is_system_error: bool = False
-        +timestamp: int
-        +source: str
-        +error_message: str
     }
 ```
 
 **Properties:**
 
-**상태 플래그:**
-- `is_success: bool = False` - 조회 성공 여부
+**고유 상태 플래그:**
 - `is_invalid_market: bool = False` - 존재하지 않는 마켓
 - `is_invalid_interval: bool = False` - 잘못된 캔들 간격 (예: 지원하지 않는 interval)
 - `is_invalid_time_range: bool = False` - 잘못된 시간 범위 (start > end, 미래 시각 등)
 - `is_data_not_available: bool = False` - 요청한 기간의 데이터 없음
-- `is_network_error: bool = False` - 네트워크 오류
-- `is_rate_limit_exceeded: bool = False` - API 호출 제한 초과
-- `is_system_error: bool = False` - 거래소 내부 시스템 오류
-
-**메타데이터:**
-- `timestamp: int` - 응답 생성 시각 (unix timestamp 초단위)
-- `source: str` - Gateway 식별자
-- `error_message: str` - 오류 메시지 (실패 시)
 
 **결과 데이터:** (나중에 작성)
 
@@ -433,32 +309,16 @@ classDiagram
 ```mermaid
 classDiagram
     class OrderbookResponse {
-        +is_success: bool = False
         +is_invalid_market: bool = False
         +is_market_suspended: bool = False
-        +is_network_error: bool = False
-        +is_rate_limit_exceeded: bool = False
-        +is_system_error: bool = False
-        +timestamp: int
-        +source: str
-        +error_message: str
     }
 ```
 
 **Properties:**
 
-**상태 플래그:**
-- `is_success: bool = False` - 조회 성공 여부
+**고유 상태 플래그:**
 - `is_invalid_market: bool = False` - 존재하지 않는 마켓
 - `is_market_suspended: bool = False` - 마켓 거래 정지 중
-- `is_network_error: bool = False` - 네트워크 오류
-- `is_rate_limit_exceeded: bool = False` - API 호출 제한 초과
-- `is_system_error: bool = False` - 거래소 내부 시스템 오류
-
-**메타데이터:**
-- `timestamp: int` - 응답 생성 시각 (unix timestamp 초단위)
-- `source: str` - Gateway 식별자
-- `error_message: str` - 오류 메시지 (실패 시)
 
 **결과 데이터:** (나중에 작성)
 
@@ -469,30 +329,14 @@ classDiagram
 ```mermaid
 classDiagram
     class TickerResponse {
-        +is_success: bool = False
         +is_invalid_market: bool = False
-        +is_network_error: bool = False
-        +is_rate_limit_exceeded: bool = False
-        +is_system_error: bool = False
-        +timestamp: int
-        +source: str
-        +error_message: str
     }
 ```
 
 **Properties:**
 
-**상태 플래그:**
-- `is_success: bool = False` - 조회 성공 여부
+**고유 상태 플래그:**
 - `is_invalid_market: bool = False` - 존재하지 않는 마켓
-- `is_network_error: bool = False` - 네트워크 오류
-- `is_rate_limit_exceeded: bool = False` - API 호출 제한 초과
-- `is_system_error: bool = False` - 거래소 내부 시스템 오류
-
-**메타데이터:**
-- `timestamp: int` - 응답 생성 시각 (unix timestamp 초단위)
-- `source: str` - Gateway 식별자
-- `error_message: str` - 오류 메시지 (실패 시)
 
 **결과 데이터:** (나중에 작성)
 
@@ -503,28 +347,12 @@ classDiagram
 ```mermaid
 classDiagram
     class AvailableMarketsResponse {
-        +is_success: bool = False
-        +is_network_error: bool = False
-        +is_rate_limit_exceeded: bool = False
-        +is_system_error: bool = False
-        +timestamp: int
-        +source: str
-        +error_message: str
     }
 ```
 
 **Properties:**
 
-**상태 플래그:**
-- `is_success: bool = False` - 조회 성공 여부
-- `is_network_error: bool = False` - 네트워크 오류
-- `is_rate_limit_exceeded: bool = False` - API 호출 제한 초과
-- `is_system_error: bool = False` - 거래소 내부 시스템 오류
-
-**메타데이터:**
-- `timestamp: int` - 응답 생성 시각 (unix timestamp 초단위)
-- `source: str` - Gateway 식별자
-- `error_message: str` - 오류 메시지 (실패 시)
+고유 상태 플래그 없음 (BaseResponse의 공통 플래그만 사용)
 
 **결과 데이터:** (나중에 작성)
 
@@ -535,30 +363,12 @@ classDiagram
 ```mermaid
 classDiagram
     class FeeInfoResponse {
-        +is_success: bool = False
-        +is_permission_denied: bool = False
-        +is_network_error: bool = False
-        +is_rate_limit_exceeded: bool = False
-        +is_system_error: bool = False
-        +timestamp: int
-        +source: str
-        +error_message: str
     }
 ```
 
 **Properties:**
 
-**상태 플래그:**
-- `is_success: bool = False` - 조회 성공 여부
-- `is_permission_denied: bool = False` - API 권한 부족
-- `is_network_error: bool = False` - 네트워크 오류
-- `is_rate_limit_exceeded: bool = False` - API 호출 제한 초과
-- `is_system_error: bool = False` - 거래소 내부 시스템 오류
-
-**메타데이터:**
-- `timestamp: int` - 응답 생성 시각 (unix timestamp 초단위)
-- `source: str` - Gateway 식별자
-- `error_message: str` - 오류 메시지 (실패 시)
+고유 상태 플래그 없음 (BaseResponse의 공통 플래그만 사용)
 
 **결과 데이터:** (나중에 작성)
 
@@ -569,26 +379,12 @@ classDiagram
 ```mermaid
 classDiagram
     class ServerStatusResponse {
-        +is_success: bool = False
-        +is_network_error: bool = False
-        +is_system_error: bool = False
-        +timestamp: int
-        +source: str
-        +error_message: str
     }
 ```
 
 **Properties:**
 
-**상태 플래그:**
-- `is_success: bool = False` - 조회 성공 여부
-- `is_network_error: bool = False` - 네트워크 오류
-- `is_system_error: bool = False` - 거래소 내부 시스템 오류
-
-**메타데이터:**
-- `timestamp: int` - 응답 생성 시각 (unix timestamp 초단위)
-- `source: str` - Gateway 식별자
-- `error_message: str` - 오류 메시지 (실패 시)
+고유 상태 플래그 없음 (BaseResponse의 공통 플래그만 사용)
 
 **결과 데이터:** (나중에 작성)
 
