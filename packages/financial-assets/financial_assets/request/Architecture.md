@@ -298,10 +298,13 @@ classDiagram
 ```mermaid
 classDiagram
     class TickerRequest {
+        +address: Optional[StockAddress] = None
     }
 ```
 
 **Properties:**
+
+- `address: Optional[StockAddress] = None` - 조회할 자산의 주소 (None이면 전체 또는 주요 자산 ticker 조회)
 
 ### AvailableMarketsRequest
 
