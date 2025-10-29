@@ -8,6 +8,5 @@ either trading simulations or real trading API responses.
 """
 
 from .spot_trade import SpotTrade
-from .spot_side import SpotSide
 
-__all__ = ["SpotTrade", "SpotSide"]
+__all__ = ["SpotTrade"]

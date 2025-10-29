@@ -111,6 +111,11 @@ classDiagram
   - Binance: 응답의 `fills` 배열 사용
   - Upbit 등: 추가 조회 API 호출하여 체결 내역 획득
 - 사용자는 `order.status`로 즉시 체결 여부를 판단하고, 상세 내역은 `immediate_fills`에서 확인
+- TIF(Time In Force) 옵션은 `order.time_in_force`로 확인:
+  - `None`: Gateway가 거래소/주문타입별 기본값 적용
+  - `GTC`: 취소할 때까지 유효
+  - `IOC`: 즉시 체결 가능한 부분만 체결, 나머지 취소
+  - `FOK`: 전량 즉시 체결 또는 전체 거부
 
 ### CloseLimitOrderResponse
 
@@ -122,6 +127,7 @@ classDiagram
         +is_order_not_found: bool = False
         +is_already_filled: bool = False
         +is_already_cancelled: bool = False
+        +cancelled_order: Order
     }
 ```
 
@@ -132,7 +138,10 @@ classDiagram
 - `is_already_filled: bool = False` - 이미 전체 체결된 주문
 - `is_already_cancelled: bool = False` - 이미 취소된 주문
 
-**결과 데이터:** (나중에 작성)
+**결과 데이터:**
+
+성공 시 (`is_success=True`):
+- `cancelled_order: Order` - 취소된 주문의 최종 상태 (부분 체결 정보 포함)
 
 ### MarketOrderResponse
 
@@ -148,6 +157,10 @@ classDiagram
         +is_market_suspended: bool = False
         +is_invalid_market: bool = False
         +is_no_liquidity: bool = False
+        +is_ioc_partially_cancelled: bool = False
+        +is_fok_rejected: bool = False
+        +order: Order
+        +trades: list[Trade]
     }
 ```
 
@@ -161,8 +174,24 @@ classDiagram
 - `is_market_suspended: bool = False` - 마켓 거래 정지 중
 - `is_invalid_market: bool = False` - 존재하지 않는 마켓
 - `is_no_liquidity: bool = False` - 유동성 부족 (시장가 특유)
+- `is_ioc_partially_cancelled: bool = False` - IOC 설정으로 미체결 부분 취소됨
+- `is_fok_rejected: bool = False` - FOK 설정으로 전량 체결 실패하여 전체 거부됨
 
-**결과 데이터:** (나중에 작성)
+**결과 데이터:**
+
+성공 시 (`is_success=True`):
+- `order: Order` - 생성된 시장가 주문 객체 (최종 상태 포함)
+- `trades: list[Trade]` - 체결 내역 목록
+
+**동작:**
+- 시장가 주문은 즉시 체결 시도
+- TIF(Time In Force) 옵션별 동작:
+  - `None` 또는 `IOC`: 즉시 체결 가능한 부분만 체결, 미체결 부분 취소
+  - `FOK`: 전량 즉시 체결되지 않으면 전체 거부 → `is_fok_rejected=True`, `is_success=False`
+- IOC로 부분 체결 후 나머지 취소: `is_ioc_partially_cancelled=True`
+- 체결 내역은 `trades`에서 확인
+- TIF 설정은 `order.time_in_force`로 확인
+- Gateway는 거래소별 기본값 적용 (시장가는 보통 IOC가 기본)
 
 ### ModifyOrderResponse
 

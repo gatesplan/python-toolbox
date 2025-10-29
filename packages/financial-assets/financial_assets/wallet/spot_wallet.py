@@ -4,7 +4,8 @@ from __future__ import annotations
 from typing import Optional
 from ..token import Token
 from ..pair import Pair, PairStack
-from ..trade import SpotTrade, SpotSide
+from ..trade import SpotTrade
+from ..constants import Side
 from ..ledger import SpotLedger
 from simple_logger import init_logging, logger
 
@@ -77,9 +78,9 @@ class SpotWallet:
         ticker = trade.pair.ticker
         logger.info(f"거래 처리 시작: ticker={ticker}, side={trade.side.value}, trade_id={trade.trade_id}")
 
-        if trade.side == SpotSide.BUY:
+        if trade.side == Side.BUY:
             self._process_buy_trade(trade)
-        else:  # SpotSide.SELL
+        else:  # Side.SELL
             self._process_sell_trade(trade)
 
         logger.info(f"거래 처리 완료: ticker={ticker}, side={trade.side.value}")

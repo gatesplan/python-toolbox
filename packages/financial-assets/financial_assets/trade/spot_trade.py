@@ -7,7 +7,7 @@ Spot trading involves immediate exchange of assets (buy/sell).
 from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional
-from .spot_side import SpotSide
+from ..constants import Side
 from ..pair import Pair
 from ..stock_address import StockAddress
 from ..token import Token
@@ -22,7 +22,7 @@ class SpotTrade:
     stock_address: StockAddress
     trade_id: str
     fill_id: str
-    side: SpotSide
+    side: Side
     pair: Pair
     timestamp: int
     fee: Optional[Token] = None
