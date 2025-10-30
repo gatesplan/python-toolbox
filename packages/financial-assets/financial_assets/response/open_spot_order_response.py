@@ -20,12 +20,12 @@ class OpenSpotOrderResponse(BaseResponse):
     is_insufficient_balance: bool = False
     is_min_notional_error: bool = False
     is_max_notional_error: bool = False
-    is_quantity_step_size_error: bool = False
+    is_volume_unit_error: bool = False
     is_market_suspended: bool = False
     is_invalid_market: bool = False
 
     # === 지정가 주문 관련 ===
-    is_price_tick_size_error: bool = False
+    is_price_unit_error: bool = False
     is_post_only_rejected: bool = False
 
     # === 시장가 주문 관련 ===

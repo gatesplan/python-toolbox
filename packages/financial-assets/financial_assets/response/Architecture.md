@@ -77,10 +77,10 @@ classDiagram
         +is_insufficient_balance: bool = False
         +is_min_notional_error: bool = False
         +is_max_notional_error: bool = False
-        +is_quantity_step_size_error: bool = False
+        +is_volume_unit_error: bool = False
         +is_market_suspended: bool = False
         +is_invalid_market: bool = False
-        +is_price_tick_size_error: bool = False
+        +is_price_unit_error: bool = False
         +is_post_only_rejected: bool = False
         +is_no_liquidity: bool = False
         +is_ioc_partially_cancelled: bool = False
@@ -98,12 +98,12 @@ classDiagram
 - `is_insufficient_balance: bool = False` - 잔고 부족 오류
 - `is_min_notional_error: bool = False` - 최소 주문 금액/수량 미달
 - `is_max_notional_error: bool = False` - 최대 주문 금액/수량 초과
-- `is_quantity_step_size_error: bool = False` - 수량 단위 위반
+- `is_volume_unit_error: bool = False` - 수량 최소 단위 위반
 - `is_market_suspended: bool = False` - 마켓 거래 정지 중
 - `is_invalid_market: bool = False` - 존재하지 않는 마켓
 
 **지정가 주문 관련 플래그:**
-- `is_price_tick_size_error: bool = False` - 가격 틱 사이즈 위반 (Limit, StopLimit만)
+- `is_price_unit_error: bool = False` - 가격 최소 단위 위반 (Limit, StopLimit만)
 - `is_post_only_rejected: bool = False` - post_only 옵션 위반으로 주문 거부 (Limit, StopLimit만)
 
 **시장가 주문 관련 플래그:**
@@ -195,28 +195,26 @@ classDiagram
 ```mermaid
 classDiagram
     class ModifyOrderResponse {
-        +is_order_not_found: bool = False
-        +is_already_filled: bool = False
-        +is_already_cancelled: bool = False
-        +is_modify_not_supported: bool = False
-        +is_price_tick_size_error: bool = False
-        +is_quantity_step_size_error: bool = False
+        +is_not_modifiable: bool = False
+        +is_price_unit_error: bool = False
+        +is_volume_unit_error: bool = False
         +is_min_notional_error: bool = False
+        +modified_order: Order
     }
 ```
 
 **Properties:**
 
 **고유 상태 플래그:**
-- `is_order_not_found: bool = False` - 주문 ID가 존재하지 않음
-- `is_already_filled: bool = False` - 이미 전체 체결된 주문
-- `is_already_cancelled: bool = False` - 이미 취소된 주문
-- `is_modify_not_supported: bool = False` - 거래소가 주문 수정을 지원하지 않음
-- `is_price_tick_size_error: bool = False` - 가격 틱 사이즈 위반
-- `is_quantity_step_size_error: bool = False` - 수량 단위 위반
+- `is_not_modifiable: bool = False` - 수정 불가능한 주문 상태 (주문 없음/이미 체결됨/이미 취소됨)
+- `is_price_unit_error: bool = False` - 가격 최소 단위 위반
+- `is_volume_unit_error: bool = False` - 수량 최소 단위 위반
 - `is_min_notional_error: bool = False` - 최소 주문 금액/수량 미달
 
-**결과 데이터:** (나중에 작성)
+**결과 데이터:**
+
+성공 시 (`is_success=True`):
+- `modified_order: Order` - 수정된 주문 객체 (새로운 가격/수량 반영)
 
 ### OrderCurrentStateResponse
 
@@ -226,6 +224,7 @@ classDiagram
 classDiagram
     class OrderCurrentStateResponse {
         +is_order_not_found: bool = False
+        +current_order: Order
     }
 ```
 
@@ -234,7 +233,10 @@ classDiagram
 **고유 상태 플래그:**
 - `is_order_not_found: bool = False` - 주문 ID가 존재하지 않음
 
-**결과 데이터:** (나중에 작성)
+**결과 데이터:**
+
+성공 시 (`is_success=True`):
+- `current_order: Order` - 조회된 주문의 현재 상태
 
 ### OrderListResponse
 
@@ -243,6 +245,7 @@ classDiagram
 ```mermaid
 classDiagram
     class OrderListResponse {
+        +orders: list[Order]
     }
 ```
 
@@ -250,7 +253,10 @@ classDiagram
 
 고유 상태 플래그 없음 (BaseResponse의 공통 플래그만 사용)
 
-**결과 데이터:** (나중에 작성)
+**결과 데이터:**
+
+성공 시 (`is_success=True`):
+- `orders: list[Order]` - 조회된 주문 목록 (미체결/부분체결 주문)
 
 ### TradeInfoResponse
 
