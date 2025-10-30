@@ -13,6 +13,10 @@ from .limit_buy_order_request import LimitBuyOrderRequest
 from .limit_sell_order_request import LimitSellOrderRequest
 from .market_buy_order_request import MarketBuyOrderRequest
 from .market_sell_order_request import MarketSellOrderRequest
+from .stop_limit_buy_order_request import StopLimitBuyOrderRequest
+from .stop_limit_sell_order_request import StopLimitSellOrderRequest
+from .stop_market_buy_order_request import StopMarketBuyOrderRequest
+from .stop_market_sell_order_request import StopMarketSellOrderRequest
 from .modify_order_request import ModifyOrderRequest
 from .order_current_state_request import OrderCurrentStateRequest
 from .order_list_request import OrderListRequest
@@ -29,6 +33,10 @@ __all__ = [
     "LimitSellOrderRequest",
     "MarketBuyOrderRequest",
     "MarketSellOrderRequest",
+    "StopLimitBuyOrderRequest",
+    "StopLimitSellOrderRequest",
+    "StopMarketBuyOrderRequest",
+    "StopMarketSellOrderRequest",
     "CloseOrderRequest",
     "ModifyOrderRequest",
     "OrderCurrentStateRequest",

@@ -193,6 +193,55 @@ classDiagram
 - TIF 설정은 `order.time_in_force`로 확인
 - Gateway는 거래소별 기본값 적용 (시장가는 보통 IOC가 기본)
 
+### StopLimitOrderResponse (미구현)
+
+스톱 리밋 주문 생성 요청(`StopLimitBuyOrderRequest`, `StopLimitSellOrderRequest`)에 대한 응답.
+
+**재사용 방안:**
+- ✅ `OpenLimitOrderResponse` 재사용 가능
+- Stop 주문도 트리거되면 지정가 주문으로 전환되므로 동일한 Response 사용
+
+**추가 필요 플래그 (검토 필요):**
+- `is_stop_trigger_invalid: bool` - 트리거 가격이 현재가와 역방향 (예: 매수 stop_price < 현재가)
+- `is_stop_price_too_close: bool` - 트리거 가격이 현재가에 너무 근접 (거래소별 최소 거리 제한)
+
+**동작:**
+- Stop 주문은 트리거 전까지 대기 상태
+- 트리거되면 지정가 주문으로 전환 → OpenLimitOrderResponse와 동일
+- `order.order_type = OrderType.STOP_LIMIT`, `order.stop_price` 포함
+
+### StopMarketOrderResponse (미구현)
+
+스톱 마켓 주문 생성 요청(`StopMarketBuyOrderRequest`, `StopMarketSellOrderRequest`)에 대한 응답.
+
+**재사용 방안:**
+- ✅ `MarketOrderResponse` 재사용 가능
+- Stop 주문도 트리거되면 시장가 주문으로 전환되므로 동일한 Response 사용
+
+**추가 필요 플래그 (검토 필요):**
+- `is_stop_trigger_invalid: bool` - 트리거 가격이 현재가와 역방향
+- `is_stop_price_too_close: bool` - 트리거 가격이 현재가에 너무 근접
+
+**동작:**
+- Stop 주문은 트리거 전까지 대기 상태
+- 트리거되면 시장가 주문으로 전환 → MarketOrderResponse와 동일
+- `order.order_type = OrderType.STOP_MARKET`, `order.stop_price` 포함
+
+**Gateway 구현 시 고려사항:**
+1. **거래소별 지원 여부:**
+   - Binance: STOP_LOSS, STOP_LOSS_LIMIT, TAKE_PROFIT, TAKE_PROFIT_LIMIT 지원
+   - Upbit: Stop 주문 미지원 → is_system_error 반환 또는 미구현 오류
+
+2. **시뮬레이션 구현:**
+   - 가격 모니터링 필요
+   - 트리거 조건 검증 (매수: stop_price ≥ 현재가, 매도: stop_price ≤ 현재가)
+   - 트리거 시 해당 타입 주문으로 자동 전환
+
+3. **트리거 검증:**
+   - 매수 Stop: stop_price > 현재가 (상승 시 진입)
+   - 매도 Stop: stop_price < 현재가 (하락 시 청산)
+   - 역방향 설정 시 is_stop_trigger_invalid 반환
+
 ### ModifyOrderResponse
 
 주문 수정 요청에 대한 응답.

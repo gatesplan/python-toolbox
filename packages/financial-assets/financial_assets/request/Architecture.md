@@ -144,6 +144,114 @@ classDiagram
 - `volume: float` - 매도할 자산 수량
 - `order_type: Optional = None` - 주문 체결 조건 (FOK, IOC 등)
 
+### StopLimitBuyOrderRequest
+
+스톱 리밋 매수 주문 생성을 요청한다. `stop_price`에 도달하면 `price`로 지정가 매수 주문이 실행된다.
+
+```mermaid
+classDiagram
+    class StopLimitBuyOrderRequest {
+        +address: StockAddress
+        +stop_price: float
+        +price: float
+        +volume: float
+        +time_in_force: Optional[TimeInForce] = None
+        +post_only: bool = False
+    }
+```
+
+**Properties:**
+
+- `address: StockAddress` - 거래할 자산의 주소
+- `stop_price: float` - 트리거 가격 (시장가가 이 가격 이상이 되면 주문 실행)
+- `price: float` - 실행될 지정가 매수 가격
+- `volume: float` - 매수할 수량
+- `time_in_force: Optional[TimeInForce] = None` - 주문 유효 기간 (GTC, IOC, FOK)
+- `post_only: bool = False` - Maker 전용 주문 여부
+
+**용도:**
+- 손절매 (Stop Loss): 하락 추세에서 추가 손실 방지
+- 추격 매수: 상승 돌파 시 진입
+
+### StopLimitSellOrderRequest
+
+스톱 리밋 매도 주문 생성을 요청한다. `stop_price`에 도달하면 `price`로 지정가 매도 주문이 실행된다.
+
+```mermaid
+classDiagram
+    class StopLimitSellOrderRequest {
+        +address: StockAddress
+        +stop_price: float
+        +price: float
+        +volume: float
+        +time_in_force: Optional[TimeInForce] = None
+        +post_only: bool = False
+    }
+```
+
+**Properties:**
+
+- `address: StockAddress` - 거래할 자산의 주소
+- `stop_price: float` - 트리거 가격 (시장가가 이 가격 이하가 되면 주문 실행)
+- `price: float` - 실행될 지정가 매도 가격
+- `volume: float` - 매도할 수량
+- `time_in_force: Optional[TimeInForce] = None` - 주문 유효 기간 (GTC, IOC, FOK)
+- `post_only: bool = False` - Maker 전용 주문 여부
+
+**용도:**
+- 손절매 (Stop Loss): 가격 하락 시 손실 제한
+- 익절 (Take Profit): 목표가 도달 시 이익 실현
+
+### StopMarketBuyOrderRequest
+
+스톱 마켓 매수 주문 생성을 요청한다. `stop_price`에 도달하면 시장가로 즉시 매수한다.
+
+```mermaid
+classDiagram
+    class StopMarketBuyOrderRequest {
+        +address: StockAddress
+        +stop_price: float
+        +volume: float
+        +time_in_force: Optional[TimeInForce] = None
+    }
+```
+
+**Properties:**
+
+- `address: StockAddress` - 거래할 자산의 주소
+- `stop_price: float` - 트리거 가격 (시장가가 이 가격 이상이 되면 주문 실행)
+- `volume: float` - 매수할 수량
+- `time_in_force: Optional[TimeInForce] = None` - 주문 유효 기간 (기본 GTC, IOC/FOK 가능)
+
+**용도:**
+- 빠른 손절매: 가격 확정보다 신속한 체결 우선
+- 돌파 매수: 저항선 돌파 시 즉시 진입
+
+### StopMarketSellOrderRequest
+
+스톱 마켓 매도 주문 생성을 요청한다. `stop_price`에 도달하면 시장가로 즉시 매도한다.
+
+```mermaid
+classDiagram
+    class StopMarketSellOrderRequest {
+        +address: StockAddress
+        +stop_price: float
+        +volume: float
+        +time_in_force: Optional[TimeInForce] = None
+    }
+```
+
+**Properties:**
+
+- `address: StockAddress` - 거래할 자산의 주소
+- `stop_price: float` - 트리거 가격 (시장가가 이 가격 이하가 되면 주문 실행)
+- `volume: float` - 매도할 수량
+- `time_in_force: Optional[TimeInForce] = None` - 주문 유효 기간 (기본 GTC, IOC/FOK 가능)
+
+**용도:**
+- 긴급 손절매: 신속한 청산 필요 시
+- 빠른 익절: 가격 확정보다 체결 우선
+
 ### CloseOrderRequest
 
 주문 취소를 요청한다.
