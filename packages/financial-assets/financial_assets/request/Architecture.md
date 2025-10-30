@@ -8,9 +8,9 @@ Request는 Gateway와의 상호작용에서 사용자 의도를 표현하는 진
 
 ## 설계 원칙
 
-### 1:1 Request-Response 매핑
+### Request-Response 매핑
 
-모든 Gateway 메서드는 고유한 형식의 Request 객체를 입력으로 받고, 고유한 형식의 Response를 반환한다. 예를 들어 `request_open_limit_order` 메서드는 `OpenLimitOrderRequest`를 받아 `OpenLimitOrderResponse`를 반환하며, `request_current_balance` 메서드는 `CurrentBalanceRequest`를 받아 `CurrentBalanceResponse`를 반환한다. 이러한 1:1 매핑을 통해 각 요청의 입력과 출력 타입이 명확해지고, IDE의 타입 힌트와 정적 분석 도구가 효과적으로 동작할 수 있다.
+모든 Gateway 메서드는 Request 객체를 입력으로 받고 Response 객체를 반환한다. 주문 생성 요청(`LimitBuyOrderRequest`, `MarketBuyOrderRequest`, `StopLimitBuyOrderRequest` 등)은 모두 `OpenSpotOrderResponse`를 반환하며, 주문 취소 요청(`CloseOrderRequest`)은 `CloseOrderResponse`를 반환한다. 조회 요청(`CurrentBalanceRequest`)은 `CurrentBalanceResponse`를 반환한다. Response 타입을 통합함으로써 코드 중복을 제거하고, 주문 타입 간 일관성을 유지하며, IDE의 타입 힌트와 정적 분석 도구가 효과적으로 동작할 수 있다.
 
 ### 통일된 상호작용 인터페이스
 

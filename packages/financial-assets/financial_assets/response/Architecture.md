@@ -67,55 +67,100 @@ classDiagram
 
 ## Response 명세
 
-### OpenLimitOrderResponse
+### OpenSpotOrderResponse
 
-지정가 주문 생성 요청에 대한 응답.
+Spot 주문 생성 요청에 대한 통합 응답. 모든 Spot 주문 타입(Limit, Market, StopLimit, StopMarket)에 사용된다.
 
 ```mermaid
 classDiagram
-    class OpenLimitOrderResponse {
+    class OpenSpotOrderResponse {
         +is_insufficient_balance: bool = False
         +is_min_notional_error: bool = False
         +is_max_notional_error: bool = False
-        +is_price_tick_size_error: bool = False
         +is_quantity_step_size_error: bool = False
         +is_market_suspended: bool = False
         +is_invalid_market: bool = False
+        +is_price_tick_size_error: bool = False
         +is_post_only_rejected: bool = False
+        +is_no_liquidity: bool = False
+        +is_ioc_partially_cancelled: bool = False
+        +is_fok_rejected: bool = False
+        +is_stop_trigger_invalid: bool = False
+        +is_stop_price_too_close: bool = False
         +order: Order
-        +immediate_fills: list[Trade]
+        +trades: list[Trade]
     }
 ```
 
 **Properties:**
 
-**고유 상태 플래그:**
+**공통 검증 오류 플래그:**
 - `is_insufficient_balance: bool = False` - 잔고 부족 오류
 - `is_min_notional_error: bool = False` - 최소 주문 금액/수량 미달
 - `is_max_notional_error: bool = False` - 최대 주문 금액/수량 초과
-- `is_price_tick_size_error: bool = False` - 가격 틱 사이즈 위반
 - `is_quantity_step_size_error: bool = False` - 수량 단위 위반
 - `is_market_suspended: bool = False` - 마켓 거래 정지 중
 - `is_invalid_market: bool = False` - 존재하지 않는 마켓
-- `is_post_only_rejected: bool = False` - post_only 옵션 위반으로 주문 거부
+
+**지정가 주문 관련 플래그:**
+- `is_price_tick_size_error: bool = False` - 가격 틱 사이즈 위반 (Limit, StopLimit만)
+- `is_post_only_rejected: bool = False` - post_only 옵션 위반으로 주문 거부 (Limit, StopLimit만)
+
+**시장가 주문 관련 플래그:**
+- `is_no_liquidity: bool = False` - 유동성 부족 (Market, StopMarket만)
+
+**TIF 관련 플래그:**
+- `is_ioc_partially_cancelled: bool = False` - IOC 설정으로 미체결 부분 취소됨 (모든 타입)
+- `is_fok_rejected: bool = False` - FOK 설정으로 전량 체결 실패하여 전체 거부됨 (모든 타입)
+
+**Stop 주문 관련 플래그:**
+- `is_stop_trigger_invalid: bool = False` - 트리거 가격이 현재가와 역방향 (StopLimit, StopMarket만)
+- `is_stop_price_too_close: bool = False` - 트리거 가격이 현재가에 너무 근접 (StopLimit, StopMarket만)
 
 **결과 데이터:**
 
 성공 시 (`is_success=True`):
-- `order: Order` - 생성된 주문 객체 (order_id, status, filled_quantity 등 포함)
-- `immediate_fills: list[Trade]` - 주문 생성과 동시에 체결된 내역 (없으면 빈 리스트)
+- `order: Order` - 생성된 주문 객체 (order_id, status, order_type, stop_price 등 포함)
+- `trades: list[Trade]` - 즉시 체결된 내역 (없으면 빈 리스트)
 
 **동작:**
+- 주문 타입은 `order.order_type`으로 확인 (LIMIT, MARKET, STOP_LIMIT, STOP_MARKET)
 - 주문이 즉시 체결되면 `order.status`는 `FILLED` 또는 `PARTIALLY_FILLED`
 - Gateway는 거래소 특성에 따라 체결 내역 제공:
   - Binance: 응답의 `fills` 배열 사용
   - Upbit 등: 추가 조회 API 호출하여 체결 내역 획득
-- 사용자는 `order.status`로 즉시 체결 여부를 판단하고, 상세 내역은 `immediate_fills`에서 확인
 - TIF(Time In Force) 옵션은 `order.time_in_force`로 확인:
   - `None`: Gateway가 거래소/주문타입별 기본값 적용
   - `GTC`: 취소할 때까지 유효
   - `IOC`: 즉시 체결 가능한 부분만 체결, 나머지 취소
   - `FOK`: 전량 즉시 체결 또는 전체 거부
+- Stop 주문은 트리거 전까지 대기 상태, 트리거되면 해당 주문 타입으로 전환
+
+**플래그 적용 매트릭스:**
+
+| 주문 타입 | 적용 플래그 |
+|-----------|-------------|
+| Limit | 공통, 지정가, TIF |
+| Market | 공통, 시장가, TIF |
+| StopLimit | 공통, 지정가, TIF, Stop |
+| StopMarket | 공통, 시장가, TIF, Stop |
+
+### OpenFuturesOrderResponse (미구현)
+
+Futures 주문 생성 요청에 대한 응답. 추후 구현 예정.
+
+**Spot과의 차이점:**
+- 포지션 개념 (Long/Short)
+- 마진, 레버리지, 청산가
+- 펀딩비, 미실현손익
+- Open/Close 구분
+
+**추후 추가 예정:**
+- `is_insufficient_margin` - 마진 부족
+- `is_leverage_too_high` - 레버리지 초과
+- `is_liquidation_risk` - 청산 위험
+- `position: Position` - 포지션 정보
+- `liquidation_price: float` - 청산가
 
 ### CloseLimitOrderResponse
 
@@ -142,105 +187,6 @@ classDiagram
 
 성공 시 (`is_success=True`):
 - `cancelled_order: Order` - 취소된 주문의 최종 상태 (부분 체결 정보 포함)
-
-### MarketOrderResponse
-
-시장가 주문 생성 요청에 대한 응답.
-
-```mermaid
-classDiagram
-    class MarketOrderResponse {
-        +is_insufficient_balance: bool = False
-        +is_min_notional_error: bool = False
-        +is_max_notional_error: bool = False
-        +is_quantity_step_size_error: bool = False
-        +is_market_suspended: bool = False
-        +is_invalid_market: bool = False
-        +is_no_liquidity: bool = False
-        +is_ioc_partially_cancelled: bool = False
-        +is_fok_rejected: bool = False
-        +order: Order
-        +trades: list[Trade]
-    }
-```
-
-**Properties:**
-
-**고유 상태 플래그:**
-- `is_insufficient_balance: bool = False` - 잔고 부족 오류
-- `is_min_notional_error: bool = False` - 최소 주문 금액/수량 미달
-- `is_max_notional_error: bool = False` - 최대 주문 금액/수량 초과
-- `is_quantity_step_size_error: bool = False` - 수량 단위 위반
-- `is_market_suspended: bool = False` - 마켓 거래 정지 중
-- `is_invalid_market: bool = False` - 존재하지 않는 마켓
-- `is_no_liquidity: bool = False` - 유동성 부족 (시장가 특유)
-- `is_ioc_partially_cancelled: bool = False` - IOC 설정으로 미체결 부분 취소됨
-- `is_fok_rejected: bool = False` - FOK 설정으로 전량 체결 실패하여 전체 거부됨
-
-**결과 데이터:**
-
-성공 시 (`is_success=True`):
-- `order: Order` - 생성된 시장가 주문 객체 (최종 상태 포함)
-- `trades: list[Trade]` - 체결 내역 목록
-
-**동작:**
-- 시장가 주문은 즉시 체결 시도
-- TIF(Time In Force) 옵션별 동작:
-  - `None` 또는 `IOC`: 즉시 체결 가능한 부분만 체결, 미체결 부분 취소
-  - `FOK`: 전량 즉시 체결되지 않으면 전체 거부 → `is_fok_rejected=True`, `is_success=False`
-- IOC로 부분 체결 후 나머지 취소: `is_ioc_partially_cancelled=True`
-- 체결 내역은 `trades`에서 확인
-- TIF 설정은 `order.time_in_force`로 확인
-- Gateway는 거래소별 기본값 적용 (시장가는 보통 IOC가 기본)
-
-### StopLimitOrderResponse (미구현)
-
-스톱 리밋 주문 생성 요청(`StopLimitBuyOrderRequest`, `StopLimitSellOrderRequest`)에 대한 응답.
-
-**재사용 방안:**
-- ✅ `OpenLimitOrderResponse` 재사용 가능
-- Stop 주문도 트리거되면 지정가 주문으로 전환되므로 동일한 Response 사용
-
-**추가 필요 플래그 (검토 필요):**
-- `is_stop_trigger_invalid: bool` - 트리거 가격이 현재가와 역방향 (예: 매수 stop_price < 현재가)
-- `is_stop_price_too_close: bool` - 트리거 가격이 현재가에 너무 근접 (거래소별 최소 거리 제한)
-
-**동작:**
-- Stop 주문은 트리거 전까지 대기 상태
-- 트리거되면 지정가 주문으로 전환 → OpenLimitOrderResponse와 동일
-- `order.order_type = OrderType.STOP_LIMIT`, `order.stop_price` 포함
-
-### StopMarketOrderResponse (미구현)
-
-스톱 마켓 주문 생성 요청(`StopMarketBuyOrderRequest`, `StopMarketSellOrderRequest`)에 대한 응답.
-
-**재사용 방안:**
-- ✅ `MarketOrderResponse` 재사용 가능
-- Stop 주문도 트리거되면 시장가 주문으로 전환되므로 동일한 Response 사용
-
-**추가 필요 플래그 (검토 필요):**
-- `is_stop_trigger_invalid: bool` - 트리거 가격이 현재가와 역방향
-- `is_stop_price_too_close: bool` - 트리거 가격이 현재가에 너무 근접
-
-**동작:**
-- Stop 주문은 트리거 전까지 대기 상태
-- 트리거되면 시장가 주문으로 전환 → MarketOrderResponse와 동일
-- `order.order_type = OrderType.STOP_MARKET`, `order.stop_price` 포함
-
-**Gateway 구현 시 고려사항:**
-1. **거래소별 지원 여부:**
-   - Binance: STOP_LOSS, STOP_LOSS_LIMIT, TAKE_PROFIT, TAKE_PROFIT_LIMIT 지원
-   - Upbit: Stop 주문 미지원 → is_system_error 반환 또는 미구현 오류
-
-2. **시뮬레이션 구현:**
-   - 가격 모니터링 필요
-   - 트리거 조건 검증 (매수: stop_price ≥ 현재가, 매도: stop_price ≤ 현재가)
-   - 트리거 시 해당 타입 주문으로 자동 전환
-
-3. **트리거 검증:**
-   - 매수 Stop: stop_price > 현재가 (상승 시 진입)
-   - 매도 Stop: stop_price < 현재가 (하락 시 청산)
-   - 역방향 설정 시 is_stop_trigger_invalid 반환
 
 ### ModifyOrderResponse
 
