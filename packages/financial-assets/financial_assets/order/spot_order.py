@@ -1,6 +1,6 @@
 from __future__ import annotations
 from typing import Optional
-from ..constants import Side, OrderStatus, TimeInForce
+from ..constants import Side, OrderStatus, OrderType, TimeInForce
 from ..stock_address import StockAddress
 from simple_logger import init_logging, logger
 
@@ -16,7 +16,7 @@ class SpotOrder:
         order_id: str,
         stock_address: StockAddress,
         side: Side,
-        order_type: str,
+        order_type: OrderType,
         price: Optional[float],
         amount: float,
         timestamp: int,
@@ -163,7 +163,7 @@ class SpotOrder:
     def __str__(self) -> str:
         return (
             f"SpotOrder(id={self.order_id}, side={self.side.name}, "
-            f"type={self.order_type}, price={self.price}, "
+            f"type={self.order_type.value}, price={self.price}, "
             f"amount={self.amount}, filled={self.filled_amount}, "
             f"status={self.status.value})"
         )
