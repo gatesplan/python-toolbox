@@ -4,10 +4,14 @@ from enum import Enum
 
 
 class Side(Enum):
-    """거래 방향 (매수, 매도).
+    """거래 방향.
 
-    현물 거래뿐만 아니라 선물 거래 등 모든 거래 유형에서 사용 가능한 공통 상수입니다.
+    현물 거래와 선물 거래에서 사용되는 거래 방향을 표현합니다.
+    - 현물: BUY(매수), SELL(매도)
+    - 선물: LONG(롱 포지션), SHORT(숏 포지션)
     """
 
     BUY = "buy"
     SELL = "sell"
+    LONG = "long"
+    SHORT = "short"

@@ -1,7 +1,7 @@
-"""Spot trade data structure.
+"""Futures trade data structure.
 
-This module provides the SpotTrade dataclass for representing completed spot trade records.
-Spot trading involves immediate exchange of assets (buy/sell).
+This module provides the FuturesTrade dataclass for representing completed futures trade records.
+Futures trading involves leveraged positions with realized PnL tracking.
 """
 
 from __future__ import annotations
@@ -17,9 +17,9 @@ if TYPE_CHECKING:
 
 
 @dataclass(frozen=True)
-class SpotTrade:
-    """체결 완료된 현물 거래 (불변 데이터 구조).
-    거래 시뮬레이션이나 실제 거래소 API의 체결 정보를 표준화합니다.
+class FuturesTrade:
+    """체결 완료된 선물 거래 (불변 데이터 구조).
+    포지션 개념과 실현손익을 포함하는 선물 거래의 체결 정보를 표준화합니다.
     """
 
     trade_id: str
@@ -27,6 +27,7 @@ class SpotTrade:
     pair: Pair
     timestamp: int
     fee: Optional[Token] = None
+    realized_pnl: Optional[Token] = None
     stock_address: StockAddress = field(init=False)
     side: Side = field(init=False)
 
@@ -38,15 +39,16 @@ class SpotTrade:
     def __str__(self) -> str:
         """거래 정보의 읽기 쉬운 문자열 표현."""
         return (
-            f"SpotTrade(id={self.trade_id}, side={self.side.name}, "
-            f"pair={self.pair}, timestamp={self.timestamp})"
+            f"FuturesTrade(id={self.trade_id}, side={self.side.name}, "
+            f"pair={self.pair}, pnl={self.realized_pnl}, timestamp={self.timestamp})"
         )
 
     def __repr__(self) -> str:
         """재생성 가능한 상세 문자열 표현."""
         return (
-            f"SpotTrade(trade_id={self.trade_id!r}, "
+            f"FuturesTrade(trade_id={self.trade_id!r}, "
             f"order={self.order!r}, "
             f"pair={self.pair!r}, "
-            f"timestamp={self.timestamp}, fee={self.fee!r})"
+            f"timestamp={self.timestamp}, fee={self.fee!r}, "
+            f"realized_pnl={self.realized_pnl!r})"
         )

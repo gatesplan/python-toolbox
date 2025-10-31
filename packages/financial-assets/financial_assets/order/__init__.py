@@ -1,9 +1,15 @@
-"""Spot order module for managing spot trade orders.
+"""Order module for managing trade orders.
 
-This module provides the SpotOrder class for representing pending spot trade orders
-and managing their fill status. Spot orders involve immediate asset exchange.
+This module provides order classes for different trading types:
+- SpotOrder: Immediate asset exchange orders
+- FuturesOrder: Leveraged position orders (not yet implemented)
+- Order: Type alias for all order types
 """
 
 from .spot_order import SpotOrder
 
-__all__ = ["SpotOrder"]
+# Type alias for all order types
+# TODO: Add FuturesOrder when implemented
+Order = SpotOrder
+
+__all__ = ["SpotOrder", "Order"]

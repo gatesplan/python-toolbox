@@ -266,6 +266,7 @@ classDiagram
 classDiagram
     class TradeInfoResponse {
         +is_order_not_found: bool = False
+        +trades: list[Trade]
     }
 ```
 
@@ -274,7 +275,18 @@ classDiagram
 **고유 상태 플래그:**
 - `is_order_not_found: bool = False` - 주문 ID가 존재하지 않음
 
-**결과 데이터:** (나중에 작성)
+**결과 데이터:**
+
+성공 시 (`is_success=True`):
+- `trades: list[Trade]` - 해당 주문의 체결 내역 목록 (시간순 정렬)
+
+**동작:**
+- 특정 order_id에 바인드된 모든 체결(Fill) 목록을 반환
+- 주문이 부분 체결된 경우 여러 개의 Trade가 포함될 수 있음
+- 주문이 아직 체결되지 않은 경우 빈 리스트 반환
+- Trade는 체결 시각(timestamp) 오름차순으로 정렬됨
+- 각 Trade는 개별 체결의 가격, 수량, 수수료 정보를 포함
+- Spot 주문은 SpotTrade, Futures 주문은 FuturesTrade 타입으로 반환
 
 ### RecentTradesResponse
 

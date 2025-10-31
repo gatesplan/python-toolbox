@@ -1,12 +1,15 @@
-"""Spot trade module for financial assets.
+"""Trade module for financial assets.
 
-This module provides data structures for representing completed spot trade records.
-Spot trading involves immediate exchange of assets.
+This module provides data structures for representing completed trade records.
 
-The SpotTrade dataclass encapsulates information about executed spot trades from
-either trading simulations or real trading API responses.
+- SpotTrade: Immediate asset exchange (spot trading)
+- FuturesTrade: Leveraged positions with PnL tracking (futures trading)
+- Trade: Type alias for all trade types
 """
 
 from .spot_trade import SpotTrade
+from .futures_trade import FuturesTrade
 
-__all__ = ["SpotTrade"]
+Trade = SpotTrade | FuturesTrade
+
+__all__ = ["SpotTrade", "FuturesTrade", "Trade"]
