@@ -52,49 +52,83 @@ dependencies = [
 
 ```mermaid
 graph TB
-    Indicator[Indicator]
-    CalculationDirector[CalculationDirector]
-    Core[Core Compositor]
+    subgraph Layer3["Layer 3: Interface"]
+        Indicator[Indicator<br/>통합 인터페이스<br/>static methods]
+    end
 
-    IndicatorWorkers[Various Indicator Workers<br/>SMA, EMA, RSI, RSI Entropy, ...]
+    subgraph Layer2["Layer 2: Services (stateless)"]
+        SMAService[SMAService<br/>static calculate]
+        EMAService[EMAService<br/>static calculate]
+        RSIService[RSIService<br/>static calculate]
+        RSIEntropyService[RSIEntropyService<br/>static calculate]
+        OtherServices[기타 Services...]
+    end
 
-    RollingOpDirector[RollingOperationDirector]
-    SeriesTransformDirector[SeriesTransformDirector]
+    subgraph Layer1["Layer 1: Core Calculators"]
+        FlatSeriesCalc[FlatSeriesCalculator<br/>1D numpy 배열 연산<br/>owns workers]
+        CandleSeriesCalc[CandleSeriesCalculator<br/>Candle DataFrame 가공<br/>static methods]
 
-    RollingWorkers[Various Rolling Workers<br/>SMA, EMA, WMA, Std, Max, Min, ZScore, ...]
-    SeriesWorkers[Various Series Workers<br/>Scaling, Standardize, PctChange, LogReturn, Crossover, ...]
+        FlatWorkers[FlatSeries Workers<br/>SMA, EMA, Std, ZScore,<br/>Scaling, PctChange, ...]
 
-    Indicator --> CalculationDirector
-    Indicator --> Core
+        FlatSeriesCalc -->|owns as class variable| FlatWorkers
+    end
 
-    CalculationDirector --> IndicatorWorkers
-    IndicatorWorkers -.->|director 전달| CalculationDirector
+    Indicator --> SMAService
+    Indicator --> EMAService
+    Indicator --> RSIService
+    Indicator --> RSIEntropyService
+    Indicator --> OtherServices
 
-    Core --> RollingOpDirector
-    Core --> SeriesTransformDirector
+    SMAService --> FlatSeriesCalc
+    SMAService --> CandleSeriesCalc
 
-    RollingOpDirector --> RollingWorkers
-    SeriesTransformDirector --> SeriesWorkers
+    EMAService --> FlatSeriesCalc
+    EMAService --> CandleSeriesCalc
 
-    RollingWorkers -.->|director 전달| RollingOpDirector
-    SeriesWorkers -.->|director 전달| SeriesTransformDirector
+    RSIService --> FlatSeriesCalc
+    RSIService --> CandleSeriesCalc
+
+    RSIEntropyService --> RSIService
+    RSIEntropyService --> FlatSeriesCalc
+    RSIEntropyService --> CandleSeriesCalc
+
+    OtherServices --> RSIService
+    OtherServices --> SMAService
+    OtherServices --> FlatSeriesCalc
+    OtherServices --> CandleSeriesCalc
+
+    style Layer3 fill:#e1f5ff
+    style Layer2 fill:#fff4e6
+    style Layer1 fill:#f3e5f5
 ```
 
 **레이어 구조:**
-1. **Indicator**: 사용자 인터페이스
-2. **CalculationDirector**: 지표 Worker 관리 및 의존성 중재
-3. **지표 Workers**: 각 지표 계산 (director를 파라미터로 전달받음)
-4. **Core Compositor**: 순수 계산 함수 통합 인터페이스
-5. **Core Directors**: Rolling/Series 연산 관리
-6. **Core Workers**: 순수 계산 로직 구현
 
-**의존성 역전:**
-- **지표 Workers**: `__call__(indicator, director, candle_df, ...)`
-  - `indicator`: Core 계산 접근용 (`indicator._core.xxx()`)
-  - `director`: 다른 지표 계산 호출용 (`director.xxx()`)
-- **Core Workers**: `__call__(director, arr: np.ndarray, ...)`
-  - Core 레벨은 다른 Core 연산만 의존
-- Director는 모든 Worker를 알지만, Worker는 필요한 참조만 의존
+**Layer 1: Core Calculators** (순수 계산 + Worker 관리)
+- **FlatSeriesCalculator**: 1D numpy 배열 연산 통합
+  - 클래스 변수로 Workers 소유 및 관리
+  - 정적 메서드로 통합 인터페이스 제공
+  - Workers: SMAWorker, EMAWorker, StdWorker, ZScoreWorker, ScalingWorker, PctChangeWorker 등
+- **CandleSeriesCalculator**: Candle DataFrame 가공 유틸리티
+  - 정적 메서드로 컬럼 추출, HLOC, TypicalPrice 등 제공
+
+**Layer 2: Services** (stateless, 재사용 조합)
+- **각 지표별 Service 클래스** (SMAService, RSIService, RSIEntropyService 등)
+- 모든 메서드는 **static**으로 구현 (상태 없음)
+- Core Calculators 재사용하여 계산
+- **Service 간 재사용 가능** (예: RSIEntropyService → RSIService 호출)
+- 점진적 복잡도 증가 (단순 → 복잡)
+
+**Layer 3: Interface** (사용자 진입점)
+- **Indicator**: 통합 인터페이스
+- 각 메서드는 해당 Service를 호출하여 결과 반환
+- 기본값 정의 및 출력 형식 통일
+
+**의존성 흐름:**
+- **Indicator** → Services → Calculators
+- **Services 간 재사용**: RSIEntropyService → RSIService
+- **Calculators**: 완전 독립적, 정적 메서드
+- **모두 stateless**: 의존성 주입 불필요, 테스트 용이
 
 ## 데이터
 
