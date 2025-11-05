@@ -5,35 +5,16 @@ Spot trading involves immediate exchange of assets (buy/sell).
 """
 
 from __future__ import annotations
-from dataclasses import dataclass, field
-from typing import Optional, TYPE_CHECKING
-from ..constants import Side
-from ..pair import Pair
-from ..stock_address import StockAddress
-from ..token import Token
+from dataclasses import dataclass
 
-if TYPE_CHECKING:
-    from ..order import Order
+from .trade import Trade
 
 
 @dataclass(frozen=True)
-class SpotTrade:
+class SpotTrade(Trade):
     """체결 완료된 현물 거래 (불변 데이터 구조).
     거래 시뮬레이션이나 실제 거래소 API의 체결 정보를 표준화합니다.
     """
-
-    trade_id: str
-    order: "Order"
-    pair: Pair
-    timestamp: int
-    fee: Optional[Token] = None
-    stock_address: StockAddress = field(init=False)
-    side: Side = field(init=False)
-
-    def __post_init__(self):
-        """order에서 stock_address와 side를 초기화."""
-        object.__setattr__(self, "stock_address", self.order.stock_address)
-        object.__setattr__(self, "side", self.order.side)
 
     def __str__(self) -> str:
         """거래 정보의 읽기 쉬운 문자열 표현."""

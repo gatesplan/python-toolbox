@@ -295,6 +295,7 @@ classDiagram
 ```mermaid
 classDiagram
     class RecentTradesResponse {
+        +trades: list[Trade]
     }
 ```
 
@@ -302,7 +303,23 @@ classDiagram
 
 고유 상태 플래그 없음 (BaseResponse의 공통 플래그만 사용)
 
-**결과 데이터:** (나중에 작성)
+**결과 데이터:**
+
+성공 시 (`is_success=True`):
+- `trades: list[Trade]` - 체결 내역 목록 (시간 순)
+
+**동작:**
+- 내 계정의 특정 심볼에 대한 체결 내역 반환 (private data, 인증 필요)
+- TradeInfoResponse와의 차이: TradeInfoResponse는 특정 order_id의 체결 내역, RecentTradesResponse는 특정 심볼의 계정 체결 내역
+- Gateway 증분 조회 전략:
+  - 첫 조회: 24시간 이내 체결 내역 전체 반환
+  - 이후 조회: 마지막 조회 이후 신규 체결만 반환 (캐싱된 타임스탬프 활용)
+  - `start = last_timestamp`, `end = now`로 거래소 API 호출
+- Trade는 체결 시각(timestamp) 오름차순으로 정렬됨
+- 거래소별 구현:
+  - Binance: `/api/v3/myTrades` (startTime, endTime 사용)
+  - Bybit: `/v5/execution/list` (startTime, endTime 사용)
+  - Upbit: 주문 조회 후 trades 필드 추출
 
 ### CurrentBalanceResponse
 
@@ -311,6 +328,7 @@ classDiagram
 ```mermaid
 classDiagram
     class CurrentBalanceResponse {
+        +result: dict[str, Token]
     }
 ```
 
@@ -318,7 +336,16 @@ classDiagram
 
 고유 상태 플래그 없음 (BaseResponse의 공통 플래그만 사용)
 
-**결과 데이터:** (나중에 작성)
+**결과 데이터:**
+
+성공 시 (`is_success=True`):
+- `result: dict[str, Token]` - 토큰 심볼을 키로, 보유 수량을 값으로 하는 잔고 맵
+
+**동작:**
+- key: 토큰 심볼 (예: "BTC", "USDT", "ETH")
+- value: Token 객체 (심볼과 수량 정보 포함)
+- 잔고가 0인 토큰은 포함 여부가 거래소 정책에 따라 다를 수 있음
+- Gateway는 거래소 API 응답을 dict[str, Token] 형식으로 변환
 
 ### PriceDataResponse
 

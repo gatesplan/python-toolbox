@@ -336,17 +336,34 @@ classDiagram
 
 ### RecentTradesRequest
 
-계정의 최근 체결 내역 조회를 요청한다.
+특정 심볼에 대한 계정의 최근 체결 내역 조회를 요청한다.
 
 ```mermaid
 classDiagram
     class RecentTradesRequest {
+        +symbol: str
     }
 ```
 
 **Properties:**
 
-- 파라미터 없음 (계정의 최근 체결 내역 조회, 범위는 구현체에 따라 다름)
+- `symbol: str` - 조회할 거래쌍 심볼 (예: "BTCUSDT")
+
+**요청 특성:**
+- 내 계정의 특정 심볼에 대한 체결 내역 조회 (private data, 인증 필요)
+- TradeInfoRequest와의 차이: TradeInfoRequest는 특정 order_id의 체결 내역, RecentTradesRequest는 특정 심볼의 계정 체결 내역
+- "Recent"의 정의:
+  - Gateway 내부 캐싱을 통한 증분 조회
+  - 마지막 조회 타임스탬프를 기억하여 `start = last_timestamp`, `end = now`로 조회
+  - 첫 조회 시 24시간 이내 체결 내역
+  - 이후 조회는 마지막 조회 이후의 신규 체결만 반환
+- Gateway 구현 전략:
+  - 거래소 API의 "myTrades" 엔드포인트 사용
+  - 심볼별 마지막 조회 타임스탬프 캐싱
+  - 거래소별 제약 고려:
+    - Binance: symbol 필수, startTime-endTime 최대 24시간
+    - Bybit: symbol 선택, startTime-endTime 최대 7일
+    - Upbit: 주문 조회 후 trades 필드 추출
 
 ### CurrentBalanceRequest
 
