@@ -401,21 +401,6 @@ classDiagram
 **참고:**
 - 거래소 API 제한(rate limit, 페이지네이션 등)은 Gateway 구현체가 내부적으로 처리
 
-### OrderbookRequest
-
-현재 호가창 스냅샷 조회를 요청한다.
-
-```mermaid
-classDiagram
-    class OrderbookRequest {
-        +address: StockAddress
-    }
-```
-
-**Properties:**
-
-- `address: StockAddress` - 조회할 자산의 주소
-
 ### TickerRequest
 
 현재 시세 정보 조회를 요청한다.

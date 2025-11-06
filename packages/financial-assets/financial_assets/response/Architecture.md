@@ -358,6 +358,7 @@ classDiagram
         +is_invalid_interval: bool = False
         +is_invalid_time_range: bool = False
         +is_data_not_available: bool = False
+        +candle: Candle
     }
 ```
 
@@ -369,27 +370,25 @@ classDiagram
 - `is_invalid_time_range: bool = False` - 잘못된 시간 범위 (start > end, 미래 시각 등)
 - `is_data_not_available: bool = False` - 요청한 기간의 데이터 없음
 
-**결과 데이터:** (나중에 작성)
+**결과 데이터:**
 
-### OrderbookResponse
+성공 시 (`is_success=True`):
+- `candle: Candle` - 조회된 캔들 데이터를 담은 Candle 객체
 
-호가창 조회 요청에 대한 응답.
-
-```mermaid
-classDiagram
-    class OrderbookResponse {
-        +is_invalid_market: bool = False
-        +is_market_suspended: bool = False
-    }
-```
-
-**Properties:**
-
-**고유 상태 플래그:**
-- `is_invalid_market: bool = False` - 존재하지 않는 마켓
-- `is_market_suspended: bool = False` - 마켓 거래 정지 중
-
-**결과 데이터:** (나중에 작성)
+**동작:**
+- Gateway가 거래소 API에서 OHLCV 데이터를 가져와 Candle 객체로 변환하여 반환
+- Candle 객체는 즉시 사용 가능:
+  - `response.candle.save()` - 로컬 저장소에 저장
+  - `response.candle.update(new_df)` - 신규 데이터 병합
+  - `response.candle.last_timestamp()` - 마지막 타임스탬프 조회
+  - `response.candle.get_price_by_timestamp(ts)` - 특정 시각 가격 조회
+- Gateway 구현:
+  1. 거래소 API 호출 (예: Binance `/api/v3/klines`)
+  2. OHLCV 데이터를 DataFrame으로 변환 (timestamp, high, low, open, close, volume)
+  3. `Candle(request.address, df)` 생성
+  4. Response에 담아 반환
+- 데이터가 없는 경우 빈 DataFrame으로 Candle 생성
+- PriceDataRequest의 `address`, `interval`, `start`, `end` 정보가 Candle 생성에 활용됨
 
 ### TickerResponse
 
@@ -399,6 +398,7 @@ classDiagram
 classDiagram
     class TickerResponse {
         +is_invalid_market: bool = False
+        +result: dict[str, dict[str, float]]
     }
 ```
 
@@ -407,7 +407,46 @@ classDiagram
 **고유 상태 플래그:**
 - `is_invalid_market: bool = False` - 존재하지 않는 마켓
 
-**결과 데이터:** (나중에 작성)
+**결과 데이터:**
+
+성공 시 (`is_success=True`):
+- `result: dict[str, dict[str, float]]` - 심볼별 시세 정보
+
+**시세 정보 구조 (각 심볼의 dict):**
+- `timestamp`: 조회 시점 (unix timestamp 초단위)
+- `open`: 시가 (24h 전)
+- `high`: 고가 (24h 최고가)
+- `low`: 저가 (24h 최저가)
+- `current`: 현재가
+- `volume`: 거래량 (24h)
+
+**예시:**
+```python
+{
+    "BTCUSDT": {
+        "timestamp": 1704067200,
+        "open": 45000.0,
+        "high": 46000.0,
+        "low": 44500.0,
+        "current": 45500.0,
+        "volume": 1234.5
+    },
+    "ETHUSDT": {
+        "timestamp": 1704067200,
+        "open": 3000.0,
+        "high": 3100.0,
+        "low": 2950.0,
+        "current": 3050.0,
+        "volume": 5678.9
+    }
+}
+```
+
+**동작:**
+- TickerRequest의 address가 있으면: 해당 심볼 하나만 반환
+- TickerRequest의 address가 없으면: 여러 주요 심볼 반환 (거래소 정책에 따름)
+- Gateway는 거래소 API 응답을 위 구조로 변환
+- 모든 가격은 float, timestamp는 unix epoch seconds
 
 ### AvailableMarketsResponse
 
@@ -416,6 +455,7 @@ classDiagram
 ```mermaid
 classDiagram
     class AvailableMarketsResponse {
+        +markets: list[str]
     }
 ```
 
@@ -423,7 +463,31 @@ classDiagram
 
 고유 상태 플래그 없음 (BaseResponse의 공통 플래그만 사용)
 
-**결과 데이터:** (나중에 작성)
+**결과 데이터:**
+
+성공 시 (`is_success=True`):
+- `markets: list[str]` - 거래 가능한 심볼 목록
+
+**예시:**
+```python
+["BTCUSDT", "ETHUSDT", "BNBUSDT", "ADAUSDT", ...]
+```
+
+**동작:**
+- Gateway가 거래소 API를 호출하여 거래 가능한 모든 마켓 조회
+- 거래소 응답을 심볼 문자열 리스트로 변환하여 반환
+- 거래소별 구현:
+  - **Binance**: `GET /api/v3/exchangeInfo`
+    - 응답: `{"symbols": [{"symbol": "BTCUSDT", "status": "TRADING", ...}, ...]}`
+    - 변환: symbols 배열의 각 객체에서 "symbol" 필드 추출 → `["BTCUSDT", ...]`
+  - **Bybit**: `GET /v5/market/instruments-info?category=spot`
+    - 응답: `{"result": {"list": [{"symbol": "BTCUSDT", "status": "Trading", ...}, ...]}}`
+    - 변환: result.list 배열의 각 객체에서 "symbol" 필드 추출 → `["BTCUSDT", ...]`
+  - **Upbit**: `GET /v1/market/all`
+    - 응답: `[{"market": "KRW-BTC", "korean_name": "비트코인", ...}, ...]`
+    - 변환: 배열의 각 객체에서 "market" 필드 추출 → `["KRW-BTC", ...]`
+- 거래 정지된 마켓 필터링은 Gateway 정책에 따름 (status 필드 확인)
+- 심볼 형식은 거래소별로 다름 (Binance: "BTCUSDT", Upbit: "KRW-BTC")
 
 ### FeeInfoResponse
 
@@ -432,6 +496,8 @@ classDiagram
 ```mermaid
 classDiagram
     class FeeInfoResponse {
+        +maker_fee: float
+        +taker_fee: float
     }
 ```
 
@@ -439,7 +505,21 @@ classDiagram
 
 고유 상태 플래그 없음 (BaseResponse의 공통 플래그만 사용)
 
-**결과 데이터:** (나중에 작성)
+**결과 데이터:**
+
+성공 시 (`is_success=True`):
+- `maker_fee: float` - 현재 계정에 적용되는 Maker 수수료율 (예: 0.001 = 0.1%)
+- `taker_fee: float` - 현재 계정에 적용되는 Taker 수수료율 (예: 0.001 = 0.1%)
+
+**동작:**
+- Gateway가 거래소 API를 호출하여 계정의 실제 수수료율 조회
+- VIP 등급, 자체 토큰 할인 등 모든 할인이 적용된 최종 수수료율 반환
+- 거래소별 구현:
+  - Binance: `GET /sapi/v1/asset/tradeFee` (BNB 할인, VIP 등급 반영)
+  - Bybit: `GET /v5/account/fee-rate` (VIP 등급, BIT 토큰 할인 반영)
+  - Upbit: 고정 0.05%, API 호출 없이 상수 반환 가능
+- Gateway에서 캐싱 권장 (수수료율은 자주 변경되지 않음)
+- Order 객체에 포함되는 fee_rate와 동일한 값
 
 ### ServerStatusResponse
 
@@ -448,6 +528,7 @@ classDiagram
 ```mermaid
 classDiagram
     class ServerStatusResponse {
+        +server: bool
     }
 ```
 
@@ -455,7 +536,20 @@ classDiagram
 
 고유 상태 플래그 없음 (BaseResponse의 공통 플래그만 사용)
 
-**결과 데이터:** (나중에 작성)
+**결과 데이터:**
+
+성공 시 (`is_success=True`):
+- `server: bool` - 서버 정상 여부 (True: 정상, False: 장애/점검)
+
+**동작:**
+- Gateway가 거래소 서버 상태 확인 (ping/health check)
+- 서버 응답 시: `server=True`
+- 서버 무응답/점검 중: `server=False`
+- 거래소별 구현:
+  - Binance: `GET /api/v3/ping` 또는 `GET /api/v3/time`
+  - Bybit: `GET /v5/market/time`
+  - Upbit: 헬스체크 엔드포인트 또는 기본 API 호출
+- 네트워크 타임아웃 시 `is_network_error=True`, `server=False`
 
 ## 구현 계획
 
