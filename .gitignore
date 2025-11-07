@@ -63,3 +63,6 @@ Thumbs.db
 
 # Legacy code
 legacy/
+
+# Work in progress tracking files
+WIP_*.md

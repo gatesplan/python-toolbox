@@ -1,67 +1,76 @@
-"""TradeSimulation - Order를 적절한 워커로 라우팅하는 코어 클래스."""
+"""TradeSimulation - 거래 시뮬레이션 Service."""
 
 from __future__ import annotations
-from typing import List
+from typing import TYPE_CHECKING, List
 from simple_logger import init_logging, func_logging
 
-from .spot_limit_worker import SpotLimitWorker
-from .spot_market_buy import SpotMarketBuyWorker
-from .spot_market_sell import SpotMarketSellWorker
-from .calculation_tool import CalculationTool
-from .trade_factory import TradeFactory
+if TYPE_CHECKING:
+    from financial_assets.order import Order, SpotOrder
+    from financial_assets.price import Price
+    from financial_assets.trade import Trade
+
+from .spot_execution import SpotExecutionDirector
+from .trade_factory import TradeFactoryDirector
 
 
 class TradeSimulation:
-    """
-    거래 시뮬레이션 코어 클래스.
-    Order의 타입(limit/market)과 side(buy/sell)를 검사하여 적절한 워커로 라우팅합니다.
+    """거래 시뮬레이션 Service.
+
+    책임:
+    - 외부 인터페이스 제공
+    - 모든 Director 조율 (Director 간 의존성 없음)
+    - ExecutionDirector → 파라미터 획득
+    - FactoryDirector → Trade 생성
+
+    Stateless 설계:
+    - 내부 상태 없음
+    - 입력(Order, Price)만으로 출력(Trade 리스트) 생성
     """
 
     @init_logging(level="INFO")
     def __init__(self):
-        """TradeSimulation 초기화 - CalculationTool, TradeFactory와 워커 인스턴스 생성."""
-        self.calc_tool = CalculationTool()
-        self.trade_factory = TradeFactory()
-        self._limit_worker = SpotLimitWorker()
-        self._market_buy_worker = SpotMarketBuyWorker()
-        self._market_sell_worker = SpotMarketSellWorker()
+        """Director 인스턴스 생성."""
+        self._factory_director = TradeFactoryDirector()
+        self._spot_director = SpotExecutionDirector()
+        # self._futures_director = FuturesExecutionDirector()  # 미구현
 
     @func_logging(level="DEBUG")
-    def process(self, order, price) -> List:
-        """Order를 처리하여 Trade 리스트 반환."""
-        from financial_assets.trade import SpotSide
+    def process(
+        self,
+        order: Order,
+        price: Price,
+    ) -> List[Trade]:
+        """주문 체결 시뮬레이션 실행.
 
-        # 파라미터 검증
-        if not self._validate_process_param(order, price):
-            raise ValueError("Invalid parameters")
+        Args:
+            order: 체결할 주문 객체 (SpotOrder 또는 FuturesOrder)
+            price: 현재 시장 가격 (OHLCV)
 
-        # 라우팅 로직
-        order_type = order.order_type
-        side = order.side
+        Returns:
+            체결된 Trade 목록 (빈 리스트 가능)
 
-        if order_type == "limit":
-            return self._limit_worker(self.calc_tool, self.trade_factory, order, price)
-        elif order_type == "market":
-            if side == SpotSide.BUY:
-                return self._market_buy_worker(self.calc_tool, self.trade_factory, order, price)
-            elif side == SpotSide.SELL:
-                return self._market_sell_worker(self.calc_tool, self.trade_factory, order, price)
+        Raises:
+            ValueError: 알 수 없는 Order 타입
+        """
+        from financial_assets.order import SpotOrder
 
-        raise ValueError(f"Unknown order_type or side: {order_type}, {side}")
+        # Order 타입 확인 및 라우팅
+        if isinstance(order, SpotOrder):
+            # 1. ExecutionDirector에서 체결 파라미터 획득
+            params_list = self._spot_director.execute(order, price)
 
-    def _validate_process_param(self, order, price) -> bool:
-        """파라미터 타입 검증."""
-        from financial_assets.price import Price
+            # 2. FactoryDirector에서 Trade 생성
+            trades = self._factory_director.create_spot_trades(
+                order, params_list, price.t
+            )
 
-        # Price 타입 검증
-        if not isinstance(price, Price):
-            return False
+            return trades
 
-        # Order 기본 속성 검증
-        if not hasattr(order, 'order_type') or not hasattr(order, 'side'):
-            return False
+        # elif isinstance(order, FuturesOrder):
+        #     params_list = self._futures_director.execute(order, price)
+        #     trades = self._factory_director.create_futures_trades(
+        #         order, params_list, price.t
+        #     )
+        #     return trades
 
-        return True
-
-    def __repr__(self) -> str:
-        return "TradeSimulation(workers=4)"
+        raise ValueError(f"Unknown order type: {type(order)}")

@@ -6,17 +6,18 @@ import numpy as np
 
 
 class CalculationTool:
-    """시뮬레이션 수치 계산 도구 (stateless 순수 함수)."""
+    """시뮬레이션 수치 계산 도구 (stateless static 메서드)."""
 
-    def round_to_min_amount(self, amount: float, min_amount: float) -> float:
+    @staticmethod
+    def round_to_min_amount(amount: float, min_amount: float) -> float:
         """금액을 최소 거래 단위의 배수로 내림."""
         if amount <= 0:
             return 0.0
 
         return (amount // min_amount) * min_amount
 
+    @staticmethod
     def get_price_sample(
-        self,
         min: float,
         max: float,
         mean: float,
@@ -37,8 +38,8 @@ class CalculationTool:
         # 최종 범위 클리핑
         return np.clip(price, min, max)
 
+    @staticmethod
     def get_separated_amount_sequence(
-        self,
         base: float,
         min_trade_amount: float,
         split_to: int,
@@ -56,7 +57,7 @@ class CalculationTool:
 
         # 각 조각을 최소 거래 단위로 내림
         rounded_pieces = [
-            self.round_to_min_amount(piece, min_trade_amount)
+            CalculationTool.round_to_min_amount(piece, min_trade_amount)
             for piece in raw_pieces
         ]
 
@@ -68,7 +69,8 @@ class CalculationTool:
 
         return rounded_pieces
 
-    def get_price_range(self, price, target_price: float) -> str:
+    @staticmethod
+    def get_price_range(price, target_price: float) -> str:
         """target_price가 캔들의 어느 범위에 위치하는지 판단."""
         body_bottom = price.bodybottom()
         body_top = price.bodytop()
