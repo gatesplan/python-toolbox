@@ -67,7 +67,14 @@ class CalculationTool:
         # 마지막 조각에 잔여량 추가
         rounded_pieces[-1] += remainder
 
-        return rounded_pieces
+        # 0인 조각 제거 (min_trade_amount보다 작아서 0으로 내림된 경우)
+        non_zero_pieces = [piece for piece in rounded_pieces if piece > 0]
+
+        # 모든 조각이 0이 되는 경우 방지 (base를 전량 반환)
+        if not non_zero_pieces:
+            return [base]
+
+        return non_zero_pieces
 
     @staticmethod
     def get_price_range(price, target_price: float) -> str:

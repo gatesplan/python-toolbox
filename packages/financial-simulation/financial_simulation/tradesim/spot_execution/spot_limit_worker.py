@@ -44,17 +44,6 @@ class SpotLimitWorker:
         from financial_assets.constants import Side
 
         params_list = []
-        side = order.side
-
-        # 체결 조건 확인
-        if side == Side.BUY:
-            # 매수: 시장 가격(close) <= 주문 가격
-            if price.c > order.price:
-                return params_list
-        else:  # Side.SELL
-            # 매도: 시장 가격(close) >= 주문 가격
-            if price.c < order.price:
-                return params_list
 
         # 가격 범위 판단
         price_range = CalculationTool.get_price_range(price, order.price)
