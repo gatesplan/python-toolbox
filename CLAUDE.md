@@ -1,3 +1,5 @@
+`@.claude/for-agent-readme.md` 파일의 지시사항 읽기.
+
 <!-- OPENSPEC:START -->
 # OpenSpec Instructions
 

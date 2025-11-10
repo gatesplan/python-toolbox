@@ -1,0 +1,7 @@
+# 분할 설정 상수
+
+class SplitConfig:
+    MIN_SPLIT_COUNT = 1
+    MAX_SPLIT_COUNT = 3
+    MIN_TRADE_AMOUNT_RATIO = 0.01
+    STD_CALCULATION_FACTOR = 4

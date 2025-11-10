@@ -6,7 +6,6 @@ build-backend = "setuptools.build_meta"
 name = "financial-assets"
 version = "0.0.1"
 description = "금융 자산 데이터 처리 모듈 (캔들스틱, 가격 등)"
-readme = "README.md"
 requires-python = ">=3.10"
 authors = [
     {name = "생선공장", email = "gatesplan@gmail.com"}
@@ -20,6 +19,11 @@ dependencies = [
     "pymysql>=1.0.0",
     "simple-logger"
 ]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["financial_assets*"]
+exclude = ["logs*", "tests*"]
 
 [project.urls]
 Homepage = "https://github.com/gatesplan/python-toolbox"

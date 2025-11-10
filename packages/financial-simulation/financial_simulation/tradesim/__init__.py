@@ -1,9 +1,9 @@
-"""Trade Simulation Modules"""
+# Trade Simulation Modules
 
-from .trade_simulation import TradeSimulation
-from .calculation_tool import CalculationTool
+from .API import TradeSimulation
+from .InternalStruct import TradeParams
 
 __all__ = [
     "TradeSimulation",
-    "CalculationTool",
+    "TradeParams",
 ]

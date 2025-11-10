@@ -1,17 +1,19 @@
 # 프로그래밍 AI에이전트 작업 프로토콜
-- 이 문서는 AI에이전트의 원활한 작업을 위한 광역 설계 지침이다.
+- 이 문서는 AI에이전트의 원활한 작업을 위한 설계 지침이다.
 - 모든 에이전트는 작업에 이 문서를 따라야 한다.
 - 이 파일은 루트 폴더의 중앙 지침이므로 에이전트는 절대 이 파일을 수정하지 않는다.
-
+- 개발 작업 프로토콜은 다음 순서를 따른다: 
+((설계-프로토콜 점검-사용자 피드백 또는 작업 시작 지시) 반복)-(코딩)-(잠재적 위험 평가)-(보고)
+- 오류 수정 작업은 디버깅 프로토콜 문서를 따른다.
 
 ## 0. 용어
-- 에이전트 = 작업 수행하는 에이전트
+- 에이전트 = 작업 수행하는 LLM 에이전트
 - 사용자 = 에이전트에게 작업을 지시하는 사람
 - 작업 프로토콜 = 이 문서에서 정의하는 모든 규약
 - 코딩 프로토콜 = `for-agent-codingprotocol-*.md` 형식의 문서에서 정의하는 모든 코딩 스타일 및 규칙
 - 환경 프로토콜 = `for-agent-envprotocol-*.md` 형식의 문서에서 정의하는 모든 환경 규약
+- 디버깅 프로토콜 = `for-agent-troubleshootingprotocol.md` 형식의 문서에서 정의하는 모든 규약
 - 기술문서 = `for-agent-moduleinfo.md` 형식의, 각 모듈에 대한 모든 종류의 설명서 
-
 
 ## 1. 설계-점검-피드백 단계 지침
 
@@ -24,12 +26,10 @@
 - 데이터 흐름이 분명하지 않으면 마음대로 채우지 말고 사용자에게 피드백을 요청한다.
 - 모든 기능은 최소단위로 분해하여 아주 단순한 함수의 조합으로 구현하는 것을 기본 방향으로 한다.
 
-
 ## 2. 코딩 단계 지침
 
 - `for-agent-codingprotocol-*.md` 문서에서 정의한 코딩 스타일을 따른다.
 - 위 문서에서 정의하지 않은 것은 해당 언어의 표준 코딩 스타일을 따른다.
-
 
 ## 3. 잠재적 위험 평가 지침
 
@@ -37,60 +37,64 @@
 그 외에 에이전트가 필요하다고 판단한 잠재적 위험 평가를 항목별로 평가하여 [안전|주의|위험] 세 등급으로 결정하고, 
 사용자에게 취약점을 정리한다.
 
-
 ## 4. 보고 단계
 
 - 이 단계는 한 사이클의 코딩 작업이 끝난 것으로, 
-작성한 클래스와 메서드의 간단한 설명, i/o 값 등을 목록화하여 무엇을 만들고 수정한 것인지 알 수 있게 보고해야 한다.
-보고 항목은 신규/수정/삭제의 세 카테고리로 나누고, 각 항목에 대해 ClassName:FuncName() 수정사항 또는 신규 기능 설명으로 이뤄진 목록을 작성한다.
-
+이후 사용자의 지시는 이전 작업과 문맥이 이어지더라도 새로운 개별 작업 프로토콜을 시작해야 한다. 
+에이전트는 이전의 작업에 이어지더라도 다시 코드 생성이나 수정 전 사용자의 명시적 승인을 받아야 한다.
 
 ## 5. 중복 구현 회피 및 기술문서 활용
 - 각각의 모듈 폴더에 기술문서 `for-agent-moduleinfo.md`를 작성한다. `__init__.py` 파일과 함께 작성하며, 
 해당 디렉토리에 있는 각 모듈에 대한 기능의 간단한 목적과 정보를 설명한다.
 - 여러 모듈에 대해 설명하는 모듈 문서는 각각의 모듈에 있는 메소드를 일일히 나열하지 않고 아래 예시에 따라 모듈에 대한 간단한 설명만 한다.
-```markdown
+```
     # modulename
     모듈의 목적과 책임범위에 대한 간단한 설명
-    
-    `property: type = default` 간단한 설명
-    `property: type = default` 간단한 설명
-    `method(args: type, args: type = default) -> return_type`
-    - raise ExceptionOrError
-    메서드의 간단한 설명
-    
+
+    property: type = default    # 간단한 설명
+    property: type = default    # 간단한 설명
+    method(args: type, args: type = default) -> return_type
+        raise ExceptionOrError
+        메서드의 간단한 설명
 
     # modulename
     모듈의 목적과 책임범위에 대한 간단한 설명
 
-    `property: type = default` 간단한 설명
-    `property: type = default` 간단한 설명
-    `method(args: type, args: type = default) -> return_type`
-    - raise ExceptionOrError
-    메서드의 간단한 설명
+    property: type = default    # 간단한 설명
+    property: type = default    # 간단한 설명
+    method(args: type, args: type = default) -> return_type
+        raise ExceptionOrError
+        메서드의 간단한 설명
 
     ...
 ```
 - 하나의 모듈에 대하여 설명하는 모듈 문서는 메서드를 다음 예시와 같이 설명한다.
-```markdown
+```
     # modulename
     모듈의 목적과 책임범위에 대한 간단한 설명
 
-    `property: type = default` 간단한 설명
-    `property: type = default` 간단한 설명
+    property: type = default    # 간단한 설명
+    property: type = default    # 간단한 설명
 
-    `method(args: type, args: type = default) -> return_type`
-    - raise ExceptionOrError
-    메서드의 간단한 설명
+    method(args: type, args: type = default) -> return_type
+        raise ExceptionOrError
+        메서드의 간단한 설명
 
-    ```
-    method usecase sample
-    ```
+    method usecase
+
     ...
 ```
 
 
-# 6. 주의사항
+# 6. 유닛테스트 작성 관련 사항
+- 유닛테스트는 pytest를 사용한다.
+- 테스트는 루트에서 간단한 커맨드로 실행할 수 있어야 한다. `pytest`
+- 유닛테스트 파일은 각 모듈의 tests 폴더에 `test_*.py` 형식으로 작성한다.
+- 각 유닛테스트는 모듈의 메서드 동작과 극단값 예시만 테스트하고, 불필요하게 여러 시나리오를 작성하지 않는다.
+- 각 유닛테스트는 사용자의 명시적 지시가 있어야만 모킹을 사용하고, 명시적 지시가 없으면 실제 객체와 값으로 테스트한다.
+
+
+# 7. 주의사항
 - 에이전트는 사용자의 명시적 지시 없이 코딩 작업을 수행하지 않는다.
 - 에이전트는 이미 구현된 다른 코드를 명백한 수정 지시 없이는 수정하지 않는다.
 - 에이전트는 코딩 작업을 수행할 때, 이 문서와 함께 코딩 프로토콜(`for-agent-codingprotocol-*.md`)을 준수한다.
