@@ -23,9 +23,11 @@ class AuthService:
         self.token_manager = token_manager
 
     def login(self, username, password):
-        """"""
+        # 정보가 맞지 않을 경우 에러
         if not username or not password:
             raise ValueError("Invalid credentials")
+        
+        # 토큰 생성 및 반환
         token = self.token_manager.generate(username)
         return token
 
