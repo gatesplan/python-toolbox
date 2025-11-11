@@ -1,13 +1,13 @@
 # 거래 시뮬레이션 API (진입점)
 
 from __future__ import annotations
-from typing import TYPE_CHECKING, List
-from simple_logger import init_logging, func_logging
+from typing import List
 
-if TYPE_CHECKING:
-    from financial_assets.order import Order
-    from financial_assets.price import Price
-    from financial_assets.trade import Trade
+from simple_logger import init_logging, func_logging
+from financial_assets.order import Order, SpotOrder
+from financial_assets.price import Price
+from financial_assets.trade import Trade
+from financial_assets.constants import OrderType, Side
 
 from ...Service import (
     SpotLimitFillService,
@@ -34,9 +34,6 @@ class TradeSimulation:
         price: Price,
     ) -> List[Trade]:
         # 주문 체결 시뮬레이션 실행
-        from financial_assets.order import SpotOrder
-        from financial_assets.constants import OrderType, Side
-
         if isinstance(order, SpotOrder):
             # 1. 적절한 FillService 선택 및 호출
             if order.order_type == OrderType.LIMIT:

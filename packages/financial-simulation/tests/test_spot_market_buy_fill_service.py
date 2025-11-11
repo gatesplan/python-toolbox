@@ -14,25 +14,25 @@ from financial_simulation.tradesim.Service import SpotMarketBuyFillService
 from financial_assets.order import SpotOrder
 from financial_assets.stock_address import StockAddress
 from financial_assets.price import Price
-from financial_assets.constants import Side, OrderType
+from financial_assets.constants import Side, OrderType, TimeInForce
 
 
 class TestSpotMarketBuyFillService:
 
-    def test_execute_always_fills(self):
-        # 항상 체결
+    def test_execute_small_order_full_fill(self):
+        # 소액 주문 (0.1% 이하): 전량 체결 보장
         random.seed(42)
         np.random.seed(42)
         service = SpotMarketBuyFillService()
 
         stock_address = StockAddress("crypto", "binance", "spot", "btc", "usdt", "1d")
         order = SpotOrder(
-            order_id="test-1",
+            order_id="test-small-1",
             stock_address=stock_address,
             side=Side.BUY,
             order_type=OrderType.MARKET,
             price=None,
-            amount=1.0,
+            amount=0.1,  # 0.1 / 500 = 0.0002 = 0.02% (0.1% 이하)
             timestamp=1000000,
             min_trade_amount=0.01,
         )
@@ -41,7 +41,143 @@ class TestSpotMarketBuyFillService:
 
         params_list = service.execute(order, price)
 
-        assert len(params_list) > 0
+        # 전량 체결 확인
+        total_amount = sum(p.fill_amount for p in params_list)
+        assert abs(total_amount - 0.1) < 0.0001
+
+    def test_execute_medium_order_high_fill_ratio(self):
+        # 중간 주문 (0.1% ~ 1%): 95-100% 체결
+        random.seed(42)
+        np.random.seed(42)
+        service = SpotMarketBuyFillService()
+
+        stock_address = StockAddress("crypto", "binance", "spot", "btc", "usdt", "1d")
+        order = SpotOrder(
+            order_id="test-medium-1",
+            stock_address=stock_address,
+            side=Side.BUY,
+            order_type=OrderType.MARKET,
+            price=None,
+            amount=2.0,  # 2.0 / 500 = 0.004 = 0.4% (0.1% ~ 1%)
+            timestamp=1000000,
+            min_trade_amount=0.01,
+        )
+
+        price = Price("binance", "BTCUSDT", 1000000, 120.0, 90.0, 100.0, 110.0, 1000.0)
+
+        params_list = service.execute(order, price)
+
+        # 95-100% 체결 확인
+        total_amount = sum(p.fill_amount for p in params_list)
+        fill_ratio = total_amount / 2.0
+        assert 0.95 <= fill_ratio <= 1.0
+
+    def test_execute_large_order_partial_fill(self):
+        # 큰 주문 (1% ~ 5%): 60-90% 체결
+        random.seed(42)
+        np.random.seed(42)
+        service = SpotMarketBuyFillService()
+
+        stock_address = StockAddress("crypto", "binance", "spot", "btc", "usdt", "1d")
+        order = SpotOrder(
+            order_id="test-large-1",
+            stock_address=stock_address,
+            side=Side.BUY,
+            order_type=OrderType.MARKET,
+            price=None,
+            amount=10.0,  # 10.0 / 500 = 0.02 = 2% (1% ~ 5%)
+            timestamp=1000000,
+            min_trade_amount=0.01,
+        )
+
+        price = Price("binance", "BTCUSDT", 1000000, 120.0, 90.0, 100.0, 110.0, 1000.0)
+
+        params_list = service.execute(order, price)
+
+        # 60-90% 체결 확인
+        total_amount = sum(p.fill_amount for p in params_list)
+        fill_ratio = total_amount / 10.0
+        assert 0.6 <= fill_ratio <= 0.9
+
+    def test_execute_huge_order_low_fill_ratio(self):
+        # 거대 주문 (5% ~ 20%): 20-50% 체결
+        random.seed(42)
+        np.random.seed(42)
+        service = SpotMarketBuyFillService()
+
+        stock_address = StockAddress("crypto", "binance", "spot", "btc", "usdt", "1d")
+        order = SpotOrder(
+            order_id="test-huge-1",
+            stock_address=stock_address,
+            side=Side.BUY,
+            order_type=OrderType.MARKET,
+            price=None,
+            amount=40.0,  # 40.0 / 500 = 0.08 = 8% (5% ~ 20%)
+            timestamp=1000000,
+            min_trade_amount=0.01,
+        )
+
+        price = Price("binance", "BTCUSDT", 1000000, 120.0, 90.0, 100.0, 110.0, 1000.0)
+
+        params_list = service.execute(order, price)
+
+        # 20-50% 체결 확인
+        total_amount = sum(p.fill_amount for p in params_list)
+        fill_ratio = total_amount / 40.0
+        assert 0.2 <= fill_ratio <= 0.5
+
+    def test_execute_excessive_order_minimal_fill(self):
+        # 초대형 주문 (20% 초과): IOC 5-15% 체결
+        random.seed(42)
+        np.random.seed(42)
+        service = SpotMarketBuyFillService()
+
+        stock_address = StockAddress("crypto", "binance", "spot", "btc", "usdt", "1d")
+        order = SpotOrder(
+            order_id="test-excessive-1",
+            stock_address=stock_address,
+            side=Side.BUY,
+            order_type=OrderType.MARKET,
+            price=None,
+            amount=250.0,  # 250.0 / 500 = 0.5 = 50% (20% 초과)
+            timestamp=1000000,
+            min_trade_amount=0.01,
+        )
+
+        price = Price("binance", "BTCUSDT", 1000000, 120.0, 90.0, 100.0, 110.0, 1000.0)
+
+        params_list = service.execute(order, price)
+
+        # 5-15% 체결 확인
+        total_amount = sum(p.fill_amount for p in params_list)
+        fill_ratio = total_amount / 250.0
+        assert 0.05 <= fill_ratio <= 0.15
+
+    def test_execute_excessive_order_fok_fails(self):
+        # 초대형 주문 (20% 초과) + FOK: 무조건 실패
+        random.seed(42)
+        np.random.seed(42)
+        service = SpotMarketBuyFillService()
+
+        stock_address = StockAddress("crypto", "binance", "spot", "btc", "usdt", "1d")
+        order = SpotOrder(
+            order_id="test-excessive-fok-1",
+            stock_address=stock_address,
+            side=Side.BUY,
+            order_type=OrderType.MARKET,
+            price=None,
+            amount=250.0,  # 250.0 / 500 = 0.5 = 50% (20% 초과)
+            timestamp=1000000,
+            min_trade_amount=0.01,
+            time_in_force=TimeInForce.FOK,
+        )
+
+        price = Price("binance", "BTCUSDT", 1000000, 120.0, 90.0, 100.0, 110.0, 1000.0)
+
+        params_list = service.execute(order, price)
+
+        # FOK 무조건 실패
+        assert len(params_list) == 0
 
     def test_execute_slippage_range(self):
         # head 범위에서 가격 샘플링 (110~120)
@@ -51,12 +187,12 @@ class TestSpotMarketBuyFillService:
 
         stock_address = StockAddress("crypto", "binance", "spot", "btc", "usdt", "1d")
         order = SpotOrder(
-            order_id="test-2",
+            order_id="test-slippage-1",
             stock_address=stock_address,
             side=Side.BUY,
             order_type=OrderType.MARKET,
             price=None,
-            amount=1.0,
+            amount=0.1,  # 소액 주문으로 전량 체결 보장
             timestamp=1000000,
             min_trade_amount=0.01,
         )
@@ -77,12 +213,12 @@ class TestSpotMarketBuyFillService:
 
         stock_address = StockAddress("crypto", "binance", "spot", "btc", "usdt", "1d")
         order = SpotOrder(
-            order_id="test-3",
+            order_id="test-split-1",
             stock_address=stock_address,
             side=Side.BUY,
             order_type=OrderType.MARKET,
             price=None,
-            amount=10.0,
+            amount=0.1,  # 소액 주문으로 전량 체결 보장
             timestamp=1000000,
             min_trade_amount=0.01,
         )
@@ -102,12 +238,12 @@ class TestSpotMarketBuyFillService:
 
         stock_address = StockAddress("crypto", "binance", "spot", "btc", "usdt", "1d")
         order = SpotOrder(
-            order_id="test-4",
+            order_id="test-price-sampling-1",
             stock_address=stock_address,
             side=Side.BUY,
             order_type=OrderType.MARKET,
             price=None,
-            amount=10.0,
+            amount=0.1,  # 소액 주문으로 전량 체결 보장
             timestamp=1000000,
             min_trade_amount=0.01,
         )

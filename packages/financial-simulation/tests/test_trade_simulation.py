@@ -236,7 +236,7 @@ class TestTradeSimulationSpotMarketOrders:
             assert 90.0 <= fill_price <= 100.0
 
     def test_market_order_split(self):
-        # 분할 체결
+        # 분할 체결 (소액 주문으로 전량 체결 보장)
         random.seed(42)
         np.random.seed(42)
         sim = TradeSimulation()
@@ -248,7 +248,7 @@ class TestTradeSimulationSpotMarketOrders:
             side=Side.BUY,
             order_type=OrderType.MARKET,
             price=None,
-            amount=10.0,
+            amount=0.1,  # 0.1 / 500 = 0.0002 = 0.02% (소액 주문)
             timestamp=1000000,
             min_trade_amount=0.01,
         )
@@ -260,9 +260,9 @@ class TestTradeSimulationSpotMarketOrders:
         # 1~3개로 분할
         assert 1 <= len(trades) <= 3
 
-        # 총합 검증
+        # 총합 검증 (전량 체결)
         total_amount = sum(trade.pair.get_asset() for trade in trades)
-        assert abs(total_amount - 10.0) < 0.0001
+        assert abs(total_amount - 0.1) < 0.0001
 
 
 class TestTradeSimulationErrorHandling:

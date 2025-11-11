@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 from typing import TYPE_CHECKING, List
+
 from simple_logger import func_logging
+from financial_assets.order import SpotOrder
+from financial_assets.trade import SpotTrade
+from financial_assets.pair import Pair
+from financial_assets.token import Token
 
 if TYPE_CHECKING:
-    from financial_assets.order import SpotOrder
-    from financial_assets.trade import SpotTrade
     from ...InternalStruct import TradeParams
 
 
@@ -20,10 +23,6 @@ class SpotTradeFactoryService:
         timestamp: int,
     ) -> List[SpotTrade]:
         # TradeParams 리스트로부터 SpotTrade 리스트 생성
-        from financial_assets.trade import SpotTrade
-        from financial_assets.pair import Pair
-        from financial_assets.token import Token
-
         trades = []
         for params in params_list:
             trade_value = params.fill_price * params.fill_amount
