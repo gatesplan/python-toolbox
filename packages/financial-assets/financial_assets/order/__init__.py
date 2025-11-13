@@ -7,9 +7,10 @@ This module provides order classes for different trading types:
 """
 
 from .spot_order import SpotOrder
+from .spot_order_validator import SpotOrderValidator
 
 # Type alias for all order types
 # TODO: Add FuturesOrder when implemented
 Order = SpotOrder
 
-__all__ = ["SpotOrder", "Order"]
+__all__ = ["SpotOrder", "SpotOrderValidator", "Order"]

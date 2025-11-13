@@ -6,10 +6,12 @@ This package provides modules for handling various financial asset types:
 - candle: Candle data structures
 - order: Order management
 - trade: Trading operations
+- symbol: Symbol standardization and formatting
 
 Each module should be imported explicitly:
     from financial_assets.order import OrderInfo
     from financial_assets.candle import Candle
+    from financial_assets.symbol import Symbol
 """
 
 __all__ = []

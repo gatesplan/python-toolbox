@@ -3,6 +3,7 @@ from typing import Optional
 from ..constants import Side, OrderStatus, OrderType, TimeInForce
 from ..stock_address import StockAddress
 from simple_logger import init_logging, logger
+from .spot_order_validator import SpotOrderValidator
 
 
 class SpotOrder:
@@ -43,6 +44,9 @@ class SpotOrder:
         self.min_trade_amount = min_trade_amount
         self.time_in_force = time_in_force
         self.expire_timestamp = expire_timestamp
+
+        # 필드 유효성 검증
+        SpotOrderValidator.validate(self)
 
     def _clone(self, **overrides) -> SpotOrder:
         """속성을 덮어쓴 새 SpotOrder 복제."""

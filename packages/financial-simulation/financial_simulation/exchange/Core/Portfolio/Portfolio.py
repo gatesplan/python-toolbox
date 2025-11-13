@@ -4,6 +4,7 @@ from financial_assets.wallet import SpotWallet
 from financial_assets.trade import SpotTrade
 from simple_logger import init_logging, logger
 from .PromiseManager import PromiseManager
+from .InternalStruct import AssetType
 
 
 class Portfolio:
@@ -88,7 +89,7 @@ class Portfolio:
     # ===== 자산 예약 (Promise) =====
 
     def lock_currency(self, promise_id: str, symbol: str, amount: float) -> None:
-        """자산 예약 (미체결 주문용).
+        """Currency 예약 (미체결 주문용).
 
         Args:
             promise_id: 예약 식별자 (주문 ID 등)
@@ -98,7 +99,7 @@ class Portfolio:
         Raises:
             ValueError: 사용 가능 잔고 부족 시
         """
-        logger.info(f"자산 잠금 요청: promise_id={promise_id}, symbol={symbol}, amount={amount}")
+        logger.info(f"Currency 잠금 요청: promise_id={promise_id}, symbol={symbol}, amount={amount}")
 
         available = self.get_available_balance(symbol)
         if available < amount:
@@ -108,8 +109,31 @@ class Portfolio:
                 f"requested {amount}, available {available}"
             )
 
-        self._promise_manager.lock(promise_id, symbol, amount)
-        logger.info(f"자산 잠금 완료: promise_id={promise_id}")
+        self._promise_manager.lock(promise_id, AssetType.CURRENCY, symbol, amount)
+        logger.info(f"Currency 잠금 완료: promise_id={promise_id}")
+
+    def lock_position(self, promise_id: str, ticker: str, amount: float) -> None:
+        """Position 예약 (미체결 주문용).
+
+        Args:
+            promise_id: 예약 식별자 (주문 ID 등)
+            ticker: Position ticker (예: "BTC-USDT")
+            amount: 예약 수량
+
+        Raises:
+            ValueError: 사용 가능 포지션 부족 시
+        """
+        logger.info(f"Position 잠금 요청: promise_id={promise_id}, ticker={ticker}, amount={amount}")
+
+        available = self.get_available_position(ticker)
+        if available < amount:
+            logger.error(f"포지션 부족: ticker={ticker}, requested={amount}, available={available}")
+            raise ValueError(
+                f"포지션 부족: {ticker} requested={amount}, available={available}"
+            )
+
+        self._promise_manager.lock(promise_id, AssetType.POSITION, ticker, amount)
+        logger.info(f"Position 잠금 완료: promise_id={promise_id}")
 
     def unlock_currency(self, promise_id: str) -> None:
         """자산 예약 해제.
@@ -156,6 +180,31 @@ class Portfolio:
                 positions[ticker] = pair_stack.total_asset_amount()
 
         return positions
+
+    def get_available_position(self, ticker: str) -> float:
+        """사용 가능 포지션 조회 (총 포지션 - 예약 포지션).
+
+        Args:
+            ticker: Position ticker (예: "BTC-USDT")
+
+        Returns:
+            float: 사용 가능 수량
+        """
+        positions = self.get_positions()
+        total = positions.get(ticker, 0.0)
+        locked = self.get_locked_position(ticker)
+        return total - locked
+
+    def get_locked_position(self, ticker: str) -> float:
+        """예약된 포지션 수량 조회.
+
+        Args:
+            ticker: Position ticker (예: "BTC-USDT")
+
+        Returns:
+            float: 예약된 수량
+        """
+        return self._promise_manager.get_locked_amount_by_type(AssetType.POSITION, ticker)
 
     def get_currencies(self) -> list[str]:
         """보유 화폐 목록.

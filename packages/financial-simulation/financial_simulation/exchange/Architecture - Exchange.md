@@ -25,7 +25,7 @@ dependencies = [
 ```
 
 **Notes:**
-- `financial-assets`: Order, Trade, Price 등 핵심 도메인 객체 제공
+- `financial-assets`: Order, Trade, Price 등 핵심 도메인 객체 제공. SpotOrder는 생성 시 자체 필드 검증을 수행하므로 Exchange는 이미 유효한 Order 객체를 받는다고 가정
 - `financial-simulation.tradesim`: Order + Price → Trade 체결 시뮬레이션
 
 ## Structure
@@ -87,11 +87,11 @@ graph TB
 - 구체적인 API 명세, 알고리즘, 데이터 구조는 각 컴포넌트의 moduleinfo 문서에서 정의됩니다
 - Futures, Bond 등 다른 계정 타입 거래소는 동일한 구조를 따르되 별도 클래스로 구현됩니다
 
-**Development Order and Status:** [Concept Design | Developing | Testing | Done | Deprecated]
+**Development Order and Status:** [Concept Design | Designing | Developing | Testing | Done | Deprecated]
 1. [Portfolio] Done
 2. [OrderBook] Done
 3. [MarketData] Done
-4. [OrderValidator] Concept Design
-5. [OrderExecutor] Concept Design
-6. [PositionManager] Concept Design
-7. [SpotExchange] Concept Design
+4. [OrderValidator] Done
+5. [OrderExecutor] Done
+6. [PositionManager] Done
+7. [SpotExchange] Designing (API 명세 완료, 구현 준비 완료)

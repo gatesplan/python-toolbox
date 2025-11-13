@@ -260,3 +260,146 @@ class TestPortfolio:
         # 남은 사용 가능: 1000
         with pytest.raises(ValueError, match="Insufficient"):
             portfolio.withdraw_currency("USDT", 2000.0)
+
+    def test_lock_position_success(self):
+        """Position 잠금 성공"""
+        portfolio = Portfolio()
+        portfolio.deposit_currency("USDT", 60000.0)
+
+        # BTC 포지션 생성
+        stock_address = StockAddress("candle", "binance", "spot", "BTC", "USDT", "1m")
+        order = SpotOrder(
+            order_id="order_buy",
+            stock_address=stock_address,
+            side=Side.BUY,
+            order_type=OrderType.MARKET,
+            price=50000.0,
+            amount=1.0,
+            timestamp=1000
+        )
+        pair = Pair(Token("BTC", 1.0), Token("USDT", 50000.0))
+        trade = SpotTrade("trade_1", order, pair, 1000, None)
+        portfolio.process_trade(trade)
+
+        # Position 잠금
+        portfolio.lock_position("order_sell", "BTC-USDT", 0.5)
+
+        # 총 포지션은 그대로
+        assert portfolio.get_positions()["BTC-USDT"] == 1.0
+        # 사용 가능은 감소
+        assert portfolio.get_available_position("BTC-USDT") == 0.5
+        # 잠긴 수량 확인
+        assert portfolio.get_locked_position("BTC-USDT") == 0.5
+
+    def test_lock_position_insufficient_raises_error(self):
+        """Position 잠금 실패 - 포지션 부족"""
+        portfolio = Portfolio()
+        portfolio.deposit_currency("USDT", 60000.0)
+
+        # BTC 포지션 생성 (1.0 BTC)
+        stock_address = StockAddress("candle", "binance", "spot", "BTC", "USDT", "1m")
+        order = SpotOrder(
+            order_id="order_buy",
+            stock_address=stock_address,
+            side=Side.BUY,
+            order_type=OrderType.MARKET,
+            price=50000.0,
+            amount=1.0,
+            timestamp=1000
+        )
+        pair = Pair(Token("BTC", 1.0), Token("USDT", 50000.0))
+        trade = SpotTrade("trade_1", order, pair, 1000, None)
+        portfolio.process_trade(trade)
+
+        # 2.0 BTC 잠금 시도 (보유: 1.0)
+        with pytest.raises(ValueError, match="포지션 부족"):
+            portfolio.lock_position("order_sell", "BTC-USDT", 2.0)
+
+    def test_lock_position_considers_existing_locks(self):
+        """Position 잠금 시 기존 잠금 고려"""
+        portfolio = Portfolio()
+        portfolio.deposit_currency("USDT", 60000.0)
+
+        # BTC 포지션 생성 (1.0 BTC)
+        stock_address = StockAddress("candle", "binance", "spot", "BTC", "USDT", "1m")
+        order = SpotOrder(
+            order_id="order_buy",
+            stock_address=stock_address,
+            side=Side.BUY,
+            order_type=OrderType.MARKET,
+            price=50000.0,
+            amount=1.0,
+            timestamp=1000
+        )
+        pair = Pair(Token("BTC", 1.0), Token("USDT", 50000.0))
+        trade = SpotTrade("trade_1", order, pair, 1000, None)
+        portfolio.process_trade(trade)
+
+        # 첫 번째 잠금 (0.6 BTC)
+        portfolio.lock_position("order_1", "BTC-USDT", 0.6)
+        assert portfolio.get_available_position("BTC-USDT") == 0.4
+
+        # 두 번째 잠금 (0.3 BTC) - 성공
+        portfolio.lock_position("order_2", "BTC-USDT", 0.3)
+        assert portfolio.get_available_position("BTC-USDT") == pytest.approx(0.1)
+
+        # 세 번째 잠금 (0.2 BTC) - 실패 (사용 가능: 0.1)
+        with pytest.raises(ValueError, match="포지션 부족"):
+            portfolio.lock_position("order_3", "BTC-USDT", 0.2)
+
+    def test_unlock_position(self):
+        """Position 잠금 해제"""
+        portfolio = Portfolio()
+        portfolio.deposit_currency("USDT", 60000.0)
+
+        # BTC 포지션 생성
+        stock_address = StockAddress("candle", "binance", "spot", "BTC", "USDT", "1m")
+        order = SpotOrder(
+            order_id="order_buy",
+            stock_address=stock_address,
+            side=Side.BUY,
+            order_type=OrderType.MARKET,
+            price=50000.0,
+            amount=1.0,
+            timestamp=1000
+        )
+        pair = Pair(Token("BTC", 1.0), Token("USDT", 50000.0))
+        trade = SpotTrade("trade_1", order, pair, 1000, None)
+        portfolio.process_trade(trade)
+
+        # Position 잠금
+        portfolio.lock_position("order_sell", "BTC-USDT", 0.5)
+        assert portfolio.get_available_position("BTC-USDT") == 0.5
+
+        # 잠금 해제
+        portfolio.unlock_currency("order_sell")
+        assert portfolio.get_available_position("BTC-USDT") == 1.0
+        assert portfolio.get_locked_position("BTC-USDT") == 0.0
+
+    def test_get_available_position_no_position(self):
+        """포지션이 없을 때 get_available_position"""
+        portfolio = Portfolio()
+        assert portfolio.get_available_position("BTC-USDT") == 0.0
+
+    def test_get_locked_position_no_locks(self):
+        """잠금이 없을 때 get_locked_position"""
+        portfolio = Portfolio()
+        portfolio.deposit_currency("USDT", 60000.0)
+
+        # BTC 포지션 생성
+        stock_address = StockAddress("candle", "binance", "spot", "BTC", "USDT", "1m")
+        order = SpotOrder(
+            order_id="order_buy",
+            stock_address=stock_address,
+            side=Side.BUY,
+            order_type=OrderType.MARKET,
+            price=50000.0,
+            amount=1.0,
+            timestamp=1000
+        )
+        pair = Pair(Token("BTC", 1.0), Token("USDT", 50000.0))
+        trade = SpotTrade("trade_1", order, pair, 1000, None)
+        portfolio.process_trade(trade)
+
+        # 잠금 없음
+        assert portfolio.get_locked_position("BTC-USDT") == 0.0
