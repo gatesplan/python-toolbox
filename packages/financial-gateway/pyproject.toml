@@ -14,8 +14,11 @@ authors = [
 license = {text = "MIT"}
 dependencies = [
     "financial-assets",
+    "financial-simulation",
+    "simple-logger",
     "binance-connector>=3.12.0",
     "python-upbit-api>=1.9.1",
+    "python-dotenv>=1.0.0",
 ]
 
 [project.urls]
