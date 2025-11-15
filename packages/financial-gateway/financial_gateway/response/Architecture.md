@@ -448,6 +448,64 @@ classDiagram
 - Gateway는 거래소 API 응답을 위 구조로 변환
 - 모든 가격은 float, timestamp는 unix epoch seconds
 
+### OrderbookResponse
+
+호가창 조회 요청에 대한 응답.
+
+```mermaid
+classDiagram
+    class OrderbookResponse {
+        +is_invalid_market: bool = False
+        +symbol: str
+        +bids: list[tuple[float, float]]
+        +asks: list[tuple[float, float]]
+        +timestamp: int
+    }
+```
+
+**Properties:**
+
+**고유 상태 플래그:**
+- `is_invalid_market: bool = False` - 존재하지 않는 마켓
+
+**결과 데이터:**
+
+성공 시 (`is_success=True`):
+- `symbol: str` - 조회한 심볼 (예: "BTCUSDT")
+- `bids: list[tuple[float, float]]` - 매수 호가 리스트 [(가격, 수량), ...] (가격 높은 순 정렬)
+- `asks: list[tuple[float, float]]` - 매도 호가 리스트 [(가격, 수량), ...] (가격 낮은 순 정렬)
+- `timestamp: int` - 스냅샷 생성 시각 (unix timestamp 초단위)
+
+**예시:**
+```python
+{
+    "symbol": "BTCUSDT",
+    "bids": [
+        (45500.0, 1.5),    # 가장 높은 매수 호가
+        (45499.0, 2.3),
+        (45498.0, 0.8),
+        ...
+    ],
+    "asks": [
+        (45501.0, 1.2),    # 가장 낮은 매도 호가
+        (45502.0, 3.1),
+        (45503.0, 0.5),
+        ...
+    ],
+    "timestamp": 1704067200
+}
+```
+
+**동작:**
+- Gateway는 거래소 API를 호출하여 현재 호가창 스냅샷 조회
+- bids는 가격 내림차순 정렬 (높은 가격부터)
+- asks는 가격 오름차순 정렬 (낮은 가격부터)
+- 호가 깊이(depth)는 거래소 정책에 따름 (일반적으로 20-100단계)
+- 거래소별 구현:
+  - **Binance**: `GET /api/v3/depth?symbol=BTCUSDT&limit=100`
+  - **Bybit**: `GET /v5/market/orderbook?category=spot&symbol=BTCUSDT&limit=50`
+  - **Upbit**: `GET /v1/orderbook?markets=KRW-BTC`
+
 ### AvailableMarketsResponse
 
 거래 가능 마켓 조회 요청에 대한 응답.
