@@ -1,0 +1,3 @@
+"""
+Binance provider tests
+"""
