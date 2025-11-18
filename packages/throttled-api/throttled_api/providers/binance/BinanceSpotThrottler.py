@@ -62,7 +62,7 @@ class BinanceSpotThrottler(
         # ORDERS Pipeline은 별도로 관리 (주문 건수는 weight와 다르게 처리)
         weight_pipeline = Pipeline(
             timeframe="REQUEST_WEIGHT_1M",
-            window=FixedWindow(limit=6000, window_seconds=60),
+            window=FixedWindow(limit=6000, window_seconds=60, max_soft_delay=0.3),
             threshold=0.8,  # 80% 사용 시 경고
         )
 
@@ -73,7 +73,7 @@ class BinanceSpotThrottler(
             pipelines.append(
                 Pipeline(
                     timeframe="RAW_REQUESTS_5M",
-                    window=FixedWindow(limit=61000, window_seconds=300),
+                    window=FixedWindow(limit=61000, window_seconds=300, max_soft_delay=0.5),
                     threshold=0.8,
                 )
             )

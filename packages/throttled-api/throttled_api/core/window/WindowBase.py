@@ -12,14 +12,16 @@ class WindowBase(ABC):
     모든 Window 구현체는 remaining 값으로 남은 용량을 차감식으로 관리한다.
     """
 
-    def __init__(self, limit: int, window_seconds: int):
+    def __init__(self, limit: int, window_seconds: int, max_soft_delay: float = 0.5):
         """
         Args:
             limit: 윈도우 내 최대 허용량
             window_seconds: 윈도우 시간 (초)
+            max_soft_delay: soft limiting 최대 대기 시간 (초), 기본 0.5초
         """
         self.limit = limit
         self.window_seconds = window_seconds
+        self.max_soft_delay = max_soft_delay
         self.remaining = limit
 
     @abstractmethod
@@ -64,8 +66,11 @@ class WindowBase(ABC):
         """
         다시 시도 가능할 때까지 대기 시간 (초)
 
-        Soft rate limiting: 50% 이상 소진 시 점진적 딜레이 적용
-        Hard rate limiting: 용량 부족 시 리셋/만료까지 대기
+        Soft rate limiting: 남은 용량을 남은 시간 동안 균등 분배
+        - delay = cost × (time_left / remaining)
+        - max_soft_delay 초과 시 경고 로깅 및 cap
+
+        Hard rate limiting: remaining < cost 시 리셋/만료까지 대기
 
         Args:
             cost: 요청할 소모량 (0이면 현재 상태만 체크)

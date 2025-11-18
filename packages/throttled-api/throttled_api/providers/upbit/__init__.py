@@ -1,4 +1,6 @@
 """
-Upbit API throttler
+Upbit Spot API Provider
 """
-# TODO: Implement UpbitSpotThrottler
+from .UpbitSpotThrottler import UpbitSpotThrottler
+
+__all__ = ["UpbitSpotThrottler"]

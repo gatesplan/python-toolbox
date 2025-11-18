@@ -2,9 +2,13 @@
 Sliding Window strategy implementation
 """
 import time
+import logging
 from collections import deque
 from typing import Deque, Tuple
 from .WindowBase import WindowBase
+
+
+logger = logging.getLogger(__name__)
 
 
 class SlidingWindow(WindowBase):
@@ -15,13 +19,14 @@ class SlidingWindow(WindowBase):
     remaining 값과 (timestamp, cost) 히스토리 큐를 함께 관리.
     """
 
-    def __init__(self, limit: int, window_seconds: int):
+    def __init__(self, limit: int, window_seconds: int, max_soft_delay: float = 0.5):
         """
         Args:
             limit: 윈도우 내 최대 허용량
             window_seconds: 윈도우 시간 (초)
+            max_soft_delay: soft limiting 최대 대기 시간 (초), 기본 0.5초
         """
-        super().__init__(limit, window_seconds)
+        super().__init__(limit, window_seconds, max_soft_delay)
         self.history: Deque[Tuple[float, int]] = deque()
 
     def _remove_expired(self) -> None:
@@ -87,7 +92,7 @@ class SlidingWindow(WindowBase):
         """
         다시 시도 가능할 때까지 대기 시간 (초)
 
-        Soft rate limiting: 50% 이상 소진 시 점진적 딜레이
+        Soft rate limiting: 남은 용량을 다음 회복까지 균등 분배
         Hard rate limiting: 용량 부족 시 가장 오래된 항목 만료까지 대기
 
         Args:
@@ -98,7 +103,7 @@ class SlidingWindow(WindowBase):
         """
         self._remove_expired()
 
-        # Hard limit 1: 이미 over-consumed 상태 또는 요청한 cost가 부족
+        # Hard limit: over-consumed 또는 cost 부족
         if self.remaining <= 0 or (cost > 0 and self.remaining < cost):
             if not self.history:
                 return 0.0
@@ -106,17 +111,37 @@ class SlidingWindow(WindowBase):
             # 가장 오래된 항목이 만료되는 시간
             oldest_timestamp, _ = self.history[0]
             expiration_time = oldest_timestamp + self.window_seconds
-            now = time.time()
-            wait = expiration_time - now
-            return max(0.0, wait)
+            return max(0.0, expiration_time - time.time())
 
-        # Soft limit: 50% 이상 소진 시 점진적 딜레이
-        remaining_rate = self.get_remaining_rate()
-        if remaining_rate >= 0.5:
+        # cost가 0이면 대기 없음
+        if cost == 0:
             return 0.0
 
-        # 점진적 딜레이: remaining_rate가 0.5 → 0으로 갈수록 증가
-        # normalized: 0 (50% 남음) → 1 (0% 남음)
-        normalized = (0.5 - remaining_rate) / 0.5
-        max_delay = 1.0  # 최대 1초
-        return normalized * max_delay
+        # Soft limit: 균등 분배 방식
+        if self.history:
+            # 가장 오래된 항목이 만료될 때까지 남은 시간
+            oldest_timestamp, _ = self.history[0]
+            time_until_recovery = max(0.0,
+                (oldest_timestamp + self.window_seconds) - time.time()
+            )
+
+            if self.remaining > 0:
+                # delay_per_unit = 다음 회복까지 시간 / 남은 용량
+                delay_per_unit = time_until_recovery / self.remaining
+                calculated_delay = cost * delay_per_unit
+
+                # max_soft_delay 초과 시 경고 및 cap
+                if calculated_delay > self.max_soft_delay:
+                    logger.warning(
+                        f"[Soft Limit Exceeded] calculated_delay={calculated_delay:.3f}s > "
+                        f"max={self.max_soft_delay}s, cost={cost}, "
+                        f"remaining={self.remaining}/{self.limit} "
+                        f"({self.get_remaining_rate():.0%}), "
+                        f"next_recovery={time_until_recovery:.1f}s "
+                        f"(Consider reducing request rate)"
+                    )
+                    return self.max_soft_delay
+
+                return calculated_delay
+
+        return 0.0

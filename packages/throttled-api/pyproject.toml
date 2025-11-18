@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "throttled-api"
+version = "0.1.0"
+description = "외부 API 레이트 제한 자동 관리 쓰로틀링 래퍼 시스템"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [
+    {name = "생선공장", email = "gatesplan@gmail.com"}
+]
+license = {text = "MIT"}
+dependencies = []
+
+[project.optional-dependencies]
+binance = ["binance-connector>=3.12.0"]
+upbit = ["upbit-client>=1.0.0"]
+all = ["binance-connector>=3.12.0", "upbit-client>=1.0.0"]
+dev = ["pytest>=8.0.0", "pytest-anyio>=0.0.0"]
+
+[project.urls]
+Homepage = "https://github.com/gatesplan/python-toolbox"
+Repository = "https://github.com/gatesplan/python-toolbox"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["throttled_api*"]
+exclude = ["tests*"]

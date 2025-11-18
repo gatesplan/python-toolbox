@@ -50,6 +50,24 @@
 
 Pipeline이 이벤트를 발행하면, BaseThrottler가 등록된 모든 리스너에게 전달합니다. 임계값과 이벤트 발행 여부는 각 Pipeline 초기화 시 개별 설정 가능하며, 외부에서 이벤트를 어떻게 처리할지는 리스너 구현에 달려 있습니다.
 
+**Soft Rate Limiting (균등 분배 방식)**
+
+남은 용량을 남은 시간 동안 균등하게 분배하여 자동으로 요청 간격을 조절합니다. 이를 통해 burst를 방지하고 용량을 효율적으로 분산시킵니다.
+
+- **계산식**: `delay = cost × (time_left / remaining)`
+  - FixedWindow: `time_left` = 리셋까지 남은 시간
+  - SlidingWindow: `time_left` = 가장 오래된 항목 만료까지 남은 시간
+- **최대 딜레이**: `max_soft_delay` (기본 0.5초)로 제한
+- **경고 로깅**: 계산된 딜레이가 max 초과 시 WARNING 로깅
+
+예시 (limit=6000, 20초에 3000 소비, 40초 남음):
+- delay_per_unit = 40 / 3000 = 0.0133초
+- cost=1 → 0.013초 대기
+- cost=25 → 0.33초 대기
+- cost=100 → 1.33초 계산되지만 0.5초로 cap + 경고
+
+경고 메시지는 사용자가 요청 패턴(빈도, cost)을 재조정해야 함을 의미합니다. 대기 시간이 max_soft_delay를 초과한다는 것은 남은 용량 대비 요청 속도가 과도함을 나타냅니다.
+
 ### External Dependencies
 
 ```toml
@@ -57,8 +75,8 @@ dependencies = []  # 코어 쓰로틀링은 외부 의존성 없음
 
 [project.optional-dependencies]
 binance = ["binance-connector>=3.12.0"]
-upbit = ["python-upbit-api>=1.9.1"]
-all = ["binance-connector>=3.12.0", "python-upbit-api>=1.9.1"]
+upbit = ["upbit-client>=1.0.0"]
+all = ["binance-connector>=3.12.0", "upbit-client>=1.0.0"]
 ```
 
 **Optional Dependencies:**
@@ -121,7 +139,9 @@ graph TB
 
 **Concrete Throttler Layer:**
 
-- **BinanceThrottledAPI** (예시): Binance API의 각 엔드포인트를 메서드로 제공하며, 각 메서드는 파라미터를 기반으로 소모량을 직접 계산합니다. BaseThrottler를 상속받아 `_check_and_wait(cost)` 메서드를 사용하여 쓰로틀 체크를 수행한 후 실제 API를 호출합니다.
+- **BinanceSpotThrottler**: Binance Spot API의 각 엔드포인트를 메서드로 제공하며, 각 메서드는 파라미터를 기반으로 weight를 직접 계산합니다. BaseThrottler를 상속받아 `_check_and_wait(cost)` 메서드를 사용하여 쓰로틀 체크를 수행한 후 실제 API를 호출합니다. REQUEST_WEIGHT(분당 6000), RAW_REQUESTS(5분당 61000) 등 다중 제약을 관리합니다.
+
+- **UpbitSpotThrottler**: Upbit Spot API의 각 엔드포인트를 카테고리(QUOTATION, EXCHANGE_ORDER, EXCHANGE_NON_ORDER)별로 제공합니다. 각 카테고리는 초당/분당 독립적인 제약을 가지며, 총 6개 Pipeline을 동시에 관리합니다. Binance와 달리 weight가 아닌 요청 횟수 기반 제약입니다.
 
 **Base Throttler Layer:**
 
@@ -152,10 +172,14 @@ User Code
 ```
 
 **Data Flow:**
-1. 사용자가 구체 쓰로틀러 메서드 호출 (예: `await binance.get_kline(...)`)
+1. 사용자가 구체 쓰로틀러 메서드 호출
+   - Binance 예: `await binance.get_kline(...)`
+   - Upbit 예: `await upbit.get_ticker(markets=["KRW-BTC"])`
 2. 메서드 내부에서 파라미터 검사 후 소모량 계산
-3. `await self._check_and_wait(cost)` 호출
-4. BaseThrottler가 모든 Pipeline 체크:
+   - Binance: weight 계산 (엔드포인트 + 파라미터 기반)
+   - Upbit: cost=1 (모든 요청 동일), category 결정
+3. `await self._check_and_wait(cost, category=...)` 호출
+4. BaseThrottler가 해당 카테고리의 Pipeline들 체크:
    - 모든 Pipeline의 `can_send(cost)` 확인
    - 하나라도 실패 시 `max(pipeline.wait_time())` 대기
    - 모두 통과 시 모든 Pipeline에 `consume(cost)` 호출 및 timestamp 기록
@@ -170,8 +194,9 @@ User Code
 - 패턴 선택(CPSCP, SDW 등)과 디렉토리 구조는 design-module-implementation 단계에서 결정됩니다
 
 **Development Order and Status:** [Concept Design | Designing | Developing | Testing | Done | Deprecated]
-1. [FixedWindow] Concept Design
-2. [SlidingWindow] Concept Design
-3. [Pipeline] Concept Design
-4. [BaseThrottler] Concept Design
-5. [BinanceThrottledAPI] Concept Design (예시 구현)
+1. [Done] FixedWindow - 고정 윈도우 전략
+2. [Done] SlidingWindow - 슬라이딩 윈도우 전략
+3. [Done] Pipeline - 타임프레임별 제약 관리
+4. [Done] BaseThrottler - 다중 Pipeline 조율
+5. [Done] BinanceSpotThrottler - Binance Spot API 구현
+6. [Done] UpbitSpotThrottler - Upbit Spot API 구현
