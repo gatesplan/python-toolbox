@@ -12,7 +12,7 @@ authors = [
     {name = "생선공장", email = "gatesplan@gmail.com"}
 ]
 license = {text = "MIT"}
-dependencies = []
+dependencies = ["simple-logger"]
 
 [project.optional-dependencies]
 binance = ["binance-connector>=3.12.0"]

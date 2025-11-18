@@ -12,16 +12,26 @@ class WindowBase(ABC):
     모든 Window 구현체는 remaining 값으로 남은 용량을 차감식으로 관리한다.
     """
 
-    def __init__(self, limit: int, window_seconds: int, max_soft_delay: float = 0.5):
+    def __init__(
+        self,
+        limit: int,
+        window_seconds: int,
+        max_soft_delay: float = 0.5,
+        threshold: Optional[float] = 0.5,
+    ):
         """
         Args:
             limit: 윈도우 내 최대 허용량
             window_seconds: 윈도우 시간 (초)
             max_soft_delay: soft limiting 최대 대기 시간 (초), 기본 0.5초
+            threshold: soft limiting 시작 임계값 (0.0 ~ 1.0), 기본 0.5
+                      remaining_rate >= threshold 이면 즉시 허용
+                      remaining_rate < threshold 이면 soft delay 적용
         """
         self.limit = limit
         self.window_seconds = window_seconds
         self.max_soft_delay = max_soft_delay
+        self.threshold = threshold
         self.remaining = limit
 
     @abstractmethod

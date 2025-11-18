@@ -21,6 +21,6 @@ class UnknownEndpointError(BinanceThrottlerError):
         super().__init__(
             f"Unknown endpoint: {method} {endpoint}\n"
             f"This endpoint is not configured in endpoints.py.\n"
-            f"Please add the endpoint weight or set allow_unknown_endpoints=True.\n"
+            f"Please add the endpoint weight to endpoints.py.\n"
             f"Refer to: https://github.com/binance/binance-spot-api-docs/blob/master/rest-api.md"
         )

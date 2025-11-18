@@ -19,7 +19,7 @@ class UserDataStreamMixin:
             {"listenKey": "..."}
         """
         await self._check_and_wait(2)
-        return await self.client.create_listen_key()
+        return self.client.create_listen_key()
 
     async def keep_alive_listen_key(self, listen_key: str) -> dict:
         """
@@ -35,7 +35,7 @@ class UserDataStreamMixin:
             Empty dict on success
         """
         await self._check_and_wait(2)
-        return await self.client.keep_alive_listen_key(listenKey=listen_key)
+        return self.client.keep_alive_listen_key(listenKey=listen_key)
 
     async def close_listen_key(self, listen_key: str) -> dict:
         """
@@ -51,4 +51,4 @@ class UserDataStreamMixin:
             Empty dict on success
         """
         await self._check_and_wait(2)
-        return await self.client.close_listen_key(listenKey=listen_key)
+        return self.client.close_listen_key(listenKey=listen_key)

@@ -32,7 +32,8 @@ class TradingMixin:
             Order creation response
         """
         await self._check_and_wait(1)
-        return await self.client.create_order(symbol=symbol, side=side, type=type, **kwargs)
+        await self._check_orders(1)
+        return self.client.new_order(symbol=symbol, side=side, type=type, **kwargs)
 
     async def test_order(
         self,
@@ -57,7 +58,8 @@ class TradingMixin:
             Test result (empty dict if valid)
         """
         await self._check_and_wait(1)
-        return await self.client.test_order(symbol=symbol, side=side, type=type, **kwargs)
+        await self._check_orders(1)
+        return self.client.new_order_test(symbol=symbol, side=side, type=type, **kwargs)
 
     async def get_order(
         self,
@@ -80,7 +82,7 @@ class TradingMixin:
             Order information
         """
         await self._check_and_wait(4)
-        return await self.client.get_order(
+        return self.client.get_order(
             symbol=symbol,
             orderId=order_id,
             origClientOrderId=orig_client_order_id,
@@ -109,7 +111,8 @@ class TradingMixin:
             Cancelled order information
         """
         await self._check_and_wait(1)
-        return await self.client.cancel_order(
+        await self._check_orders(1)
+        return self.client.cancel_order(
             symbol=symbol,
             orderId=order_id,
             origClientOrderId=orig_client_order_id,
@@ -130,7 +133,8 @@ class TradingMixin:
             List of cancelled orders
         """
         await self._check_and_wait(1)
-        return await self.client.cancel_open_orders(symbol=symbol)
+        await self._check_orders(1)
+        return self.client.cancel_open_orders(symbol=symbol)
 
     async def cancel_replace_order(
         self,
@@ -157,7 +161,8 @@ class TradingMixin:
             Cancel and new order response
         """
         await self._check_and_wait(1)
-        return await self.client.cancel_replace_order(
+        await self._check_orders(1)
+        return self.client.cancel_and_replace(
             symbol=symbol,
             cancelReplaceMode=cancel_replace_mode,
             side=side,
@@ -170,8 +175,8 @@ class TradingMixin:
         symbol: str,
         side: str,
         quantity: float,
-        price: float,
-        stop_price: float,
+        above_type: str,
+        below_type: str,
         **kwargs,
     ) -> dict:
         """
@@ -184,20 +189,21 @@ class TradingMixin:
             symbol: Trading pair symbol
             side: Order side (BUY or SELL)
             quantity: Order quantity
-            price: Limit order price
-            stop_price: Stop order price
-            **kwargs: Additional OCO parameters
+            above_type: Above order type (e.g., "LIMIT_MAKER")
+            below_type: Below order type (e.g., "STOP_LOSS_LIMIT")
+            **kwargs: Additional OCO parameters (price, stopPrice, belowPrice, etc.)
 
         Returns:
             OCO order creation response
         """
         await self._check_and_wait(1)
-        return await self.client.create_oco_order(
+        await self._check_orders(1)
+        return self.client.new_oco_order(
             symbol=symbol,
             side=side,
             quantity=quantity,
-            price=price,
-            stopPrice=stop_price,
+            aboveType=above_type,
+            belowType=below_type,
             **kwargs,
         )
 
@@ -232,7 +238,8 @@ class TradingMixin:
             OTO order creation response
         """
         await self._check_and_wait(1)
-        return await self.client.create_oto_order(
+        await self._check_orders(1)
+        return self.client.new_oto_order(
             symbol=symbol,
             workingType=working_type,
             workingSide=working_side,
@@ -276,7 +283,8 @@ class TradingMixin:
             OTOCO order creation response
         """
         await self._check_and_wait(1)
-        return await self.client.create_otoco_order(
+        await self._check_orders(1)
+        return self.client.new_otoco_order(
             symbol=symbol,
             workingType=working_type,
             workingSide=working_side,
@@ -309,7 +317,8 @@ class TradingMixin:
             Cancelled order list information
         """
         await self._check_and_wait(1)
-        return await self.client.cancel_order_list(
+        await self._check_orders(1)
+        return self.client.cancel_order_list(
             symbol=symbol,
             orderListId=order_list_id,
             listClientOrderId=list_client_order_id,
@@ -334,7 +343,7 @@ class TradingMixin:
             Order list information
         """
         await self._check_and_wait(4)
-        return await self.client.get_order_list(
+        return self.client.get_order_list(
             orderListId=order_list_id,
             origClientOrderId=orig_client_order_id,
         )
@@ -364,7 +373,8 @@ class TradingMixin:
             SOR order creation response
         """
         await self._check_and_wait(1)
-        return await self.client.create_sor_order(
+        await self._check_orders(1)
+        return self.client.create_sor_order(
             symbol=symbol,
             side=side,
             type=type,
@@ -397,7 +407,8 @@ class TradingMixin:
             Test result (empty dict if valid)
         """
         await self._check_and_wait(1)
-        return await self.client.test_sor_order(
+        await self._check_orders(1)
+        return self.client.test_sor_order(
             symbol=symbol,
             side=side,
             type=type,

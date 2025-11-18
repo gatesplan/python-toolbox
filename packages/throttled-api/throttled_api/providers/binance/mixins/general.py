@@ -22,7 +22,7 @@ class GeneralMixin:
             {"status": "ok"} or similar
         """
         await self._check_and_wait(1)
-        return await self.client.ping()
+        return self.client.ping()
 
     async def get_server_time(self) -> dict:
         """
@@ -35,7 +35,7 @@ class GeneralMixin:
             {"serverTime": 1234567890000}
         """
         await self._check_and_wait(1)
-        return await self.client.get_server_time()
+        return self.client.time()
 
     async def get_exchange_info(
         self,
@@ -59,4 +59,4 @@ class GeneralMixin:
         weight = 2 if (symbol or symbols) else 20
 
         await self._check_and_wait(weight)
-        return await self.client.get_exchange_info(symbol=symbol, symbols=symbols)
+        return self.client.exchange_info(symbol=symbol, symbols=symbols)

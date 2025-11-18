@@ -2,6 +2,8 @@
 
 from dataclasses import dataclass
 
+from financial_assets.stock_address import StockAddress
+
 from .base_request import BaseRequest
 
 
@@ -9,4 +11,5 @@ from .base_request import BaseRequest
 class OrderCurrentStateRequest(BaseRequest):
     """특정 주문의 현재 상태 조회를 요청한다."""
 
+    address: StockAddress
     order_id: str

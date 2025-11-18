@@ -1,6 +1,7 @@
 """Simple Logger - loguru 기반 로거 래퍼"""
 
 import time
+import inspect
 from functools import wraps
 from typing import Callable, Any, Optional
 from pathlib import Path
@@ -91,7 +92,7 @@ def func_logging(
     log_result: bool = False,
     log_time: bool = False
 ) -> Callable:
-    """함수/메서드 실행 자동 로깅 데코레이터
+    """함수/메서드 실행 자동 로깅 데코레이터 (동기/비동기 함수 모두 지원)
 
     사용법:
         @func_logging  # 기본값: DEBUG 레벨, 시작/종료만
@@ -99,7 +100,7 @@ def func_logging(
             ...
 
         @func_logging(level="INFO", log_params=True, log_time=True)
-        def business_logic(user_id):
+        async def business_logic(user_id):
             ...
 
     Args:
@@ -114,62 +115,112 @@ def func_logging(
         is_method = len(qual_parts) > 1
         class_name = qual_parts[0] if is_method else "-"
         func_id = f'{class_name}.{func_name}' if is_method else func_name
+        is_async = inspect.iscoroutinefunction(func)
 
-        @wraps(func)
-        def wrapper(*args, **kwargs) -> Any:
-            # ContextVar 설정 (토큰 저장으로 nested call 안전)
-            token_class = _context_class_name.set(class_name)
-            token_func = _context_func_id.set(func_id)
+        if is_async:
+            # Async 함수용 wrapper
+            @wraps(func)
+            async def async_wrapper(*args, **kwargs) -> Any:
+                token_class = _context_class_name.set(class_name)
+                token_func = _context_func_id.set(func_id)
 
-            try:
-                # 시작 로그
-                start_msg = "시작"
-                if log_params:
-                    # 파라미터 수집 (self 제외)
-                    params = {}
-                    if is_method and args:
-                        # 메서드인 경우 self 제외
-                        param_args = args[1:]
-                    else:
-                        param_args = args
-
-                    # args를 딕셔너리로 변환 (간단하게)
-                    if param_args:
-                        params['args'] = param_args
-                    if kwargs:
-                        params['kwargs'] = kwargs
-
-                    if params:
-                        start_msg += f" params={params}"
-
-                logger.log(level, start_msg)
-
-                # 실행
-                start_time = time.time() if log_time else None
                 try:
-                    result = func(*args, **kwargs)
+                    # 시작 로그
+                    start_msg = "시작"
+                    if log_params:
+                        params = {}
+                        if is_method and args:
+                            param_args = args[1:]
+                        else:
+                            param_args = args
 
-                    # 종료 로그
-                    end_msg = "종료"
-                    if log_result:
-                        end_msg += f" result={result}"
-                    if log_time:
-                        elapsed = time.time() - start_time
-                        end_msg += f" elapsed={elapsed:.3f}s"
+                        if param_args:
+                            params['args'] = param_args
+                        if kwargs:
+                            params['kwargs'] = kwargs
 
-                    logger.log(level, end_msg)
-                    return result
+                        if params:
+                            start_msg += f" params={params}"
 
-                except Exception as e:
-                    logger.exception("오류 발생")
-                    raise
+                    logger.log(level, start_msg)
 
-            finally:
-                # 원래 컨텍스트로 복원 (nested call 대응)
-                _context_class_name.reset(token_class)
-                _context_func_id.reset(token_func)
+                    # 실행
+                    start_time = time.time() if log_time else None
+                    try:
+                        result = await func(*args, **kwargs)
 
-        return wrapper
+                        # 종료 로그
+                        end_msg = "종료"
+                        if log_result:
+                            end_msg += f" result={result}"
+                        if log_time:
+                            elapsed = time.time() - start_time
+                            end_msg += f" elapsed={elapsed:.3f}s"
+
+                        logger.log(level, end_msg)
+                        return result
+
+                    except Exception as e:
+                        logger.exception("오류 발생")
+                        raise
+
+                finally:
+                    _context_class_name.reset(token_class)
+                    _context_func_id.reset(token_func)
+
+            return async_wrapper
+        else:
+            # 동기 함수용 wrapper
+            @wraps(func)
+            def sync_wrapper(*args, **kwargs) -> Any:
+                token_class = _context_class_name.set(class_name)
+                token_func = _context_func_id.set(func_id)
+
+                try:
+                    # 시작 로그
+                    start_msg = "시작"
+                    if log_params:
+                        params = {}
+                        if is_method and args:
+                            param_args = args[1:]
+                        else:
+                            param_args = args
+
+                        if param_args:
+                            params['args'] = param_args
+                        if kwargs:
+                            params['kwargs'] = kwargs
+
+                        if params:
+                            start_msg += f" params={params}"
+
+                    logger.log(level, start_msg)
+
+                    # 실행
+                    start_time = time.time() if log_time else None
+                    try:
+                        result = func(*args, **kwargs)
+
+                        # 종료 로그
+                        end_msg = "종료"
+                        if log_result:
+                            end_msg += f" result={result}"
+                        if log_time:
+                            elapsed = time.time() - start_time
+                            end_msg += f" elapsed={elapsed:.3f}s"
+
+                        logger.log(level, end_msg)
+                        return result
+
+                    except Exception as e:
+                        logger.exception("오류 발생")
+                        raise
+
+                finally:
+                    _context_class_name.reset(token_class)
+                    _context_func_id.reset(token_func)
+
+            return sync_wrapper
 
     # 인자 없이 호출된 경우 (@func_logging)
     if _func is not None:

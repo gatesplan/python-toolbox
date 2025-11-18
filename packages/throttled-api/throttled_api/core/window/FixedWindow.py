@@ -17,14 +17,21 @@ class FixedWindow(WindowBase):
     단일 카운터(remaining)로 관리하며, 리셋 시각 도달 시 remaining = limit으로 회복.
     """
 
-    def __init__(self, limit: int, window_seconds: int, max_soft_delay: float = 0.5):
+    def __init__(
+        self,
+        limit: int,
+        window_seconds: int,
+        max_soft_delay: float = 0.5,
+        threshold: float = 0.5,
+    ):
         """
         Args:
             limit: 윈도우 내 최대 허용량
             window_seconds: 윈도우 시간 (초)
             max_soft_delay: soft limiting 최대 대기 시간 (초), 기본 0.5초
+            threshold: soft limiting 시작 임계값 (0.0 ~ 1.0), 기본 0.5
         """
-        super().__init__(limit, window_seconds, max_soft_delay)
+        super().__init__(limit, window_seconds, max_soft_delay, threshold)
         self.next_reset_time = time.time() + window_seconds
 
     def _check_and_reset(self) -> None:
@@ -80,7 +87,7 @@ class FixedWindow(WindowBase):
         """
         다시 시도 가능할 때까지 대기 시간 (초)
 
-        Soft rate limiting: 남은 용량을 리셋까지 균등 분배
+        Soft rate limiting: threshold 미만일 때 균등 분배 방식으로 delay
         Hard rate limiting: 용량 부족 시 다음 리셋까지 대기
 
         Args:
@@ -103,7 +110,12 @@ class FixedWindow(WindowBase):
         if cost == 0:
             return 0.0
 
-        # Soft limit: 균등 분배 방식
+        # Soft limit: threshold 이상이면 즉시 허용
+        remaining_rate = self.get_remaining_rate()
+        if self.threshold is not None and remaining_rate >= self.threshold:
+            return 0.0  # 즉시 허용
+
+        # threshold 미만이면 균등 분배 방식으로 soft delay 적용
         time_until_reset = max(0.0, self.next_reset_time - time.time())
 
         if self.remaining > 0:
@@ -117,7 +129,7 @@ class FixedWindow(WindowBase):
                     f"[Soft Limit Exceeded] calculated_delay={calculated_delay:.3f}s > "
                     f"max={self.max_soft_delay}s, cost={cost}, "
                     f"remaining={self.remaining}/{self.limit} "
-                    f"({self.get_remaining_rate():.0%}), "
+                    f"({remaining_rate:.0%}), "
                     f"time_left={time_until_reset:.1f}s "
                     f"(Consider reducing request rate)"
                 )

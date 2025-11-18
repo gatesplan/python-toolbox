@@ -3,8 +3,8 @@ Binance Spot API Throttler
 
 BaseThrottler를 상속하여 Binance Spot API의 rate limit 관리
 """
-import logging
 from typing import Any, Dict, Optional, Callable
+from simple_logger import init_logging, func_logging, logger
 from ...core.BaseThrottler import BaseThrottler
 from ...core.Pipeline import Pipeline
 from ...core.window.FixedWindow import FixedWindow
@@ -17,9 +17,6 @@ from .mixins import (
     AccountMixin,
     UserDataStreamMixin,
 )
-
-
-logger = logging.getLogger(__name__)
 
 
 class BinanceSpotThrottler(
@@ -44,43 +41,94 @@ class BinanceSpotThrottler(
         await throttler.create_order(symbol="BTCUSDT", side="BUY", type="LIMIT", ...)
     """
 
+    @init_logging(level="INFO")
     def __init__(
         self,
         client: Any,
-        warning_threshold: float = 0.2,
-        enable_raw_requests_limit: bool = False,
-        allow_unknown_endpoints: bool = False,
+        threshold: float = 0.5,
+        max_soft_delay: float = 1.0,
     ):
         """
         Args:
-            client: Binance API 클라이언트 (python-binance, binance-connector-python 등)
-            warning_threshold: 서버와 로컬 weight 차이가 이 비율 이상이면 경고 (0.0 ~ 1.0)
-            enable_raw_requests_limit: RAW_REQUESTS 제한 활성화 (선택, 보수적)
-            allow_unknown_endpoints: 알 수 없는 엔드포인트 허용 (weight=1로 처리), 기본 False
+            client: Binance API 클라이언트
+            threshold: soft limiting 시작 임계값 (0.0~1.0), 기본 0.5
+            max_soft_delay: soft limiting 최대 대기 시간 (초), 기본 1.0
         """
-        # Pipeline 구성 - REQUEST_WEIGHT만 BaseThrottler에 전달
-        # ORDERS Pipeline은 별도로 관리 (주문 건수는 weight와 다르게 처리)
+        # REQUEST_WEIGHT Pipeline: 1분당 6000
         weight_pipeline = Pipeline(
             timeframe="REQUEST_WEIGHT_1M",
-            window=FixedWindow(limit=6000, window_seconds=60, max_soft_delay=0.3),
-            threshold=0.8,  # 80% 사용 시 경고
+            window=FixedWindow(
+                limit=6000,
+                window_seconds=60,
+                max_soft_delay=max_soft_delay,
+                threshold=threshold,
+            ),
+            threshold=threshold,
         )
 
-        pipelines = [weight_pipeline]
+        super().__init__(pipelines=[weight_pipeline])
 
-        if enable_raw_requests_limit:
-            # RAW_REQUESTS: 5분당 61000 (선택적)
-            pipelines.append(
-                Pipeline(
-                    timeframe="RAW_REQUESTS_5M",
-                    window=FixedWindow(limit=61000, window_seconds=300, max_soft_delay=0.5),
-                    threshold=0.8,
-                )
-            )
+        # ORDERS Pipelines (주문 전용 제한)
+        self.order_pipelines = [
+            Pipeline(
+                timeframe="ORDERS_10S",
+                window=FixedWindow(
+                    limit=100,
+                    window_seconds=10,
+                    max_soft_delay=max_soft_delay,
+                    threshold=threshold,
+                ),
+                threshold=threshold,
+            ),
+            Pipeline(
+                timeframe="ORDERS_1D",
+                window=FixedWindow(
+                    limit=200000,
+                    window_seconds=86400,
+                    max_soft_delay=max_soft_delay,
+                    threshold=threshold,
+                ),
+                threshold=threshold,
+            ),
+        ]
 
-        super().__init__(pipelines=pipelines)
+        # Order pipelines에 이벤트 리스너 연결
+        for pipeline in self.order_pipelines:
+            pipeline.add_listener(self._on_pipeline_event)
 
         self.client = client
-        self.warning_threshold = warning_threshold
-        self.allow_unknown_endpoints = allow_unknown_endpoints
-        self.weight_pipeline = weight_pipeline  # REQUEST_WEIGHT_1M
+        self.weight_pipeline = weight_pipeline
+        self._order_lock = __import__('asyncio').Lock()
+
+    async def _check_orders(self, order_count: int = 1) -> None:
+        """
+        주문 제한 체크 및 대기
+
+        ORDERS 제한만 체크 (REQUEST_WEIGHT는 별도로 체크)
+
+        Args:
+            order_count: 주문 개수 (기본 1)
+        """
+        import asyncio
+        while True:
+            # 모든 ORDERS Pipeline의 대기 시간 계산
+            wait_times = [p.wait_time(order_count) for p in self.order_pipelines]
+            max_wait = max(wait_times) if wait_times else 0.0
+
+            # 대기가 필요하면 sleep
+            if max_wait > 0:
+                logger.debug(f"Order rate limit 대기: {max_wait:.3f}초 (count={order_count})")
+                await asyncio.sleep(max_wait)
+                continue
+
+            # 대기 불필요 → consume 시도
+            async with self._order_lock:
+                # 모든 Pipeline이 통과하는지 재확인
+                can_send_all = all(p.can_send(order_count) for p in self.order_pipelines)
+
+                if can_send_all:
+                    # 모두 통과 → 모든 Pipeline에 차감
+                    for pipeline in self.order_pipelines:
+                        pipeline.consume(order_count)
+                    return
+                # can_send 실패 시 다음 루프에서 재계산

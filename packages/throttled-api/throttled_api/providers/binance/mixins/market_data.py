@@ -37,7 +37,7 @@ class MarketDataMixin:
             weight = 250
 
         await self._check_and_wait(weight)
-        return await self.client.get_order_book(symbol=symbol, limit=limit)
+        return self.client.depth(symbol=symbol, limit=limit)
 
     async def get_recent_trades(self, symbol: str, limit: int = 500) -> List[dict]:
         """
@@ -54,7 +54,7 @@ class MarketDataMixin:
             List of recent trades
         """
         await self._check_and_wait(25)
-        return await self.client.get_recent_trades(symbol=symbol, limit=limit)
+        return self.client.trades(symbol=symbol, limit=limit)
 
     async def get_historical_trades(
         self,
@@ -77,7 +77,7 @@ class MarketDataMixin:
             List of historical trades
         """
         await self._check_and_wait(25)
-        return await self.client.get_historical_trades(
+        return self.client.historical_trades(
             symbol=symbol, limit=limit, fromId=from_id
         )
 
@@ -106,7 +106,7 @@ class MarketDataMixin:
             List of aggregate trades
         """
         await self._check_and_wait(2)
-        return await self.client.get_aggregate_trades(
+        return self.client.agg_trades(
             symbol=symbol,
             fromId=from_id,
             startTime=start_time,
@@ -139,7 +139,7 @@ class MarketDataMixin:
             List of klines (OHLCV)
         """
         await self._check_and_wait(2)
-        return await self.client.get_klines(
+        return self.client.klines(
             symbol=symbol,
             interval=interval,
             startTime=start_time,
@@ -172,7 +172,7 @@ class MarketDataMixin:
             List of UI klines
         """
         await self._check_and_wait(2)
-        return await self.client.get_ui_klines(
+        return self.client.ui_klines(
             symbol=symbol,
             interval=interval,
             startTime=start_time,
@@ -194,7 +194,7 @@ class MarketDataMixin:
             {"mins": 5, "price": "..."}
         """
         await self._check_and_wait(2)
-        return await self.client.get_avg_price(symbol=symbol)
+        return self.client.avg_price(symbol=symbol)
 
     async def get_ticker(
         self,
@@ -232,7 +232,22 @@ class MarketDataMixin:
             weight = 80
 
         await self._check_and_wait(weight)
-        return await self.client.get_ticker(symbol=symbol, symbols=symbols, type=type)
+        return self.client.ticker_24hr(symbol=symbol, symbols=symbols, type=type)
+
+    async def get_ticker_24hr(self, symbol: Optional[str] = None) -> dict:
+        """
+        Alias for get_ticker with single symbol
+
+        GET /api/v3/ticker/24hr
+        Weight: 2
+
+        Args:
+            symbol: Trading pair symbol
+
+        Returns:
+            24hr ticker data
+        """
+        return await self.get_ticker(symbol=symbol)
 
     async def get_ticker_price(
         self,
@@ -255,7 +270,7 @@ class MarketDataMixin:
         weight = 2 if symbol else 4
 
         await self._check_and_wait(weight)
-        return await self.client.get_ticker_price(symbol=symbol, symbols=symbols)
+        return self.client.ticker_price(symbol=symbol, symbols=symbols)
 
     async def get_orderbook_ticker(
         self,
@@ -278,7 +293,7 @@ class MarketDataMixin:
         weight = 2 if symbol else 4
 
         await self._check_and_wait(weight)
-        return await self.client.get_orderbook_ticker(symbol=symbol, symbols=symbols)
+        return self.client.book_ticker(symbol=symbol, symbols=symbols)
 
     async def get_rolling_window_ticker(
         self,
@@ -301,6 +316,6 @@ class MarketDataMixin:
             Rolling window ticker data
         """
         await self._check_and_wait(4)
-        return await self.client.get_rolling_window_ticker(
+        return self.client.rolling_window_ticker(
             symbol=symbol, symbols=symbols, windowSize=window_size
         )

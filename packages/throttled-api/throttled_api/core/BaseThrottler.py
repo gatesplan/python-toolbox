@@ -3,6 +3,7 @@ BaseThrottler implementation
 """
 import asyncio
 from typing import List, Callable
+from simple_logger import logger, func_logging
 from .Pipeline import Pipeline
 from .events import ThrottleEvent
 
@@ -46,8 +47,8 @@ class BaseThrottler:
 
             # 대기가 필요하면 sleep
             if max_wait > 0:
+                logger.debug(f"Rate limit 대기: {max_wait:.3f}초 (cost={cost})")
                 await asyncio.sleep(max_wait)
-                # 대기 후 재시도
                 continue
 
             # 대기 불필요 → consume 시도
@@ -60,10 +61,7 @@ class BaseThrottler:
                     for pipeline in self.pipelines:
                         pipeline.consume(cost)
                     return
-                else:
-                    # can_send 실패 (다른 코루틴이 먼저 consume했을 수 있음)
-                    # 다음 루프에서 재계산
-                    pass
+                # can_send 실패 시 다음 루프에서 재계산
 
     def add_event_listener(self, listener: Callable[[ThrottleEvent], None]) -> None:
         """

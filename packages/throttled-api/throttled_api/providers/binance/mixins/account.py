@@ -24,7 +24,7 @@ class AccountMixin:
         """
         weight = 6 if symbol else 80
         await self._check_and_wait(weight)
-        return await self.client.get_open_orders(symbol=symbol)
+        return self.client.get_open_orders(symbol=symbol)
 
     async def get_all_orders(
         self,
@@ -51,7 +51,7 @@ class AccountMixin:
             List of all orders
         """
         await self._check_and_wait(20)
-        return await self.client.get_all_orders(
+        return self.client.get_orders(
             symbol=symbol,
             orderId=order_id,
             startTime=start_time,
@@ -82,7 +82,7 @@ class AccountMixin:
             List of all OCO orders
         """
         await self._check_and_wait(20)
-        return await self.client.get_all_order_list(
+        return self.client.get_oco_orders(
             fromId=from_id,
             startTime=start_time,
             endTime=end_time,
@@ -100,7 +100,7 @@ class AccountMixin:
             List of open OCO orders
         """
         await self._check_and_wait(6)
-        return await self.client.get_open_order_list()
+        return self.client.get_oco_open_orders()
 
     async def get_my_trades(
         self,
@@ -129,7 +129,7 @@ class AccountMixin:
             List of trades
         """
         await self._check_and_wait(20)
-        return await self.client.get_my_trades(
+        return self.client.my_trades(
             symbol=symbol,
             orderId=order_id,
             startTime=start_time,
@@ -163,7 +163,7 @@ class AccountMixin:
             List of allocations
         """
         await self._check_and_wait(20)
-        return await self.client.get_my_allocations(
+        return self.client.query_allocations(
             symbol=symbol,
             startTime=start_time,
             endTime=end_time,
@@ -182,7 +182,7 @@ class AccountMixin:
             Account information (balances, permissions, etc.)
         """
         await self._check_and_wait(20)
-        return await self.client.get_account()
+        return self.client.account()
 
     async def get_account_commission(self, symbol: str) -> dict:
         """
@@ -198,7 +198,7 @@ class AccountMixin:
             Commission rates for the symbol
         """
         await self._check_and_wait(20)
-        return await self.client.get_account_commission(symbol=symbol)
+        return self.client.query_commission_rates(symbol=symbol)
 
     async def get_rate_limit_order(self) -> List[dict]:
         """
@@ -211,7 +211,7 @@ class AccountMixin:
             Current order rate limit usage
         """
         await self._check_and_wait(40)
-        return await self.client.get_rate_limit_order()
+        return self.client.get_order_rate_limit()
 
     async def get_my_prevented_matches(
         self,
@@ -238,7 +238,7 @@ class AccountMixin:
             List of prevented matches
         """
         await self._check_and_wait(1)
-        return await self.client.get_my_prevented_matches(
+        return self.client.query_prevented_matches(
             symbol=symbol,
             preventedMatchId=prevent_match_id,
             orderId=order_id,
