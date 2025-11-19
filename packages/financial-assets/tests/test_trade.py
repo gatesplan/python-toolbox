@@ -1,30 +1,31 @@
 """Tests for SpotTrade module."""
 
 import pytest
-from financial_assets.trade import SpotTrade, SpotSide
+from financial_assets.trade import SpotTrade
+from financial_assets.constants import OrderSide
 from financial_assets.token import Token
 from financial_assets.pair import Pair
 from financial_assets.stock_address import StockAddress
 
 
-class TestSpotSide:
-    """SpotSide enum 테스트"""
+class TestOrderSide:
+    """OrderSide enum 테스트"""
 
     def test_all_spot_sides_exist(self):
-        """모든 SpotSide 값이 존재하는지 확인"""
-        assert SpotSide.BUY
-        assert SpotSide.SELL
+        """모든 OrderSide 값이 존재하는지 확인"""
+        assert OrderSide.BUY
+        assert OrderSide.SELL
 
     def test_spot_side_equality(self):
-        """SpotSide enum 동등성 비교"""
-        side = SpotSide.BUY
-        assert side == SpotSide.BUY
-        assert side != SpotSide.SELL
+        """OrderSide enum 동등성 비교"""
+        side = OrderSide.BUY
+        assert side == OrderSide.BUY
+        assert side != OrderSide.SELL
 
     def test_spot_side_values(self):
-        """SpotSide enum 값 확인"""
-        assert SpotSide.BUY.value == "buy"
-        assert SpotSide.SELL.value == "sell"
+        """OrderSide enum 값 확인"""
+        assert OrderSide.BUY.value == "buy"
+        assert OrderSide.SELL.value == "sell"
 
 
 class TestSpotTradeCreation:
@@ -47,7 +48,7 @@ class TestSpotTradeCreation:
             stock_address=stock_address,
             trade_id="trade-123",
             fill_id="fill-456",
-            side=SpotSide.BUY,
+            side=OrderSide.BUY,
             pair=pair,
             timestamp=1234567890,
         )
@@ -55,12 +56,12 @@ class TestSpotTradeCreation:
         assert trade.stock_address == stock_address
         assert trade.trade_id == "trade-123"
         assert trade.fill_id == "fill-456"
-        assert trade.side == SpotSide.BUY
+        assert trade.side == OrderSide.BUY
         assert trade.pair == pair
         assert trade.timestamp == 1234567890
 
     def test_spot_trade_with_all_sides(self):
-        """모든 SpotSide로 SpotTrade 객체 생성"""
+        """모든 OrderSide로 SpotTrade 객체 생성"""
         stock_address = StockAddress(
             archetype="crypto",
             exchange="binance",
@@ -72,7 +73,7 @@ class TestSpotTradeCreation:
 
         pair = Pair(asset=Token("BTC", 1.0), value=Token("USD", 50000.0))
 
-        for side in [SpotSide.BUY, SpotSide.SELL]:
+        for side in [OrderSide.BUY, OrderSide.SELL]:
             trade = SpotTrade(
                 stock_address=stock_address,
                 trade_id=f"trade-{side.value}",
@@ -104,7 +105,7 @@ class TestSpotTradeImmutability:
             stock_address=stock_address,
             trade_id="trade-frozen",
             fill_id="fill-frozen",
-            side=SpotSide.BUY,
+            side=OrderSide.BUY,
             pair=pair,
             timestamp=1234567890,
         )
@@ -114,7 +115,7 @@ class TestSpotTradeImmutability:
             trade.trade_id = "modified"
 
         with pytest.raises(Exception):
-            trade.side = SpotSide.SELL
+            trade.side = OrderSide.SELL
 
         with pytest.raises(Exception):
             trade.timestamp = 9999999999
@@ -140,7 +141,7 @@ class TestSpotTradeIntegration:
             stock_address=stock_address,
             trade_id="trade-pair",
             fill_id="fill-pair",
-            side=SpotSide.BUY,
+            side=OrderSide.BUY,
             pair=pair,
             timestamp=1234567890,
         )
@@ -167,7 +168,7 @@ class TestSpotTradeIntegration:
             stock_address=stock_address,
             trade_id="trade-eth",
             fill_id="fill-eth",
-            side=SpotSide.BUY,
+            side=OrderSide.BUY,
             pair=pair,
             timestamp=1234567890,
         )
@@ -198,7 +199,7 @@ class TestSpotTradeStringRepresentation:
             stock_address=stock_address,
             trade_id="trade-str",
             fill_id="fill-str",
-            side=SpotSide.SELL,
+            side=OrderSide.SELL,
             pair=pair,
             timestamp=1234567890,
         )
@@ -224,7 +225,7 @@ class TestSpotTradeStringRepresentation:
             stock_address=stock_address,
             trade_id="trade-repr",
             fill_id="fill-repr",
-            side=SpotSide.BUY,
+            side=OrderSide.BUY,
             pair=pair,
             timestamp=1234567890,
         )
@@ -256,7 +257,7 @@ class TestSpotTradeFee:
             stock_address=stock_address,
             trade_id="trade-with-fee",
             fill_id="fill-with-fee",
-            side=SpotSide.BUY,
+            side=OrderSide.BUY,
             pair=pair,
             timestamp=1234567890,
             fee=fee,
@@ -283,7 +284,7 @@ class TestSpotTradeFee:
             stock_address=stock_address,
             trade_id="trade-no-fee",
             fill_id="fill-no-fee",
-            side=SpotSide.SELL,
+            side=OrderSide.SELL,
             pair=pair,
             timestamp=1234567890,
             # fee 파라미터 생략
@@ -309,7 +310,7 @@ class TestSpotTradeFee:
             stock_address=stock_address,
             trade_id="trade-krw-fee",
             fill_id="fill-krw-fee",
-            side=SpotSide.BUY,
+            side=OrderSide.BUY,
             pair=pair,
             timestamp=1234567890,
             fee=fee,
@@ -336,7 +337,7 @@ class TestSpotTradeFee:
             stock_address=stock_address,
             trade_id="trade-immutable-fee",
             fill_id="fill-immutable-fee",
-            side=SpotSide.BUY,
+            side=OrderSide.BUY,
             pair=pair,
             timestamp=1234567890,
             fee=fee,
@@ -364,7 +365,7 @@ class TestSpotTradeFee:
             stock_address=stock_address,
             trade_id="trade-repr-fee",
             fill_id="fill-repr-fee",
-            side=SpotSide.BUY,
+            side=OrderSide.BUY,
             pair=pair,
             timestamp=1234567890,
             fee=fee,

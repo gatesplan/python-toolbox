@@ -2,7 +2,8 @@
 
 import pytest
 from financial_assets.order import SpotOrder
-from financial_assets.trade import SpotTrade, SpotSide
+from financial_assets.trade import SpotTrade
+from financial_assets.constants import OrderSide, OrderStatus, OrderType
 from financial_assets.stock_address import StockAddress
 from financial_assets.token import Token
 from financial_assets.pair import Pair
@@ -29,7 +30,7 @@ class TestSpotOrderCreation:
         order = SpotOrder(
             order_id="order-123",
             stock_address=stock_address,
-            side=SpotSide.BUY,
+            side=OrderSide.BUY,
             order_type="limit",
             price=50000.0,
             amount=1.0,
@@ -37,7 +38,7 @@ class TestSpotOrderCreation:
         )
 
         assert order.order_id == "order-123"
-        assert order.side == SpotSide.BUY
+        assert order.side == OrderSide.BUY
         assert order.order_type == "limit"
         assert order.price == 50000.0
         assert order.amount == 1.0
@@ -50,7 +51,7 @@ class TestSpotOrderCreation:
         order = SpotOrder(
             order_id="market-order-1",
             stock_address=stock_address,
-            side=SpotSide.SELL,
+            side=OrderSide.SELL,
             order_type="market",
             price=None,
             amount=0.5,
@@ -65,7 +66,7 @@ class TestSpotOrderCreation:
         order = SpotOrder(
             order_id="stop-order-1",
             stock_address=stock_address,
-            side=SpotSide.SELL,
+            side=OrderSide.SELL,
             order_type="stop",
             price=45000.0,
             amount=0.3,
@@ -85,7 +86,7 @@ class TestFillByAssetAmount:
         order = SpotOrder(
             order_id="order-partial",
             stock_address=stock_address,
-            side=SpotSide.BUY,
+            side=OrderSide.BUY,
             order_type="limit",
             price=50000.0,
             amount=1.0,
@@ -109,7 +110,7 @@ class TestFillByAssetAmount:
         order = SpotOrder(
             order_id="order-full",
             stock_address=stock_address,
-            side=SpotSide.BUY,
+            side=OrderSide.BUY,
             order_type="limit",
             price=50000.0,
             amount=1.0,
@@ -132,7 +133,7 @@ class TestFillByAssetAmount:
         order = SpotOrder(
             order_id="order-multi",
             stock_address=stock_address,
-            side=SpotSide.SELL,
+            side=OrderSide.SELL,
             order_type="limit",
             price=51000.0,
             amount=2.0,
@@ -168,7 +169,7 @@ class TestFillByValueAmount:
         order = SpotOrder(
             order_id="order-value",
             stock_address=stock_address,
-            side=SpotSide.BUY,
+            side=OrderSide.BUY,
             order_type="limit",
             price=50000.0,
             amount=1.0,
@@ -190,7 +191,7 @@ class TestFillByValueAmount:
         order = SpotOrder(
             order_id="order-value-full",
             stock_address=stock_address,
-            side=SpotSide.BUY,
+            side=OrderSide.BUY,
             order_type="limit",
             price=50000.0,
             amount=1.0,
@@ -210,7 +211,7 @@ class TestFillByValueAmount:
         order = SpotOrder(
             order_id="order-zero-price",
             stock_address=stock_address,
-            side=SpotSide.BUY,
+            side=OrderSide.BUY,
             order_type="limit",
             price=0.0,
             amount=1.0,
@@ -225,7 +226,7 @@ class TestFillByValueAmount:
         order = SpotOrder(
             order_id="market-order",
             stock_address=stock_address,
-            side=SpotSide.BUY,
+            side=OrderSide.BUY,
             order_type="market",
             price=None,
             amount=1.0,
@@ -244,7 +245,7 @@ class TestRemainingMethods:
         order = SpotOrder(
             order_id="order-remain",
             stock_address=stock_address,
-            side=SpotSide.BUY,
+            side=OrderSide.BUY,
             order_type="limit",
             price=50000.0,
             amount=2.0,
@@ -264,7 +265,7 @@ class TestRemainingMethods:
         order = SpotOrder(
             order_id="order-remain-value",
             stock_address=stock_address,
-            side=SpotSide.BUY,
+            side=OrderSide.BUY,
             order_type="limit",
             price=50000.0,
             amount=1.0,
@@ -284,7 +285,7 @@ class TestRemainingMethods:
         order = SpotOrder(
             order_id="market-order",
             stock_address=stock_address,
-            side=SpotSide.BUY,
+            side=OrderSide.BUY,
             order_type="market",
             price=None,
             amount=1.0,
@@ -299,7 +300,7 @@ class TestRemainingMethods:
         order = SpotOrder(
             order_id="order-rate",
             stock_address=stock_address,
-            side=SpotSide.BUY,
+            side=OrderSide.BUY,
             order_type="limit",
             price=50000.0,
             amount=1.0,
@@ -326,7 +327,7 @@ class TestSpotOrderStatus:
         order = SpotOrder(
             order_id="order-status",
             stock_address=stock_address,
-            side=SpotSide.BUY,
+            side=OrderSide.BUY,
             order_type="limit",
             price=50000.0,
             amount=1.0,
@@ -352,7 +353,7 @@ class TestSpotOrderStatus:
         order = SpotOrder(
             order_id="order-cancel",
             stock_address=stock_address,
-            side=SpotSide.BUY,
+            side=OrderSide.BUY,
             order_type="limit",
             price=50000.0,
             amount=1.0,
@@ -375,7 +376,7 @@ class TestSpotOrderStatus:
         order = SpotOrder(
             order_id="order-canceled",
             stock_address=stock_address,
-            side=SpotSide.BUY,
+            side=OrderSide.BUY,
             order_type="limit",
             price=50000.0,
             amount=1.0,
@@ -396,7 +397,7 @@ class TestStateChangeMethods:
         order = SpotOrder(
             order_id="order-pending",
             stock_address=stock_address,
-            side=SpotSide.BUY,
+            side=OrderSide.BUY,
             order_type="limit",
             price=50000.0,
             amount=1.0,
@@ -413,7 +414,7 @@ class TestStateChangeMethods:
         order = SpotOrder(
             order_id="order-partial",
             stock_address=stock_address,
-            side=SpotSide.BUY,
+            side=OrderSide.BUY,
             order_type="limit",
             price=50000.0,
             amount=1.0,
@@ -429,7 +430,7 @@ class TestStateChangeMethods:
         order = SpotOrder(
             order_id="order-filled",
             stock_address=stock_address,
-            side=SpotSide.BUY,
+            side=OrderSide.BUY,
             order_type="limit",
             price=50000.0,
             amount=1.0,
@@ -449,7 +450,7 @@ class TestFeeRate:
         order = SpotOrder(
             order_id="order-fee",
             stock_address=stock_address,
-            side=SpotSide.BUY,
+            side=OrderSide.BUY,
             order_type="limit",
             price=50000.0,
             amount=1.0,
@@ -463,7 +464,7 @@ class TestFeeRate:
         order = SpotOrder(
             order_id="order-fee-custom",
             stock_address=stock_address,
-            side=SpotSide.BUY,
+            side=OrderSide.BUY,
             order_type="limit",
             price=50000.0,
             amount=1.0,
@@ -478,7 +479,7 @@ class TestFeeRate:
         order = SpotOrder(
             order_id="order-fee-clone",
             stock_address=stock_address,
-            side=SpotSide.BUY,
+            side=OrderSide.BUY,
             order_type="limit",
             price=50000.0,
             amount=1.0,
@@ -497,7 +498,7 @@ class TestFeeRate:
         order = SpotOrder(
             order_id="order-fee-calc",
             stock_address=stock_address,
-            side=SpotSide.BUY,
+            side=OrderSide.BUY,
             order_type="limit",
             price=50000.0,
             amount=1.0,
@@ -523,7 +524,7 @@ class TestErrorHandling:
         order = SpotOrder(
             order_id="order-exceed",
             stock_address=stock_address,
-            side=SpotSide.BUY,
+            side=OrderSide.BUY,
             order_type="limit",
             price=50000.0,
             amount=1.0,
@@ -538,7 +539,7 @@ class TestErrorHandling:
         order = SpotOrder(
             order_id="order-exceed-value",
             stock_address=stock_address,
-            side=SpotSide.BUY,
+            side=OrderSide.BUY,
             order_type="limit",
             price=50000.0,
             amount=1.0,
@@ -553,7 +554,7 @@ class TestErrorHandling:
         order = SpotOrder(
             order_id="order-negative",
             stock_address=stock_address,
-            side=SpotSide.BUY,
+            side=OrderSide.BUY,
             order_type="limit",
             price=50000.0,
             amount=1.0,
@@ -572,7 +573,7 @@ class TestStringRepresentation:
         order = SpotOrder(
             order_id="order-str",
             stock_address=stock_address,
-            side=SpotSide.BUY,
+            side=OrderSide.BUY,
             order_type="limit",
             price=50000.0,
             amount=1.0,
@@ -589,7 +590,7 @@ class TestStringRepresentation:
         order = SpotOrder(
             order_id="order-repr",
             stock_address=stock_address,
-            side=SpotSide.BUY,
+            side=OrderSide.BUY,
             order_type="limit",
             price=50000.0,
             amount=1.0,
@@ -609,7 +610,7 @@ class TestMinTradeAmount:
         order = SpotOrder(
             order_id="order-with-min",
             stock_address=stock_address,
-            side=SpotSide.BUY,
+            side=OrderSide.BUY,
             order_type="limit",
             price=50000.0,
             amount=1.0,
@@ -624,7 +625,7 @@ class TestMinTradeAmount:
         order = SpotOrder(
             order_id="order-no-min",
             stock_address=stock_address,
-            side=SpotSide.BUY,
+            side=OrderSide.BUY,
             order_type="limit",
             price=50000.0,
             amount=1.0,
@@ -638,7 +639,7 @@ class TestMinTradeAmount:
         order = SpotOrder(
             order_id="order-min-1",
             stock_address=stock_address,
-            side=SpotSide.BUY,
+            side=OrderSide.BUY,
             order_type="limit",
             price=50000.0,
             amount=1.0,
@@ -655,7 +656,7 @@ class TestMinTradeAmount:
         order = SpotOrder(
             order_id="order-min-2",
             stock_address=stock_address,
-            side=SpotSide.BUY,
+            side=OrderSide.BUY,
             order_type="limit",
             price=50000.0,
             amount=1.0,
@@ -671,7 +672,7 @@ class TestMinTradeAmount:
         order = SpotOrder(
             order_id="order-min-3",
             stock_address=stock_address,
-            side=SpotSide.BUY,
+            side=OrderSide.BUY,
             order_type="limit",
             price=50000.0,
             amount=1.0,
@@ -694,7 +695,7 @@ class TestMinTradeAmount:
         order = SpotOrder(
             order_id="order-no-min",
             stock_address=stock_address,
-            side=SpotSide.BUY,
+            side=OrderSide.BUY,
             order_type="limit",
             price=50000.0,
             amount=1.0,
@@ -711,7 +712,7 @@ class TestMinTradeAmount:
         order = SpotOrder(
             order_id="order-check",
             stock_address=stock_address,
-            side=SpotSide.BUY,
+            side=OrderSide.BUY,
             order_type="limit",
             price=50000.0,
             amount=1.0,
@@ -731,7 +732,7 @@ class TestMinTradeAmount:
         order = SpotOrder(
             order_id="order-no-min",
             stock_address=stock_address,
-            side=SpotSide.BUY,
+            side=OrderSide.BUY,
             order_type="limit",
             price=50000.0,
             amount=0.0001,
@@ -746,7 +747,7 @@ class TestMinTradeAmount:
         order = SpotOrder(
             order_id="order-min-clone",
             stock_address=stock_address,
-            side=SpotSide.BUY,
+            side=OrderSide.BUY,
             order_type="limit",
             price=50000.0,
             amount=1.0,

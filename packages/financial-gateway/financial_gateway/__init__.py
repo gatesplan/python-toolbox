@@ -5,6 +5,7 @@
 
 __version__ = "0.0.1"
 
-from .binance_spot.API.BinanceSpotGateway.BinanceSpotGateway import BinanceSpotGateway
+# Gateway implementations will be imported here when implemented
+# from .binance_spot.API.BinanceSpotGateway.BinanceSpotGateway import BinanceSpotGateway
 
-__all__ = ["BinanceSpotGateway"]
+__all__ = []

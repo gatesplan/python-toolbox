@@ -8,7 +8,7 @@ from __future__ import annotations
 from typing import Optional
 import pandas as pd
 from ..trade import SpotTrade
-from ..constants import Side
+from ..constants import OrderSide
 from .spot_ledger_entry import SpotLedgerEntry
 from simple_logger import init_logging, logger
 
@@ -35,7 +35,7 @@ class SpotLedger:
 
         logger.debug(f"SpotLedger.add_trade: ticker={self.ticker}, side={trade.side.value}, asset={asset_amount}, price={trade_price}")
 
-        if trade.side == Side.BUY:
+        if trade.side == OrderSide.BUY:
             # BUY: 자산 증가, 가치 감소 (투자금 증가)
             asset_change = asset_amount
             value_change = -value_amount
@@ -59,7 +59,7 @@ class SpotLedger:
 
             realized_pnl = None
 
-        else:  # Side.SELL
+        else:  # OrderSide.SELL
             # SELL: 자산 감소, 가치 증가
             asset_change = -asset_amount
             value_change = value_amount

@@ -8,7 +8,7 @@ from __future__ import annotations
 from abc import ABC
 from dataclasses import dataclass, field
 from typing import Optional, TYPE_CHECKING
-from ..constants import Side
+from ..constants import OrderSide
 from ..pair import Pair
 from ..stock_address import StockAddress
 from ..token import Token
@@ -29,7 +29,7 @@ class Trade(ABC):
     timestamp: int
     fee: Optional[Token] = None
     stock_address: StockAddress = field(init=False)
-    side: Side = field(init=False)
+    side: OrderSide = field(init=False)
 
     def __post_init__(self):
         """order에서 stock_address와 side를 초기화."""

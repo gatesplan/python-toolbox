@@ -1,7 +1,8 @@
 """Tests for SpotLedger and SpotLedgerEntry."""
 
 from financial_assets.ledger import SpotLedger, SpotLedgerEntry
-from financial_assets.trade import SpotTrade, SpotSide
+from financial_assets.trade import SpotTrade
+from financial_assets.constants import OrderSide
 from financial_assets.pair import Pair
 from financial_assets.token import Token
 from financial_assets.stock_address import StockAddress
@@ -29,7 +30,7 @@ def buy_trade_1btc_50k(stock_address):
         stock_address=stock_address,
         trade_id="trade-1",
         fill_id="fill-1",
-        side=SpotSide.BUY,
+        side=OrderSide.BUY,
         pair=Pair(Token("BTC", 1.0), Token("USDT", 50000.0)),
         timestamp=1234567890,
     )
@@ -42,7 +43,7 @@ def buy_trade_half_btc_52k(stock_address):
         stock_address=stock_address,
         trade_id="trade-2",
         fill_id="fill-2",
-        side=SpotSide.BUY,
+        side=OrderSide.BUY,
         pair=Pair(Token("BTC", 0.5), Token("USDT", 26000.0)),
         timestamp=1234567900,
     )
@@ -55,7 +56,7 @@ def sell_trade_half_btc_55k(stock_address):
         stock_address=stock_address,
         trade_id="trade-3",
         fill_id="fill-3",
-        side=SpotSide.SELL,
+        side=OrderSide.SELL,
         pair=Pair(Token("BTC", 0.5), Token("USDT", 27500.0)),
         timestamp=1234567910,
     )
@@ -231,7 +232,7 @@ class TestSpotLedger:
             stock_address=stock_address,
             trade_id="trade-sell",
             fill_id="fill-sell",
-            side=SpotSide.SELL,
+            side=OrderSide.SELL,
             pair=Pair(Token("BTC", 0.6), Token("USDT", 33000.0)),
             timestamp=1234567920,
         )
@@ -298,7 +299,7 @@ class TestSpotLedger:
             stock_address=stock_address,
             trade_id="trade-sell-all",
             fill_id="fill-sell-all",
-            side=SpotSide.SELL,
+            side=OrderSide.SELL,
             pair=Pair(Token("BTC", 1.0), Token("USDT", 55000.0)),
             timestamp=1234567930,
         )
@@ -323,7 +324,7 @@ class TestSpotLedger:
             stock_address=stock_address,
             trade_id="trade-sell-all",
             fill_id="fill-sell-all",
-            side=SpotSide.SELL,
+            side=OrderSide.SELL,
             pair=Pair(Token("BTC", 1.0), Token("USDT", 55000.0)),
             timestamp=1234567930,
         )
@@ -343,7 +344,7 @@ class TestSpotLedger:
             stock_address=stock_address,
             trade_id="trade-sell-all",
             fill_id="fill-sell-all",
-            side=SpotSide.SELL,
+            side=OrderSide.SELL,
             pair=Pair(Token("BTC", 1.0), Token("USDT", 55000.0)),
             timestamp=1234567930,
         )
@@ -354,7 +355,7 @@ class TestSpotLedger:
             stock_address=stock_address,
             trade_id="trade-buy-again",
             fill_id="fill-buy-again",
-            side=SpotSide.BUY,
+            side=OrderSide.BUY,
             pair=Pair(Token("BTC", 2.0), Token("USDT", 120000.0)),
             timestamp=1234567940,
         )
@@ -386,7 +387,7 @@ class TestSpotLedger:
             stock_address=stock_address,
             trade_id="tiny-buy",
             fill_id="fill-tiny-buy",
-            side=SpotSide.BUY,
+            side=OrderSide.BUY,
             pair=Pair(Token("BTC", 0.00000001), Token("USDT", 0.0005)),
             timestamp=1234567890,
         )
@@ -397,7 +398,7 @@ class TestSpotLedger:
             stock_address=stock_address,
             trade_id="tiny-sell",
             fill_id="fill-tiny-sell",
-            side=SpotSide.SELL,
+            side=OrderSide.SELL,
             pair=Pair(Token("BTC", 0.00000001), Token("USDT", 0.0006)),
             timestamp=1234567900,
         )

@@ -2,7 +2,8 @@
 
 import pytest
 from financial_assets.wallet import SpotWallet, WalletInspector, WalletWorker
-from financial_assets.trade import SpotTrade, SpotSide
+from financial_assets.trade import SpotTrade
+from financial_assets.constants import OrderSide
 from financial_assets.pair import Pair
 from financial_assets.token import Token
 from financial_assets.stock_address import StockAddress
@@ -57,7 +58,7 @@ class TestTotalValue:
             stock_address=stock_address_btc_usd,
             trade_id="t1",
             fill_id="f1",
-            side=SpotSide.BUY,
+            side=OrderSide.BUY,
             pair=Pair(Token("BTC", 1.0), Token("USD", 50000.0)),
             timestamp=1234567890,
         )
@@ -94,7 +95,7 @@ class TestTotalValue:
                 stock_address=stock_address_btc_usd,
                 trade_id="t1",
                 fill_id="f1",
-                side=SpotSide.BUY,
+                side=OrderSide.BUY,
                 pair=Pair(Token("BTC", 1.0), Token("USD", 50000.0)),
                 timestamp=1234567890,
             )
@@ -106,7 +107,7 @@ class TestTotalValue:
                 stock_address=stock_address_eth_usd,
                 trade_id="t2",
                 fill_id="f2",
-                side=SpotSide.BUY,
+                side=OrderSide.BUY,
                 pair=Pair(Token("ETH", 10.0), Token("USD", 20000.0)),
                 timestamp=1234567900,
             )
@@ -138,7 +139,7 @@ class TestRealizedPnL:
                 stock_address=stock_address_btc_usd,
                 trade_id="t1",
                 fill_id="f1",
-                side=SpotSide.BUY,
+                side=OrderSide.BUY,
                 pair=Pair(Token("BTC", 1.0), Token("USD", 50000.0)),
                 timestamp=1234567890,
             )
@@ -150,7 +151,7 @@ class TestRealizedPnL:
                 stock_address=stock_address_btc_usd,
                 trade_id="t2",
                 fill_id="f2",
-                side=SpotSide.SELL,
+                side=OrderSide.SELL,
                 pair=Pair(Token("BTC", 0.6), Token("USD", 33000.0)),
                 timestamp=1234567900,
             )
@@ -175,7 +176,7 @@ class TestRealizedPnL:
                 stock_address=stock_address_btc_usd,
                 trade_id="t1",
                 fill_id="f1",
-                side=SpotSide.BUY,
+                side=OrderSide.BUY,
                 pair=Pair(Token("BTC", 1.0), Token("USD", 50000.0)),
                 timestamp=1234567890,
             )
@@ -185,7 +186,7 @@ class TestRealizedPnL:
                 stock_address=stock_address_btc_usd,
                 trade_id="t2",
                 fill_id="f2",
-                side=SpotSide.SELL,
+                side=OrderSide.SELL,
                 pair=Pair(Token("BTC", 0.5), Token("USD", 27500.0)),
                 timestamp=1234567900,
             )
@@ -197,7 +198,7 @@ class TestRealizedPnL:
                 stock_address=stock_address_eth_usd,
                 trade_id="t3",
                 fill_id="f3",
-                side=SpotSide.BUY,
+                side=OrderSide.BUY,
                 pair=Pair(Token("ETH", 10.0), Token("USD", 20000.0)),
                 timestamp=1234567910,
             )
@@ -207,7 +208,7 @@ class TestRealizedPnL:
                 stock_address=stock_address_eth_usd,
                 trade_id="t4",
                 fill_id="f4",
-                side=SpotSide.SELL,
+                side=OrderSide.SELL,
                 pair=Pair(Token("ETH", 5.0), Token("USD", 11000.0)),
                 timestamp=1234567920,
             )
@@ -236,7 +237,7 @@ class TestUnrealizedPnL:
                 stock_address=stock_address_btc_usd,
                 trade_id="t1",
                 fill_id="f1",
-                side=SpotSide.BUY,
+                side=OrderSide.BUY,
                 pair=Pair(Token("BTC", 1.0), Token("USD", 50000.0)),
                 timestamp=1234567890,
             )
@@ -263,7 +264,7 @@ class TestUnrealizedPnL:
                 stock_address=stock_address_btc_usd,
                 trade_id="t1",
                 fill_id="f1",
-                side=SpotSide.BUY,
+                side=OrderSide.BUY,
                 pair=Pair(Token("BTC", 1.0), Token("USD", 50000.0)),
                 timestamp=1234567890,
             )
@@ -275,7 +276,7 @@ class TestUnrealizedPnL:
                 stock_address=stock_address_eth_usd,
                 trade_id="t2",
                 fill_id="f2",
-                side=SpotSide.BUY,
+                side=OrderSide.BUY,
                 pair=Pair(Token("ETH", 10.0), Token("USD", 20000.0)),
                 timestamp=1234567900,
             )
@@ -309,7 +310,7 @@ class TestPositionSummary:
                 stock_address=stock_address_btc_usd,
                 trade_id="t1",
                 fill_id="f1",
-                side=SpotSide.BUY,
+                side=OrderSide.BUY,
                 pair=Pair(Token("BTC", 1.0), Token("USD", 50000.0)),
                 timestamp=1234567890,
             )
@@ -321,7 +322,7 @@ class TestPositionSummary:
                 stock_address=stock_address_eth_usd,
                 trade_id="t2",
                 fill_id="f2",
-                side=SpotSide.BUY,
+                side=OrderSide.BUY,
                 pair=Pair(Token("ETH", 10.0), Token("USD", 20000.0)),
                 timestamp=1234567900,
             )

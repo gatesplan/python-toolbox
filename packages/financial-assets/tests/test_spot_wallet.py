@@ -2,7 +2,8 @@
 
 import pytest
 from financial_assets.wallet import SpotWallet
-from financial_assets.trade import SpotTrade, SpotSide
+from financial_assets.trade import SpotTrade
+from financial_assets.constants import OrderSide
 from financial_assets.pair import Pair
 from financial_assets.token import Token
 from financial_assets.stock_address import StockAddress
@@ -112,7 +113,7 @@ class TestBuyTrade:
             stock_address=stock_address_btc_usd,
             trade_id="t1",
             fill_id="f1",
-            side=SpotSide.BUY,
+            side=OrderSide.BUY,
             pair=Pair(Token("BTC", 1.0), Token("USD", 50000.0)),
             timestamp=1234567890,
         )
@@ -144,7 +145,7 @@ class TestBuyTrade:
             stock_address=stock_address_btc_usd,
             trade_id="t1",
             fill_id="f1",
-            side=SpotSide.BUY,
+            side=OrderSide.BUY,
             pair=Pair(Token("BTC", 1.0), Token("USD", 50000.0)),
             timestamp=1234567890,
         )
@@ -164,7 +165,7 @@ class TestBuyTrade:
             stock_address=stock_address_btc_usd,
             trade_id="t1",
             fill_id="f1",
-            side=SpotSide.BUY,
+            side=OrderSide.BUY,
             pair=Pair(Token("BTC", 1.0), Token("USD", 50000.0)),
             timestamp=1234567890,
         )
@@ -175,7 +176,7 @@ class TestBuyTrade:
             stock_address=stock_address_btc_usd,
             trade_id="t2",
             fill_id="f2",
-            side=SpotSide.BUY,
+            side=OrderSide.BUY,
             pair=Pair(Token("BTC", 0.5), Token("USD", 26000.0)),
             timestamp=1234567900,
         )
@@ -205,7 +206,7 @@ class TestSellTrade:
             stock_address=stock_address_btc_usd,
             trade_id="t1",
             fill_id="f1",
-            side=SpotSide.BUY,
+            side=OrderSide.BUY,
             pair=Pair(Token("BTC", 1.0), Token("USD", 50000.0)),
             timestamp=1234567890,
         )
@@ -216,7 +217,7 @@ class TestSellTrade:
             stock_address=stock_address_btc_usd,
             trade_id="t2",
             fill_id="f2",
-            side=SpotSide.SELL,
+            side=OrderSide.SELL,
             pair=Pair(Token("BTC", 0.6), Token("USD", 33000.0)),
             timestamp=1234567900,
         )
@@ -247,7 +248,7 @@ class TestSellTrade:
             stock_address=stock_address_btc_usd,
             trade_id="t1",
             fill_id="f1",
-            side=SpotSide.BUY,
+            side=OrderSide.BUY,
             pair=Pair(Token("BTC", 1.0), Token("USD", 50000.0)),
             timestamp=1234567890,
         )
@@ -258,7 +259,7 @@ class TestSellTrade:
             stock_address=stock_address_btc_usd,
             trade_id="t2",
             fill_id="f2",
-            side=SpotSide.SELL,
+            side=OrderSide.SELL,
             pair=Pair(Token("BTC", 2.0), Token("USD", 100000.0)),
             timestamp=1234567900,
         )
@@ -280,7 +281,7 @@ class TestSellTrade:
             stock_address=stock_address_btc_usd,
             trade_id="t1",
             fill_id="f1",
-            side=SpotSide.BUY,
+            side=OrderSide.BUY,
             pair=Pair(Token("BTC", 1.0), Token("USD", 50000.0)),
             timestamp=1234567890,
         )
@@ -291,7 +292,7 @@ class TestSellTrade:
             stock_address=stock_address_btc_usd,
             trade_id="t2",
             fill_id="f2",
-            side=SpotSide.SELL,
+            side=OrderSide.SELL,
             pair=Pair(Token("BTC", 1.0), Token("USD", 55000.0)),
             timestamp=1234567900,
         )
@@ -324,7 +325,7 @@ class TestQueries:
             stock_address=stock_address_btc_usd,
             trade_id="t1",
             fill_id="f1",
-            side=SpotSide.BUY,
+            side=OrderSide.BUY,
             pair=Pair(Token("BTC", 1.0), Token("USD", 50000.0)),
             timestamp=1234567890,
         )
@@ -335,7 +336,7 @@ class TestQueries:
             stock_address=stock_address_eth_usd,
             trade_id="t2",
             fill_id="f2",
-            side=SpotSide.BUY,
+            side=OrderSide.BUY,
             pair=Pair(Token("ETH", 10.0), Token("USD", 20000.0)),
             timestamp=1234567900,
         )
@@ -396,7 +397,7 @@ class TestComplexScenarios:
                 stock_address=stock_address_btc_usd,
                 trade_id="btc1",
                 fill_id="f1",
-                side=SpotSide.BUY,
+                side=OrderSide.BUY,
                 pair=Pair(Token("BTC", 2.0), Token("USD", 100000.0)),
                 timestamp=1000,
             )
@@ -406,7 +407,7 @@ class TestComplexScenarios:
                 stock_address=stock_address_btc_usd,
                 trade_id="btc2",
                 fill_id="f2",
-                side=SpotSide.SELL,
+                side=OrderSide.SELL,
                 pair=Pair(Token("BTC", 1.0), Token("USD", 55000.0)),
                 timestamp=2000,
             )
@@ -416,7 +417,7 @@ class TestComplexScenarios:
                 stock_address=stock_address_btc_usd,
                 trade_id="btc3",
                 fill_id="f3",
-                side=SpotSide.BUY,
+                side=OrderSide.BUY,
                 pair=Pair(Token("BTC", 0.5), Token("USD", 27500.0)),
                 timestamp=3000,
             )
@@ -428,7 +429,7 @@ class TestComplexScenarios:
                 stock_address=stock_address_eth_usd,
                 trade_id="eth1",
                 fill_id="f4",
-                side=SpotSide.BUY,
+                side=OrderSide.BUY,
                 pair=Pair(Token("ETH", 20.0), Token("USD", 40000.0)),
                 timestamp=4000,
             )
@@ -438,7 +439,7 @@ class TestComplexScenarios:
                 stock_address=stock_address_eth_usd,
                 trade_id="eth2",
                 fill_id="f5",
-                side=SpotSide.BUY,
+                side=OrderSide.BUY,
                 pair=Pair(Token("ETH", 10.0), Token("USD", 22000.0)),
                 timestamp=5000,
             )
@@ -448,7 +449,7 @@ class TestComplexScenarios:
                 stock_address=stock_address_eth_usd,
                 trade_id="eth3",
                 fill_id="f6",
-                side=SpotSide.SELL,
+                side=OrderSide.SELL,
                 pair=Pair(Token("ETH", 15.0), Token("USD", 33750.0)),
                 timestamp=6000,
             )

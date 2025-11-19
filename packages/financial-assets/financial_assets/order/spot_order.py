@@ -1,6 +1,6 @@
 from __future__ import annotations
 from typing import Optional
-from ..constants import Side, OrderStatus, OrderType, TimeInForce
+from ..constants import OrderSide, OrderStatus, OrderType, TimeInForce
 from ..stock_address import StockAddress
 from simple_logger import init_logging, logger
 from .spot_order_validator import SpotOrderValidator
@@ -16,7 +16,7 @@ class SpotOrder:
         self,
         order_id: str,
         stock_address: StockAddress,
-        side: Side,
+        side: OrderSide,
         order_type: OrderType,
         price: Optional[float],
         amount: float,
