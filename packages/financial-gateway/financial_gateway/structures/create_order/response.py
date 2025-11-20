@@ -6,26 +6,11 @@ from typing import Optional, List
 
 from financial_assets.constants import OrderStatus
 from financial_assets.trade import Trade
+from financial_gateway.structures.base import BaseResponse
 
 
 @dataclass
-class CreateOrderResponse:
-    """주문 생성 응답.
-
-    거래소의 주문 생성 결과를 담는 응답 구조.
-    """
-
-    # 공통 필드 (항상 존재)
-    request_id: str
-    is_success: bool
-    send_when: int  # UTC ms
-    receive_when: int  # UTC ms
-    processed_when: int  # UTC ms (서버 처리 시각)
-    timegaps: int  # ms
-
-    # 실패 시 필드
-    error_code: Optional[str] = None
-    error_message: Optional[str] = None
+class CreateOrderResponse(BaseResponse):
 
     # 성공 시 응답 데이터
     order_id: Optional[str] = None

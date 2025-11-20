@@ -21,6 +21,7 @@ class SpotOrder:
         price: Optional[float],
         amount: float,
         timestamp: int,
+        client_order_id: Optional[str] = None,
         stop_price: Optional[float] = None,
         filled_amount: float = 0.0,
         status: OrderStatus = OrderStatus.PENDING,
@@ -31,6 +32,7 @@ class SpotOrder:
     ):
         """SpotOrder 초기화."""
         self.order_id = order_id
+        self.client_order_id = client_order_id
         self.stock_address = stock_address
         self.side = side
         self.order_type = order_type
@@ -58,6 +60,7 @@ class SpotOrder:
             price=overrides.get("price", self.price),
             amount=overrides.get("amount", self.amount),
             timestamp=overrides.get("timestamp", self.timestamp),
+            client_order_id=overrides.get("client_order_id", self.client_order_id),
             stop_price=overrides.get("stop_price", self.stop_price),
             filled_amount=overrides.get("filled_amount", self.filled_amount),
             status=overrides.get("status", self.status),
@@ -176,6 +179,7 @@ class SpotOrder:
         """SpotOrder 문자열 표현."""
         return (
             f"SpotOrder(order_id={self.order_id!r}, "
+            f"client_order_id={self.client_order_id!r}, "
             f"stock_address={self.stock_address!r}, "
             f"side={self.side!r}, order_type={self.order_type!r}, "
             f"price={self.price}, amount={self.amount}, "

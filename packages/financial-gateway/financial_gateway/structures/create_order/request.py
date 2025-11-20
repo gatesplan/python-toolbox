@@ -6,18 +6,11 @@ from typing import Optional
 
 from financial_assets.stock_address import StockAddress
 from financial_assets.constants import OrderSide, OrderType, TimeInForce, SelfTradePreventionMode
+from financial_gateway.structures.base import BaseRequest
 
 
 @dataclass
-class CreateOrderRequest:
-    """주문 생성 요청.
-
-    거래소에 새로운 주문을 생성하기 위한 요청 구조.
-    """
-
-    # 공통 필드
-    request_id: str
-    gateway_name: str
+class CreateOrderRequest(BaseRequest):
 
     # 거래 대상
     address: StockAddress
