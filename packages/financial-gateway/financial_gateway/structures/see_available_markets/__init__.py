@@ -2,6 +2,5 @@
 
 from .request import SeeAvailableMarketsRequest
 from .response import SeeAvailableMarketsResponse
-from .market_info import MarketInfo
 
-__all__ = ["SeeAvailableMarketsRequest", "SeeAvailableMarketsResponse", "MarketInfo"]
+__all__ = ["SeeAvailableMarketsRequest", "SeeAvailableMarketsResponse"]

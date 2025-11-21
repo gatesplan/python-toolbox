@@ -53,13 +53,15 @@ class SeeOpenOrdersWorker:
             address = StockAddress("crypto", "UPBIT", "SPOT", base, quote, "1d")
 
             order = SpotOrder(
+                order_id=order_data.get("uuid"),
+                stock_address=address,
                 side=OrderSide.BUY if order_data.get("side") == "bid" else OrderSide.SELL,
                 order_type=self._map_order_type(order_data.get("ord_type")),
-                quantity=float(order_data.get("volume", 0)),
                 price=float(order_data.get("price", 0)) if order_data.get("price") else None,
-                order_id=order_data.get("uuid"),
+                amount=float(order_data.get("volume", 0)),
+                timestamp=self._parse_timestamp(order_data.get("created_at")) or send_when,
+                filled_amount=float(order_data.get("executed_volume", 0)),
                 status=self._map_status(order_data.get("state")),
-                address=address,
             )
             orders.append(order)
 
@@ -106,9 +108,19 @@ class SeeOpenOrdersWorker:
             "wait": OrderStatus.PENDING,
             "watch": OrderStatus.PENDING,
             "done": OrderStatus.FILLED,
-            "cancel": OrderStatus.CANCELLED,
+            "cancel": OrderStatus.CANCELED,
         }
         return status_map.get(upbit_state, OrderStatus.PENDING)
+
+    def _parse_timestamp(self, timestamp_str: str) -> int:
+        if not timestamp_str:
+            return None
+        from datetime import datetime
+        try:
+            dt = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
+            return int(dt.timestamp() * 1000)
+        except:
+            return None
 
     def _utc_now_ms(self) -> int:
         return int(time.time() * 1000)

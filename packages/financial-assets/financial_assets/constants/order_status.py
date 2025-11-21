@@ -15,3 +15,5 @@ class OrderStatus(Enum):
     FILLED = "filled"                # 전체 체결
     CANCELED = "canceled"            # 취소됨
     REJECTED = "rejected"            # 거부됨
+    EXPIRED = "expired"              # 만료됨
+    UNKNOWN = "unknown"              # 알 수 없는 상태

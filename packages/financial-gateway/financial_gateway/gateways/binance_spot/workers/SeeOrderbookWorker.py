@@ -22,7 +22,7 @@ class SeeOrderbookWorker:
         
         try:
             symbol = request.address.to_symbol().to_compact()
-            limit = request.depth if request.depth else 100
+            limit = request.limit if request.limit else 100
             
             # MarketDataMixin의 get_orderbook 메서드 사용
             from throttled_api.providers.binance.mixins import MarketDataMixin
@@ -48,18 +48,23 @@ class SeeOrderbookWorker:
         #   "bids": [["50000.00", "1.5"], ["49999.00", "2.0"], ...],
         #   "asks": [["50001.00", "1.2"], ["50002.00", "0.8"], ...]
         # }
-        
+
+        from financial_assets.orderbook import OrderbookLevel, Orderbook
+
         # bids: 매수 호가 (높은 가격부터 - 이미 정렬됨)
         bids_raw = api_response.get("bids", [])
-        bids = [(float(price), float(qty)) for price, qty in bids_raw]
-        
+        bids = [OrderbookLevel(price=float(price), size=float(qty)) for price, qty in bids_raw]
+
         # asks: 매도 호가 (낮은 가격부터 - 이미 정렬됨)
         asks_raw = api_response.get("asks", [])
-        asks = [(float(price), float(qty)) for price, qty in asks_raw]
-        
+        asks = [OrderbookLevel(price=float(price), size=float(qty)) for price, qty in asks_raw]
+
+        # Orderbook 객체 생성
+        orderbook = Orderbook(asks=asks, bids=bids)
+
         processed_when = (send_when + receive_when) // 2
         timegaps = receive_when - send_when
-        
+
         return SeeOrderbookResponse(
             request_id=request.request_id,
             is_success=True,
@@ -67,8 +72,7 @@ class SeeOrderbookWorker:
             receive_when=receive_when,
             processed_when=processed_when,
             timegaps=timegaps,
-            bids=bids,
-            asks=asks,
+            orderbook=orderbook,
         )
     
     def _decode_error(

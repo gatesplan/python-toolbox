@@ -35,7 +35,7 @@ class ModifyOrReplaceOrderWorker:
     # OrderStatus 매핑
     STATUS_MAP = {
         "NEW": OrderStatus.NEW,
-        "PARTIALLY_FILLED": OrderStatus.PARTIAL,
+        "PARTIALLY_FILLED": OrderStatus.PARTIALLY_FILLED,
         "FILLED": OrderStatus.FILLED,
         "CANCELED": OrderStatus.CANCELED,
         "REJECTED": OrderStatus.REJECTED,
@@ -53,15 +53,18 @@ class ModifyOrReplaceOrderWorker:
         send_when = self._utc_now_ms()
 
         try:
-            # 1. Encode: Request → Binance API params
-            params = self._encode(request)
+            # 1. Amend 케이스 확인
+            if self._is_amend_case(request):
+                # 2. amendAllowed 확인
+                if await self._check_amend_allowed(request.original_order):
+                    # 3. Amend 시도
+                    try:
+                        return await self._try_amend(request, send_when)
+                    except Exception as e:
+                        logger.warning(f"Amend 실패, cancel-replace로 전환: {e}")
 
-            # 2. API 호출 (via Throttler)
-            api_response = await self.throttler.cancel_replace_order(**params)
-            receive_when = self._utc_now_ms()
-
-            # 3. Decode: API response → Response 객체
-            return self._decode_success(request, api_response, send_when, receive_when)
+            # 4. Cancel-Replace 실행
+            return await self._try_cancel_replace(request, send_when)
 
         except Exception as e:
             receive_when = self._utc_now_ms()
@@ -298,3 +301,142 @@ class ModifyOrReplaceOrderWorker:
     def _utc_now_ms(self) -> int:
         """현재 UTC 시각을 밀리초 단위로 반환"""
         return int(time.time() * 1000)
+
+    def _is_amend_case(self, request: ModifyOrReplaceOrderRequest) -> bool:
+        """Amend 가능 케이스 확인
+
+        조건:
+        - 수량만 변경 (asset_quantity만 None이 아님)
+        - 수량 감소 (새 수량 < 기존 수량)
+        - 다른 모든 파라미터 변경 없음
+        """
+        return (
+            # 수량 변경 필수
+            request.asset_quantity is not None
+            and request.asset_quantity < request.original_order.amount
+            # 다른 파라미터 변경 없음
+            and request.side is None
+            and request.order_type is None
+            and request.price is None
+            and request.quote_quantity is None
+            and request.stop_price is None
+            and request.time_in_force is None
+            and request.post_only is None
+            and request.self_trade_prevention is None
+            # client_order_id는 amend에서 지원 (newClientOrderId)
+        )
+
+    async def _check_amend_allowed(self, original_order: SpotOrder) -> bool:
+        """심볼의 amendAllowed 확인
+
+        exchangeInfo API를 호출하여 해당 심볼이 amend를 지원하는지 확인
+        """
+        try:
+            symbol = original_order.stock_address.to_symbol().to_compact()
+            exchange_info = await self.throttler.get_exchange_info(symbol=symbol)
+            symbols = exchange_info.get("symbols", [])
+            if symbols:
+                amend_allowed = symbols[0].get("amendAllowed", False)
+                logger.debug(f"Symbol {symbol} amendAllowed: {amend_allowed}")
+                return amend_allowed
+            return False
+        except Exception as e:
+            logger.warning(f"amendAllowed 확인 실패: {e}")
+            return False
+
+    async def _try_amend(
+        self, request: ModifyOrReplaceOrderRequest, send_when: int
+    ) -> ModifyOrReplaceOrderResponse:
+        """Amend 시도
+
+        PUT /api/v3/order/amend/keepPriority
+        Weight: 4
+        """
+        original_order = request.original_order
+        symbol = original_order.stock_address.to_symbol().to_compact()
+
+        # Amend API 파라미터
+        params = {
+            "symbol": symbol,
+            "newQty": request.asset_quantity,
+        }
+
+        # orderId 또는 origClientOrderId
+        if original_order.client_order_id:
+            params["origClientOrderId"] = original_order.client_order_id
+        else:
+            params["orderId"] = int(original_order.order_id)
+
+        # newClientOrderId (optional)
+        if request.client_order_id:
+            params["newClientOrderId"] = request.client_order_id
+
+        logger.debug(f"Amend params: {params}")
+
+        # API 호출
+        api_response = await self.throttler.amend_order(**params)
+        receive_when = self._utc_now_ms()
+
+        # Decode
+        return self._decode_amend_success(request, api_response, send_when, receive_when)
+
+    async def _try_cancel_replace(
+        self, request: ModifyOrReplaceOrderRequest, send_when: int
+    ) -> ModifyOrReplaceOrderResponse:
+        """Cancel-Replace 실행 (기존 로직)"""
+        # 1. Encode: Request → Binance API params
+        params = self._encode(request)
+
+        # 2. API 호출 (via Throttler)
+        api_response = await self.throttler.cancel_replace_order(**params)
+        receive_when = self._utc_now_ms()
+
+        # 3. Decode: API response → Response 객체
+        return self._decode_success(request, api_response, send_when, receive_when)
+
+    def _decode_amend_success(
+        self,
+        request: ModifyOrReplaceOrderRequest,
+        api_response: dict,
+        send_when: int,
+        receive_when: int,
+    ) -> ModifyOrReplaceOrderResponse:
+        """Amend 성공 응답 디코딩
+
+        Binance Amend Response (예상):
+        {
+          "orderId": 12345,
+          "symbol": "BTCUSDT",
+          "clientOrderId": "...",
+          "status": "NEW",
+          "origQty": "1.0",
+          "executedQty": "0.5",
+          "transactTime": 1234567890000,
+          ...
+        }
+        """
+        order_id = str(api_response.get("orderId"))
+        client_order_id = api_response.get("clientOrderId")
+        status_str = api_response.get("status")
+        status = self.STATUS_MAP.get(status_str, OrderStatus.UNKNOWN)
+
+        # processed_when: transactTime 사용
+        processed_when = api_response.get("transactTime")
+        if processed_when is None:
+            processed_when = (send_when + receive_when) // 2
+
+        # timegaps 계산
+        timegaps = receive_when - send_when
+
+        return ModifyOrReplaceOrderResponse(
+            request_id=request.request_id,
+            is_success=True,
+            send_when=send_when,
+            receive_when=receive_when,
+            processed_when=processed_when,
+            timegaps=timegaps,
+            order_id=order_id,
+            client_order_id=client_order_id,
+            status=status,
+            trades=None,  # Amend는 체결 발생하지 않음
+        )

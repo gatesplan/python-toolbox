@@ -2,8 +2,9 @@ import time
 from typing import List, Dict
 from simple_logger import func_logging, logger
 from throttled_api.providers.binance import BinanceSpotThrottler
-from financial_assets.stock_address import StockAddress
+from financial_assets.symbol import Symbol
 from financial_assets.constants import MarketStatus
+from financial_assets.market_info import MarketInfo
 from financial_gateway.structures.see_available_markets import (
     SeeAvailableMarketsRequest,
     SeeAvailableMarketsResponse,
@@ -50,7 +51,6 @@ class SeeAvailableMarketsWorker:
         markets = []
 
         for symbol_data in symbols_data:
-            symbol_str = symbol_data.get("symbol")
             base_asset = symbol_data.get("baseAsset")
             quote_asset = symbol_data.get("quoteAsset")
             status_str = symbol_data.get("status", "TRADING")
@@ -63,37 +63,31 @@ class SeeAvailableMarketsWorker:
             else:
                 market_status = MarketStatus.UNKNOWN
 
-            # filters 파싱 (LOT_SIZE, PRICE_FILTER 등)
+            # filters 파싱
             filters = {f.get("filterType"): f for f in symbol_data.get("filters", [])}
 
-            # LOT_SIZE 필터에서 수량 제약 추출
-            lot_size = filters.get("LOT_SIZE", {})
-            min_quantity = float(lot_size.get("minQty", 0))
-            max_quantity = float(lot_size.get("maxQty", 0))
-
-            # PRICE_FILTER에서 가격 제약 추출
+            # PRICE_FILTER - 가격 호가 단위
             price_filter = filters.get("PRICE_FILTER", {})
-            min_price = float(price_filter.get("minPrice", 0))
-            max_price = float(price_filter.get("maxPrice", 0))
+            min_value_tick_size = float(price_filter.get("tickSize", 0)) if price_filter.get("tickSize") else None
 
-            # StockAddress 생성
-            address = StockAddress(
-                archetype="crypto",
-                exchange="BINANCE",
-                tradetype="SPOT",
-                base=base_asset,
-                quote=quote_asset,
-                timeframe="1d",
+            # LOT_SIZE - 수량 호가 단위 및 최소 수량
+            lot_size = filters.get("LOT_SIZE", {})
+            min_asset_tick_size = float(lot_size.get("stepSize", 0)) if lot_size.get("stepSize") else None
+            min_trade_asset_size = float(lot_size.get("minQty", 0)) if lot_size.get("minQty") else None
+
+            # MIN_NOTIONAL or NOTIONAL - 최소 주문금액
+            min_notional_filter = filters.get("MIN_NOTIONAL") or filters.get("NOTIONAL", {})
+            min_trade_value_size = float(min_notional_filter.get("minNotional", 0)) if min_notional_filter.get("minNotional") else None
+
+            # MarketInfo 객체 생성
+            market_info = MarketInfo(
+                symbol=Symbol(f"{base_asset}/{quote_asset}"),
+                status=market_status,
+                min_trade_value_size=min_trade_value_size,
+                min_trade_asset_size=min_trade_asset_size,
+                min_value_tick_size=min_value_tick_size,
+                min_asset_tick_size=min_asset_tick_size,
             )
-
-            market_info = {
-                "address": address,
-                "status": market_status,
-                "min_quantity": min_quantity,
-                "max_quantity": max_quantity,
-                "min_price": min_price,
-                "max_price": max_price,
-            }
             markets.append(market_info)
 
         processed_when = (send_when + receive_when) // 2

@@ -32,7 +32,7 @@ class CreateOrderWorker:
     # OrderStatus 매핑
     STATUS_MAP = {
         "NEW": OrderStatus.NEW,
-        "PARTIALLY_FILLED": OrderStatus.PARTIAL,
+        "PARTIALLY_FILLED": OrderStatus.PARTIALLY_FILLED,
         "FILLED": OrderStatus.FILLED,
         "CANCELED": OrderStatus.CANCELED,
         "REJECTED": OrderStatus.REJECTED,
@@ -45,12 +45,12 @@ class CreateOrderWorker:
     @func_logging(level="INFO", log_params=True, log_result=True)
     async def execute(self, request: CreateOrderRequest) -> CreateOrderResponse:
         """주문 생성 실행"""
+        send_when = self._utc_now_ms()
         try:
             # 1. Encode: Request → Binance API params
             params = self._encode(request)
 
             # 2. API 호출 (via Throttler)
-            send_when = self._utc_now_ms()
             api_response = await self.throttler.create_order(**params)
             receive_when = self._utc_now_ms()
 
@@ -59,6 +59,7 @@ class CreateOrderWorker:
 
         except Exception as e:
             # 에러 처리
+            receive_when = self._utc_now_ms()
             logger.error(f"CreateOrderWorker 실행 실패: {e}")
             return self._decode_error(request, e, send_when, receive_when)
 

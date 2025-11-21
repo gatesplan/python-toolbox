@@ -4,8 +4,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import List
 
+from financial_assets.market_info import MarketInfo
 from financial_gateway.structures.base import BaseResponse
-from .market_info import MarketInfo
 
 
 @dataclass

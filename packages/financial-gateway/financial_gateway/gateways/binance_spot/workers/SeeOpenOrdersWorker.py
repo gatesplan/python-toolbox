@@ -17,7 +17,7 @@ class SeeOpenOrdersWorker:
     
     STATUS_MAP = {
         "NEW": OrderStatus.NEW,
-        "PARTIALLY_FILLED": OrderStatus.PARTIAL,
+        "PARTIALLY_FILLED": OrderStatus.PARTIALLY_FILLED,
     }
     
     def __init__(self, throttler: BinanceSpotThrottler):

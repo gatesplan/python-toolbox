@@ -22,9 +22,11 @@ class SeeOrderWorker:
         send_when = self._utc_now_ms()
 
         try:
+            # request.order에서 ID 추출
+            order = request.order
             api_response = await self.throttler.get_order(
-                uuid=request.order_id if not request.client_order_id else None,
-                identifier=request.client_order_id,
+                uuid=order.order_id if not order.client_order_id else None,
+                identifier=order.client_order_id,
             )
 
             receive_when = self._utc_now_ms()
@@ -39,17 +41,17 @@ class SeeOrderWorker:
     ) -> SeeOrderResponse:
         # SpotOrder 재구성
         order = SpotOrder(
+            order_id=api_response.get("uuid"),
+            stock_address=request.order.stock_address,
             side=OrderSide.BUY if api_response.get("side") == "bid" else OrderSide.SELL,
             order_type=self._map_order_type(api_response.get("ord_type")),
-            quantity=float(api_response.get("volume", 0)),
             price=float(api_response.get("price", 0)) if api_response.get("price") else None,
-            order_id=api_response.get("uuid"),
-            client_order_id=request.client_order_id,
+            amount=float(api_response.get("volume", 0)),
+            timestamp=self._parse_timestamp(api_response.get("created_at")) or (send_when + receive_when) // 2,
+            client_order_id=request.order.client_order_id,
+            filled_amount=float(api_response.get("executed_volume", 0)),
             status=self._map_status(api_response.get("state")),
         )
-
-        filled_amount = float(api_response.get("executed_volume", 0))
-        remaining_amount = float(api_response.get("remaining_volume", 0))
 
         processed_when = self._parse_timestamp(api_response.get("created_at")) or (send_when + receive_when) // 2
         timegaps = receive_when - send_when
@@ -62,8 +64,6 @@ class SeeOrderWorker:
             processed_when=processed_when,
             timegaps=timegaps,
             order=order,
-            filled_amount=filled_amount,
-            remaining_amount=remaining_amount,
         )
 
     def _decode_error(
@@ -96,7 +96,7 @@ class SeeOrderWorker:
             "wait": OrderStatus.PENDING,
             "watch": OrderStatus.PENDING,
             "done": OrderStatus.FILLED,
-            "cancel": OrderStatus.CANCELLED,
+            "cancel": OrderStatus.CANCELED,
         }
         return status_map.get(upbit_state, OrderStatus.PENDING)
 

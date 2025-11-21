@@ -28,10 +28,10 @@ class CreateOrderWorker:
             market = f"{request.address.quote}-{request.address.base}"
 
             # OrderSide → Upbit side 변환
-            side = "bid" if request.order.side == OrderSide.BUY else "ask"
+            side = "bid" if request.side == OrderSide.BUY else "ask"
 
             # OrderType → Upbit ord_type 변환
-            ord_type, volume, price = self._encode_order_type(request.order)
+            ord_type, volume, price = self._encode_order_type(request)
 
             # API 호출
             api_response = await self.throttler.create_order(
@@ -40,7 +40,7 @@ class CreateOrderWorker:
                 ord_type=ord_type,
                 volume=volume,
                 price=price,
-                identifier=request.order.client_order_id,
+                identifier=request.client_order_id,
             )
 
             receive_when = self._utc_now_ms()
@@ -50,24 +50,25 @@ class CreateOrderWorker:
             logger.error(f"CreateOrderWorker 실행 실패: {e}")
             return self._decode_error(request, e, send_when, receive_when)
 
-    def _encode_order_type(self, order: SpotOrder) -> tuple:
+    def _encode_order_type(self, request: CreateOrderRequest) -> tuple:
         """OrderType을 Upbit ord_type으로 변환
 
         Returns:
             (ord_type, volume, price)
         """
-        if order.order_type == OrderType.LIMIT:
+        if request.order_type == OrderType.LIMIT:
             # 지정가: volume, price 모두 필요
-            return ("limit", str(order.quantity), str(order.price))
-        elif order.order_type == OrderType.MARKET:
-            if order.side == OrderSide.BUY:
+            return ("limit", str(request.asset_quantity), str(request.price))
+        elif request.order_type == OrderType.MARKET:
+            if request.side == OrderSide.BUY:
                 # 시장가 매수: price만 필요 (매수 금액)
-                return ("price", None, str(order.price))
+                # quote_quantity (매수 총액) 사용
+                return ("price", None, str(request.quote_quantity))
             else:
                 # 시장가 매도: volume만 필요
-                return ("market", str(order.quantity), None)
+                return ("market", str(request.asset_quantity), None)
         else:
-            raise ValueError(f"Unsupported order type: {order.order_type}")
+            raise ValueError(f"Unsupported order type: {request.order_type}")
 
     def _decode_success(
         self, request: CreateOrderRequest, api_response: dict, send_when: int, receive_when: int
@@ -110,12 +111,9 @@ class CreateOrderWorker:
             processed_when=processed_when,
             timegaps=timegaps,
             order_id=order_id,
-            client_order_id=request.order.client_order_id,
+            client_order_id=request.client_order_id,
             status=status,
-            order_type=request.order.order_type,
-            filled_amount=executed_volume,
-            remaining_amount=remaining_volume,
-            fills=fills,
+            created_at=processed_when,
         )
 
     def _decode_error(
@@ -153,7 +151,7 @@ class CreateOrderWorker:
             "wait": OrderStatus.PENDING,
             "watch": OrderStatus.PENDING,
             "done": OrderStatus.FILLED,
-            "cancel": OrderStatus.CANCELLED,
+            "cancel": OrderStatus.CANCELED,
         }
         return status_map.get(upbit_state, OrderStatus.PENDING)
 

@@ -26,12 +26,13 @@ class ModifyOrReplaceOrderWorker:
             )
 
             # 2. 새 주문 생성
-            market = f"{request.address.quote}-{request.address.base}"
-            side = "bid" if request.original_order.side.value == "BUY" else "ask"
+            market = f"{request.original_order.stock_address.quote}-{request.original_order.stock_address.base}"
+            from financial_assets.constants import OrderSide
+            side = "bid" if request.original_order.side == OrderSide.BUY else "ask"
 
             # 새 파라미터 적용
-            new_quantity = request.new_quantity if request.new_quantity is not None else request.original_order.quantity
-            new_price = request.new_price if request.new_price is not None else request.original_order.price
+            new_quantity = request.asset_quantity if request.asset_quantity is not None else request.original_order.amount
+            new_price = request.price if request.price is not None else request.original_order.price
 
             ord_type = "limit"  # Upbit은 지정가만 수정 가능
             create_response = await self.throttler.create_order(
@@ -40,7 +41,7 @@ class ModifyOrReplaceOrderWorker:
                 ord_type=ord_type,
                 volume=str(new_quantity),
                 price=str(new_price),
-                identifier=request.new_client_order_id,
+                identifier=request.client_order_id,
             )
 
             receive_when = self._utc_now_ms()
@@ -53,8 +54,8 @@ class ModifyOrReplaceOrderWorker:
     def _decode_success(
         self, request: ModifyOrReplaceOrderRequest, cancel_response: dict, create_response: dict, send_when: int, receive_when: int
     ) -> ModifyOrReplaceOrderResponse:
-        old_order_id = cancel_response.get("uuid")
         new_order_id = create_response.get("uuid")
+        new_client_order_id = create_response.get("identifier") or request.client_order_id
         new_status = self._map_status(create_response.get("state", "wait"))
 
         processed_when = self._parse_timestamp(create_response.get("created_at")) or (send_when + receive_when) // 2
@@ -67,9 +68,9 @@ class ModifyOrReplaceOrderWorker:
             receive_when=receive_when,
             processed_when=processed_when,
             timegaps=timegaps,
-            old_order_id=old_order_id,
-            new_order_id=new_order_id,
-            new_order_status=new_status,
+            order_id=new_order_id,
+            client_order_id=new_client_order_id,
+            status=new_status,
         )
 
     def _decode_error(
@@ -101,7 +102,7 @@ class ModifyOrReplaceOrderWorker:
             "wait": OrderStatus.PENDING,
             "watch": OrderStatus.PENDING,
             "done": OrderStatus.FILLED,
-            "cancel": OrderStatus.CANCELLED,
+            "cancel": OrderStatus.CANCELED,
         }
         return status_map.get(upbit_state, OrderStatus.PENDING)
 

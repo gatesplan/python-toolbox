@@ -51,12 +51,6 @@ class SpotOrderValidator:
                 f"체결 수량({order.filled_amount})이 주문 수량({order.amount})을 초과할 수 없습니다"
             )
 
-        # fee_rate 검증
-        if order.fee_rate < 0:
-            logger.error(
-                f"수수료율이 음수: order_id={order.order_id}, fee_rate={order.fee_rate}"
-            )
-            raise ValueError(f"수수료율은 음수일 수 없습니다: {order.fee_rate}")
 
         # min_trade_amount 검증
         if order.min_trade_amount is not None:

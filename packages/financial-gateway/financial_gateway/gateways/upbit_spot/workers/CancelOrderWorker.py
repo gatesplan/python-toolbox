@@ -22,9 +22,10 @@ class CancelOrderWorker:
 
         try:
             # identifier(client_order_id) 우선, 없으면 uuid(order_id)
+            order = request.order
             api_response = await self.throttler.cancel_order(
-                uuid=request.order_id if not request.client_order_id else None,
-                identifier=request.client_order_id,
+                uuid=order.order_id if not order.client_order_id else None,
+                identifier=order.client_order_id,
             )
 
             receive_when = self._utc_now_ms()
@@ -52,8 +53,8 @@ class CancelOrderWorker:
             processed_when=processed_when,
             timegaps=timegaps,
             order_id=order_id,
-            client_order_id=request.client_order_id,
-            status=OrderStatus.CANCELLED,
+            client_order_id=request.order.client_order_id,
+            status=OrderStatus.CANCELED,
             filled_amount=executed_volume,
             remaining_amount=remaining_volume,
         )

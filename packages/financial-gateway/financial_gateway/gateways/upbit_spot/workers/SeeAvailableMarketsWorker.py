@@ -2,9 +2,11 @@ import time
 from typing import List
 from simple_logger import func_logging, logger
 from throttled_api.providers.upbit import UpbitSpotThrottler
-from financial_assets.stock_address import StockAddress
+from financial_assets.symbol import Symbol
 from financial_assets.constants import MarketStatus
+from financial_assets.market_info import MarketInfo
 from financial_gateway.structures.see_available_markets import SeeAvailableMarketsRequest, SeeAvailableMarketsResponse
+from financial_gateway.gateways.upbit_spot.utils import MIN_ORDER_VALUES, QTY_STEP_SIZES
 
 
 class SeeAvailableMarketsWorker:
@@ -56,32 +58,32 @@ class SeeAvailableMarketsWorker:
             else:
                 continue  # 잘못된 형식 스킵
 
-            # market_warning → MarketStatus 매핑
-            warning = market_data.get("market_warning", "NONE")
-            if warning == "CAUTION":
-                market_status = MarketStatus.HALT
-            else:
-                market_status = MarketStatus.TRADING
+            # market_warning은 거래 상태가 아니므로 status는 None (Upbit은 모두 거래 가능)
+            # CAUTION은 투자유의 종목이지만 거래는 가능
+            market_status = None
 
-            # StockAddress 생성
-            address = StockAddress(
-                archetype="crypto",
-                exchange="UPBIT",
-                tradetype="SPOT",
-                base=base,
-                quote=quote,
-                timeframe="1d",
+            # 최소 주문금액 (마켓별 고정값)
+            min_trade_value_size = MIN_ORDER_VALUES.get(quote)
+
+            # 최소 주문수량 (Upbit은 미제공, None)
+            min_trade_asset_size = None
+
+            # 가격 호가 단위는 None (KRW는 가격대별로 다름 - get_krw_price_tick_size 함수 사용)
+            # 현재 가격을 모르므로 None
+            min_value_tick_size = None
+
+            # 수량 호가 단위 (마켓별 기본값)
+            min_asset_tick_size = QTY_STEP_SIZES.get(quote)
+
+            # MarketInfo 객체 생성
+            market_info = MarketInfo(
+                symbol=Symbol(f"{base}/{quote}"),
+                status=market_status,
+                min_trade_value_size=min_trade_value_size,
+                min_trade_asset_size=min_trade_asset_size,
+                min_value_tick_size=min_value_tick_size,
+                min_asset_tick_size=min_asset_tick_size,
             )
-
-            # Upbit은 필터 정보 미제공 → 0으로 설정
-            market_info = {
-                "address": address,
-                "status": market_status,
-                "min_quantity": 0.0,
-                "max_quantity": 0.0,
-                "min_price": 0.0,
-                "max_price": 0.0,
-            }
             markets.append(market_info)
 
         processed_when = (send_when + receive_when) // 2

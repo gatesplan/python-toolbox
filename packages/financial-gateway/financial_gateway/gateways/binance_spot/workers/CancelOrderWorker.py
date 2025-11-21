@@ -26,7 +26,7 @@ class CancelOrderWorker:
     STATUS_MAP = {
         "CANCELED": OrderStatus.CANCELED,
         "FILLED": OrderStatus.FILLED,
-        "PARTIALLY_FILLED": OrderStatus.PARTIAL,
+        "PARTIALLY_FILLED": OrderStatus.PARTIALLY_FILLED,
     }
 
     def __init__(self, throttler: BinanceSpotThrottler):
@@ -58,10 +58,10 @@ class CancelOrderWorker:
 
         Binance API 파라미터:
         - symbol (required): "BTCUSDT"
-        - orderId: 주문 ID
-        - origClientOrderId: 원본 클라이언트 주문 ID
+        - order_id: 주문 ID
+        - orig_client_order_id: 원본 클라이언트 주문 ID
 
-        Note: orderId 또는 origClientOrderId 중 하나 필수
+        Note: order_id 또는 orig_client_order_id 중 하나 필수
         """
         order = request.order
         symbol = order.stock_address.to_symbol().to_compact()
@@ -70,11 +70,11 @@ class CancelOrderWorker:
 
         # client_order_id 우선 사용 (있으면)
         if order.client_order_id:
-            params["origClientOrderId"] = order.client_order_id
+            params["orig_client_order_id"] = order.client_order_id
             logger.debug(f"Using client_order_id: {order.client_order_id}")
         else:
             # order_id 사용
-            params["orderId"] = int(order.order_id)
+            params["order_id"] = int(order.order_id)
             logger.debug(f"Using order_id: {order.order_id}")
 
         logger.debug(f"Encoded params: {params}")

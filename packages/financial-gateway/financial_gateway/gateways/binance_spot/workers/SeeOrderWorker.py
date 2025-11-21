@@ -16,7 +16,7 @@ class SeeOrderWorker:
     
     STATUS_MAP = {
         "NEW": OrderStatus.NEW,
-        "PARTIALLY_FILLED": OrderStatus.PARTIAL,
+        "PARTIALLY_FILLED": OrderStatus.PARTIALLY_FILLED,
         "FILLED": OrderStatus.FILLED,
         "CANCELED": OrderStatus.CANCELED,
         "REJECTED": OrderStatus.REJECTED,

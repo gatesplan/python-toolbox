@@ -59,10 +59,12 @@ class SeeOrderbookWorker:
 
         orderbook_units = orderbook_data.get("orderbook_units", [])
 
+        from financial_assets.orderbook import OrderbookLevel, Orderbook
+
         # bids: 매수 호가 (높은 가격부터)
-        bids: List[Tuple[float, float]] = []
+        bids = []
         # asks: 매도 호가 (낮은 가격부터)
-        asks: List[Tuple[float, float]] = []
+        asks = []
 
         for unit in orderbook_units:
             bid_price = float(unit.get("bid_price", 0))
@@ -71,11 +73,14 @@ class SeeOrderbookWorker:
             ask_size = float(unit.get("ask_size", 0))
 
             if bid_price > 0 and bid_size > 0:
-                bids.append((bid_price, bid_size))
+                bids.append(OrderbookLevel(price=bid_price, size=bid_size))
             if ask_price > 0 and ask_size > 0:
-                asks.append((ask_price, ask_size))
+                asks.append(OrderbookLevel(price=ask_price, size=ask_size))
 
         # Upbit은 이미 정렬되어 있음 (bids: 높은 가격부터, asks: 낮은 가격부터)
+
+        # Orderbook 객체 생성
+        orderbook = Orderbook(asks=asks, bids=bids)
 
         processed_when = orderbook_data.get("timestamp") or (send_when + receive_when) // 2
         timegaps = receive_when - send_when
@@ -87,8 +92,7 @@ class SeeOrderbookWorker:
             receive_when=receive_when,
             processed_when=processed_when,
             timegaps=timegaps,
-            bids=bids,
-            asks=asks,
+            orderbook=orderbook,
         )
 
     def _decode_error(

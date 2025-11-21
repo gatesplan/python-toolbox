@@ -170,6 +170,44 @@ class TradingMixin:
             **kwargs,
         )
 
+    async def amend_order(
+        self,
+        symbol: str,
+        newQty: float,
+        orderId: Optional[int] = None,
+        origClientOrderId: Optional[str] = None,
+        newClientOrderId: Optional[str] = None,
+        **kwargs,
+    ) -> dict:
+        """
+        Amend order quantity (reduce only, keeps queue priority)
+
+        PUT /api/v3/order/amend/keepPriority
+        Weight: 4
+        Unfilled Order Count: 0 (amend는 주문 개수에 카운트되지 않음)
+
+        Args:
+            symbol: Trading pair symbol
+            newQty: New reduced quantity (must be < current quantity)
+            orderId: Order ID (either orderId or origClientOrderId required)
+            origClientOrderId: Original client order ID
+            newClientOrderId: New client order ID after amendment (optional)
+            **kwargs: Additional parameters
+
+        Returns:
+            Amended order information
+        """
+        await self._check_and_wait(4)
+        # ORDERS 카운트는 0 (amend는 unfilled order count에 영향 없음)
+        return self.client.amend_order(
+            symbol=symbol,
+            newQty=newQty,
+            orderId=orderId,
+            origClientOrderId=origClientOrderId,
+            newClientOrderId=newClientOrderId,
+            **kwargs,
+        )
+
     async def create_oco_order(
         self,
         symbol: str,
