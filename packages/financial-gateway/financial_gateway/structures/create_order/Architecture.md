@@ -34,9 +34,6 @@
 **자전거래 방지:**
 - `self_trade_prevention: Optional[SelfTradePreventionMode]` - NONE, CANCEL_MAKER, CANCEL_TAKER, CANCEL_BOTH (기본값: None)
 
-**수수료:**
-- `fee_ratio: float` - 예상 수수료 비율 (0.001 = 0.1%)
-
 **클라이언트 주문 ID:**
 - `client_order_id: Optional[str]` - 사용자 정의 주문 ID (기본값: None, 없으면 request_id 사용)
 
@@ -71,10 +68,10 @@
 - `client_order_id: str` - 클라이언트 주문 ID
 - `status: OrderStatus` - NEW, PARTIALLY_FILLED, FILLED, CANCELED, REJECTED 등
 - `created_at: int` - 주문 생성 시각 (UTC ms, from server)
-- `fee_ratio: float` - 적용된 수수료 비율
 
 **체결 정보 (전체 또는 일부 체결 시):**
 - `trades: List[Trade]` - 체결 내역 리스트 (financial-assets의 SpotTrade 또는 FuturesTrade)
+- 실제 수수료는 Trade.fee에 기록됨 (Token 타입)
 
 ### 실패 시 에러 코드
 

@@ -17,7 +17,6 @@ class CreateOrderResponse(BaseResponse):
     client_order_id: Optional[str] = None
     status: Optional[OrderStatus] = None
     created_at: Optional[int] = None  # UTC ms, from server
-    fee_ratio: Optional[float] = None
 
     # 체결 정보 (전체 또는 일부 체결 시)
     trades: Optional[List[Trade]] = None

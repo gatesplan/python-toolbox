@@ -25,7 +25,6 @@ class SpotOrder:
         stop_price: Optional[float] = None,
         filled_amount: float = 0.0,
         status: OrderStatus = OrderStatus.PENDING,
-        fee_rate: float = 0.0,
         min_trade_amount: Optional[float] = None,
         time_in_force: Optional[TimeInForce] = None,
         expire_timestamp: Optional[int] = None,
@@ -42,7 +41,6 @@ class SpotOrder:
         self.status = status
         self.timestamp = timestamp
         self.stop_price = stop_price
-        self.fee_rate = fee_rate
         self.min_trade_amount = min_trade_amount
         self.time_in_force = time_in_force
         self.expire_timestamp = expire_timestamp
@@ -64,7 +62,6 @@ class SpotOrder:
             stop_price=overrides.get("stop_price", self.stop_price),
             filled_amount=overrides.get("filled_amount", self.filled_amount),
             status=overrides.get("status", self.status),
-            fee_rate=overrides.get("fee_rate", self.fee_rate),
             min_trade_amount=overrides.get("min_trade_amount", self.min_trade_amount),
             time_in_force=overrides.get("time_in_force", self.time_in_force),
             expire_timestamp=overrides.get("expire_timestamp", self.expire_timestamp),

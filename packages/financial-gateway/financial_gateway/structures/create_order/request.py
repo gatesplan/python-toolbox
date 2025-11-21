@@ -19,9 +19,6 @@ class CreateOrderRequest(BaseRequest):
     side: OrderSide
     order_type: OrderType
 
-    # 수수료
-    fee_ratio: float
-
     # 수량/가격 (Optional)
     asset_quantity: Optional[float] = None
     price: Optional[float] = None
