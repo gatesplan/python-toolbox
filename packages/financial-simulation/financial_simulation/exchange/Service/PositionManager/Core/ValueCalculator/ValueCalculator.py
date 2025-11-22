@@ -2,6 +2,7 @@
 
 from typing import Optional
 from financial_assets.pair import PairStack
+from financial_assets.symbol import Symbol
 from financial_simulation.exchange.Core.MarketData.MarketData import MarketData
 
 
@@ -78,12 +79,16 @@ class ValueCalculator:
                 total_value += amount
             else:
                 # 다른 화폐는 현재 가격으로 환산
-                symbol = f"{currency_symbol}/{quote_currency}"
-                price_data = market_data.get_current(symbol)
+                try:
+                    symbol = Symbol(f"{currency_symbol}/{quote_currency}")
+                    price_data = market_data.get_current(symbol)
 
-                if price_data is not None:
-                    current_price = price_data.c
-                    total_value += amount * current_price
+                    if price_data is not None:
+                        current_price = price_data.c
+                        total_value += amount * current_price
+                except ValueError:
+                    # 잘못된 symbol 형식은 무시
+                    pass
                 # 가격 데이터 없으면 0으로 처리 (무시)
 
         return total_value

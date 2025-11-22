@@ -157,8 +157,45 @@ class PairStack:
                 f"Amount {amount} exceeds total asset amount {total_asset}"
             )
 
-        ratio = amount / total_asset
-        return self.split_by_ratio(ratio)
+        if amount == 0:
+            return PairStack()
+
+        if amount == total_asset:
+            splitted = PairStack(self._pairs.copy())
+            self._pairs.clear()
+            self._asset_symbol = None
+            self._value_symbol = None
+            return splitted
+
+        splitted_pairs: list[Pair] = []
+        remaining_target = amount
+
+        # 스택 위(맨 뒤)부터 순서대로 asset 기준으로 뽑기
+        while remaining_target > 0 and self._pairs:
+            current_pair = self._pairs[-1]
+            current_asset = current_pair.get_asset()
+
+            if current_asset <= remaining_target:
+                # 현재 Pair 전체를 가져감
+                splitted_pairs.append(current_pair)
+                remaining_target -= current_asset
+                self._pairs.pop()
+            else:
+                # 현재 Pair를 asset 기준으로 분할
+                reduced, splitted = current_pair.split_by_asset_amount(remaining_target)
+                self._pairs[-1] = reduced
+                splitted_pairs.append(splitted)
+                remaining_target = 0
+
+        # 스택이 비어있거나 남은 수량이 너무 작으면 정리 (garbage control)
+        if self.is_empty() or self.total_asset_amount() < 1e-8:
+            self._pairs.clear()
+            self._asset_symbol = None
+            self._value_symbol = None
+
+        logger.debug(f"PairStack.split_by_asset_amount 완료: splitted_layers={len(splitted_pairs)}, remaining_layers={len(self._pairs)}")
+
+        return PairStack(splitted_pairs)
 
     def split_by_value_amount(self, amount: float) -> PairStack:
         """value 수량 기준으로 스택 분할."""

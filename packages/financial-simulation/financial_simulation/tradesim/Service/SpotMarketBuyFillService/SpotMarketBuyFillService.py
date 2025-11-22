@@ -7,7 +7,7 @@ from typing import List
 from simple_logger import func_logging, logger
 from financial_assets.order import SpotOrder
 from financial_assets.price import Price
-from financial_assets.constants import Side, TimeInForce
+from financial_assets.constants import OrderSide, TimeInForce
 
 from ...InternalStruct import TradeParams
 from ...Constants import SplitConfig
@@ -100,7 +100,7 @@ class SpotMarketBuyFillService:
     ) -> List[TradeParams]:
         # 체결 파라미터 생성
         slippage_min, slippage_max = SlippageCalculator.calculate_range(
-            price, Side.BUY
+            price, OrderSide.BUY
         )
 
         mean, std = PriceSampler.calculate_normal_params(

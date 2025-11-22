@@ -7,7 +7,7 @@ from simple_logger import init_logging, func_logging
 from financial_assets.order import Order, SpotOrder
 from financial_assets.price import Price
 from financial_assets.trade import Trade
-from financial_assets.constants import OrderType, Side
+from financial_assets.constants import OrderType, OrderSide
 
 from ...Service import (
     SpotLimitFillService,
@@ -20,12 +20,19 @@ from ...Service import (
 class TradeSimulation:
 
     @init_logging(level="INFO")
-    def __init__(self):
+    def __init__(self, maker_fee_ratio: float, taker_fee_ratio: float):
+        # 수수료 비율 저장
+        self._maker_fee_ratio = maker_fee_ratio
+        self._taker_fee_ratio = taker_fee_ratio
+
         # Service 인스턴스 생성
         self._limit_fill_service = SpotLimitFillService()
         self._market_buy_fill_service = SpotMarketBuyFillService()
         self._market_sell_fill_service = SpotMarketSellFillService()
-        self._trade_factory_service = SpotTradeFactoryService()
+        self._trade_factory_service = SpotTradeFactoryService(
+            maker_fee_ratio=maker_fee_ratio,
+            taker_fee_ratio=taker_fee_ratio
+        )
 
     @func_logging(level="INFO")
     def process(
@@ -39,9 +46,9 @@ class TradeSimulation:
             if order.order_type == OrderType.LIMIT:
                 params_list = self._limit_fill_service.execute(order, price)
             elif order.order_type == OrderType.MARKET:
-                if order.side == Side.BUY:
+                if order.side == OrderSide.BUY:
                     params_list = self._market_buy_fill_service.execute(order, price)
-                elif order.side == Side.SELL:
+                elif order.side == OrderSide.SELL:
                     params_list = self._market_sell_fill_service.execute(order, price)
                 else:
                     raise ValueError(f"Unknown side: {order.side}")

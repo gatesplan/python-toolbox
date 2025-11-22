@@ -1,6 +1,7 @@
 from __future__ import annotations
 from typing import Union
 from ..token import Token
+from ..symbol import Symbol
 from simple_logger import logger
 
 
@@ -14,12 +15,17 @@ class Pair:
         """Pair 초기화."""
         self._asset = asset
         self._value = value
-        self._ticker = f"{asset.symbol}-{value.symbol}"
+        self._symbol = Symbol(f"{asset.symbol}/{value.symbol}")
 
     @property
     def ticker(self) -> str:
-        """티커 문자열을 반환합니다 (예: "BTC-USD")."""
-        return self._ticker
+        """티커 문자열을 반환합니다 (예: "BTC-USDT"). 하위 호환성 유지."""
+        return self._symbol.to_dash()
+
+    @property
+    def symbol(self) -> Symbol:
+        """Symbol 객체를 반환합니다."""
+        return self._symbol
 
     def get_asset_token(self) -> Token:
         """거래 대상 자산 Token 반환."""
@@ -39,7 +45,7 @@ class Pair:
 
     def split_by_asset_amount(self, amount: float) -> tuple[Pair, Pair]:
         """asset 수량 기준으로 Pair 분할."""
-        logger.debug(f"Pair.split_by_asset_amount 시작: ticker={self._ticker}, asset={self._asset.amount}, split_amount={amount}")
+        logger.debug(f"Pair.split_by_asset_amount 시작: ticker={self.ticker}, asset={self._asset.amount}, split_amount={amount}")
 
         # asset을 분할
         reduced_asset, splitted_asset = self._asset.split_by_amount(amount)
@@ -62,7 +68,7 @@ class Pair:
 
     def split_by_value_amount(self, amount: float) -> tuple[Pair, Pair]:
         """value 수량 기준으로 Pair 분할."""
-        logger.debug(f"Pair.split_by_value_amount 시작: ticker={self._ticker}, value={self._value.amount}, split_amount={amount}")
+        logger.debug(f"Pair.split_by_value_amount 시작: ticker={self.ticker}, value={self._value.amount}, split_amount={amount}")
 
         # value를 분할
         reduced_value, splitted_value = self._value.split_by_amount(amount)
@@ -85,7 +91,7 @@ class Pair:
 
     def split_by_ratio(self, ratio: float) -> tuple[Pair, Pair]:
         """비율 기준으로 Pair 분할."""
-        logger.debug(f"Pair.split_by_ratio 시작: ticker={self._ticker}, ratio={ratio}")
+        logger.debug(f"Pair.split_by_ratio 시작: ticker={self.ticker}, ratio={ratio}")
 
         # asset과 value를 같은 비율로 분할
         reduced_asset, splitted_asset = self._asset.split_by_ratio(ratio)

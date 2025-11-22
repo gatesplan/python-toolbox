@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 from typing import TYPE_CHECKING
-from simple_logger import logger
+from simple_logger import func_logging, logger
 from financial_assets.order import SpotOrder
 from financial_assets.trade import SpotTrade
 from financial_assets.pair import Pair
@@ -14,7 +14,7 @@ if TYPE_CHECKING:
     from ...Core.MarketData import MarketData
     from financial_simulation.tradesim.API.TradeSimulation import TradeSimulation
 
-from financial_assets.constants import Side, TimeInForce
+from financial_assets.constants import OrderSide, OrderType, TimeInForce
 
 
 class OrderExecutor:
@@ -33,14 +33,15 @@ class OrderExecutor:
         self._market_data = market_data
         self._trade_simulation = trade_simulation
 
+    @func_logging(level="INFO")
     def execute_order(self, order: SpotOrder) -> list[SpotTrade]:
         """주문 실행 및 체결 처리."""
         # 1. 현재 Price 조회
-        symbol = f"{order.stock_address.base}/{order.stock_address.quote}"
+        symbol = order.stock_address.to_symbol()
         current_price = self._market_data.get_current(symbol)
         if current_price is None:
-            logger.error(f"주문 실행 실패: 현재 시장가 조회 불가 - order_id={order.order_id}, symbol={symbol}")
-            raise ValueError(f"주문 실행 실패: 현재 시장가 조회 불가 (symbol={symbol})")
+            logger.error(f"주문 실행 실패: 현재 시장가 조회 불가 - order_id={order.order_id}, symbol={symbol.to_slash()}")
+            raise ValueError(f"주문 실행 실패: 현재 시장가 조회 불가 (symbol={symbol.to_slash()})")
 
         # 2. TradeSimulation에 위임
         trades = self._trade_simulation.process(order, current_price)
@@ -54,7 +55,15 @@ class OrderExecutor:
         # 4. 미체결 수량 계산
         unfilled_amount = order.amount - filled_amount
 
-        # 5. TimeInForce 처리
+        # 5. MARKET 주문은 항상 IOC로 처리 (미체결 즉시 취소)
+        if order.order_type == OrderType.MARKET:
+            logger.info(
+                f"MARKET 주문 처리 완료: order_id={order.order_id}, "
+                f"filled={filled_amount}, unfilled={unfilled_amount} (즉시 취소)"
+            )
+            return trades
+
+        # 6. TimeInForce 처리 (LIMIT 주문만)
         if order.time_in_force == TimeInForce.FOK:
             # FOK: 완전 체결 아니면 실패
             if unfilled_amount > 0:
@@ -90,6 +99,7 @@ class OrderExecutor:
 
             return trades
 
+    @func_logging(level="INFO")
     def cancel_order(self, order_id: str) -> None:
         """미체결 주문 취소."""
         # OrderBook에서 주문 조회
@@ -106,6 +116,7 @@ class OrderExecutor:
 
         logger.info(f"주문 취소 완료: order_id={order_id}")
 
+    @func_logging(level="INFO")
     def _rollback_trades(self, trades: list[SpotTrade]) -> None:
         """체결된 Trade들을 역으로 처리 (FOK 실패 시 롤백)."""
         for trade in trades:
@@ -114,7 +125,7 @@ class OrderExecutor:
             reversed_order = SpotOrder(
                 order_id=f"rollback_{trade.order.order_id}",
                 stock_address=trade.order.stock_address,
-                side=Side.SELL if trade.order.side == Side.BUY else Side.BUY,
+                side=OrderSide.SELL if trade.order.side == OrderSide.BUY else OrderSide.BUY,
                 order_type=trade.order.order_type,
                 price=trade.order.price,
                 amount=trade.pair.get_asset(),
@@ -131,9 +142,10 @@ class OrderExecutor:
             )
             self._portfolio.process_trade(reversed_trade)
 
+    @func_logging(level="INFO")
     def _lock_assets(self, order: SpotOrder, amount: float) -> None:
         """미체결 수량에 대한 자산 잠금."""
-        if order.side == Side.BUY:
+        if order.side == OrderSide.BUY:
             # BUY: quote 화폐 잠금
             quote_symbol = order.stock_address.quote
             required = order.price * amount
@@ -142,11 +154,11 @@ class OrderExecutor:
                 f"BUY 주문 자산 잠금: order_id={order.order_id}, "
                 f"quote={quote_symbol}, amount={required}"
             )
-        elif order.side == Side.SELL:
+        elif order.side == OrderSide.SELL:
             # SELL: base Position 잠금
-            ticker = f"{order.stock_address.base}-{order.stock_address.quote}"
-            self._portfolio.lock_position(order.order_id, ticker, amount)
+            symbol = order.stock_address.to_symbol()
+            self._portfolio.lock_position(order.order_id, symbol, amount)
             logger.info(
                 f"SELL 주문 자산 잠금: order_id={order.order_id}, "
-                f"ticker={ticker}, amount={amount}"
+                f"ticker={symbol.to_dash()}, amount={amount}"
             )

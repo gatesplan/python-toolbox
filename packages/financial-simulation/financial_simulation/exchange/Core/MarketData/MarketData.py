@@ -1,8 +1,9 @@
 # 시장 데이터 및 커서 관리
 
-from typing import Optional
+from typing import Optional, Union
 import random
 from financial_assets.price import Price
+from financial_assets.symbol import Symbol
 from simple_logger import init_logging, logger
 
 
@@ -132,12 +133,15 @@ class MarketData:
         logger.debug(f"커서 이동: {self._cursor}")
         return True
 
-    def get_current(self, symbol: str) -> Optional[Price]:
+    def get_current(self, symbol: Union[str, Symbol]) -> Optional[Price]:
         # 특정 심볼의 현재 커서 위치 가격 데이터 조회
-        if symbol not in self._data:
+        # Symbol 객체면 slash 형식으로 변환
+        symbol_key = symbol.to_slash() if isinstance(symbol, Symbol) else symbol
+
+        if symbol_key not in self._data:
             return None
 
-        prices = self._data[symbol]
+        prices = self._data[symbol_key]
         # 각 심볼의 시작 인덱스 = max_length - len(prices)
         start_index = self._max_length - len(prices)
 
@@ -157,7 +161,7 @@ class MarketData:
                 result[symbol] = price
         return result
 
-    def get_current_timestamp(self, symbol: str) -> Optional[int]:
+    def get_current_timestamp(self, symbol: Union[str, Symbol]) -> Optional[int]:
         # 특정 심볼의 현재 타임스탬프 조회
         price = self.get_current(symbol)
         return price.t if price is not None else None

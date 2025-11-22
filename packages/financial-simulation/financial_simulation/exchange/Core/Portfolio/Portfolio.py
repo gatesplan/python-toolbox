@@ -1,8 +1,10 @@
 """거래소 맥락의 자산 관리"""
 
+from typing import Union
 from financial_assets.wallet import SpotWallet
 from financial_assets.trade import SpotTrade
-from simple_logger import init_logging, logger
+from financial_assets.symbol import Symbol
+from simple_logger import init_logging, func_logging, logger
 from .PromiseManager import PromiseManager
 from .InternalStruct import AssetType
 
@@ -88,6 +90,7 @@ class Portfolio:
 
     # ===== 자산 예약 (Promise) =====
 
+    @func_logging(level="INFO")
     def lock_currency(self, promise_id: str, symbol: str, amount: float) -> None:
         """Currency 예약 (미체결 주문용).
 
@@ -112,29 +115,33 @@ class Portfolio:
         self._promise_manager.lock(promise_id, AssetType.CURRENCY, symbol, amount)
         logger.info(f"Currency 잠금 완료: promise_id={promise_id}")
 
-    def lock_position(self, promise_id: str, ticker: str, amount: float) -> None:
+    @func_logging(level="INFO")
+    def lock_position(self, promise_id: str, ticker: Union[str, Symbol], amount: float) -> None:
         """Position 예약 (미체결 주문용).
 
         Args:
             promise_id: 예약 식별자 (주문 ID 등)
-            ticker: Position ticker (예: "BTC-USDT")
+            ticker: Position ticker (문자열 또는 Symbol 객체, 예: "BTC-USDT")
             amount: 예약 수량
 
         Raises:
             ValueError: 사용 가능 포지션 부족 시
         """
-        logger.info(f"Position 잠금 요청: promise_id={promise_id}, ticker={ticker}, amount={amount}")
+        # Symbol 객체면 dash 형식으로 변환
+        ticker_key = ticker.to_dash() if isinstance(ticker, Symbol) else ticker
+        logger.info(f"Position 잠금 요청: promise_id={promise_id}, ticker={ticker_key}, amount={amount}")
 
-        available = self.get_available_position(ticker)
+        available = self.get_available_position(ticker_key)
         if available < amount:
-            logger.error(f"포지션 부족: ticker={ticker}, requested={amount}, available={available}")
+            logger.error(f"포지션 부족: ticker={ticker_key}, requested={amount}, available={available}")
             raise ValueError(
-                f"포지션 부족: {ticker} requested={amount}, available={available}"
+                f"포지션 부족: {ticker_key} requested={amount}, available={available}"
             )
 
-        self._promise_manager.lock(promise_id, AssetType.POSITION, ticker, amount)
+        self._promise_manager.lock(promise_id, AssetType.POSITION, ticker_key, amount)
         logger.info(f"Position 잠금 완료: promise_id={promise_id}")
 
+    @func_logging(level="INFO")
     def unlock_currency(self, promise_id: str) -> None:
         """자산 예약 해제.
 
@@ -147,6 +154,7 @@ class Portfolio:
 
     # ===== 거래 처리 =====
 
+    @func_logging(level="INFO")
     def process_trade(self, trade: SpotTrade) -> None:
         """거래 처리 (SpotWallet에 위임).
 
@@ -181,30 +189,34 @@ class Portfolio:
 
         return positions
 
-    def get_available_position(self, ticker: str) -> float:
+    def get_available_position(self, ticker: Union[str, Symbol]) -> float:
         """사용 가능 포지션 조회 (총 포지션 - 예약 포지션).
 
         Args:
-            ticker: Position ticker (예: "BTC-USDT")
+            ticker: Position ticker (문자열 또는 Symbol 객체, 예: "BTC-USDT")
 
         Returns:
             float: 사용 가능 수량
         """
+        # Symbol 객체면 dash 형식으로 변환
+        ticker_key = ticker.to_dash() if isinstance(ticker, Symbol) else ticker
         positions = self.get_positions()
-        total = positions.get(ticker, 0.0)
-        locked = self.get_locked_position(ticker)
+        total = positions.get(ticker_key, 0.0)
+        locked = self.get_locked_position(ticker_key)
         return total - locked
 
-    def get_locked_position(self, ticker: str) -> float:
+    def get_locked_position(self, ticker: Union[str, Symbol]) -> float:
         """예약된 포지션 수량 조회.
 
         Args:
-            ticker: Position ticker (예: "BTC-USDT")
+            ticker: Position ticker (문자열 또는 Symbol 객체, 예: "BTC-USDT")
 
         Returns:
             float: 예약된 수량
         """
-        return self._promise_manager.get_locked_amount_by_type(AssetType.POSITION, ticker)
+        # Symbol 객체면 dash 형식으로 변환
+        ticker_key = ticker.to_dash() if isinstance(ticker, Symbol) else ticker
+        return self._promise_manager.get_locked_amount_by_type(AssetType.POSITION, ticker_key)
 
     def get_currencies(self) -> list[str]:
         """보유 화폐 목록.

@@ -2,7 +2,7 @@
 
 from typing import Optional
 from financial_assets.order import SpotOrder
-from simple_logger import init_logging, logger
+from simple_logger import init_logging, func_logging, logger
 
 
 class OrderBook:
@@ -18,6 +18,7 @@ class OrderBook:
         self._symbol_index: dict[str, set[str]] = {}
         logger.info("OrderBook 초기화 완료")
 
+    @func_logging(level="INFO")
     def add_order(self, order: SpotOrder) -> None:
         """미체결 주문 추가.
 
@@ -43,6 +44,7 @@ class OrderBook:
 
         logger.info(f"주문 추가 완료: order_id={order.order_id}, total_orders={len(self._orders)}")
 
+    @func_logging(level="INFO")
     def remove_order(self, order_id: str) -> None:
         """주문 제거 (취소).
 
@@ -111,6 +113,7 @@ class OrderBook:
         """
         return len(self._orders)
 
+    @func_logging(level="DEBUG")
     def expire_orders(self, current_timestamp: int) -> list[str]:
         """TimeInForce 기반 만료 주문 제거.
 
@@ -146,7 +149,7 @@ class OrderBook:
         Returns:
             str: "BASE/QUOTE" 형식의 심볼
         """
-        return f"{order.stock_address.base}/{order.stock_address.quote}"
+        return order.stock_address.to_symbol().to_slash()
 
     def __repr__(self) -> str:
         """상세한 문자열 표현 반환."""

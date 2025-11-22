@@ -5,7 +5,6 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from financial_simulation.exchange.Core.MarketData.MarketData import MarketData
-    from financial_simulation.tradesim.API.TradeSimulation import TradeSimulation
 
 from financial_assets.order import SpotOrder
 from financial_assets.trade import SpotTrade
@@ -14,6 +13,7 @@ from financial_simulation.exchange.Core.OrderBook.OrderBook import OrderBook
 from financial_simulation.exchange.Service.OrderValidator.OrderValidator import OrderValidator
 from financial_simulation.exchange.Service.OrderExecutor.OrderExecutor import OrderExecutor
 from financial_simulation.exchange.Service.PositionManager.PositionManager import PositionManager
+from financial_simulation.tradesim.API.TradeSimulation import TradeSimulation
 
 
 class SpotExchange:
@@ -23,7 +23,8 @@ class SpotExchange:
         self,
         initial_balance: float,
         market_data: MarketData,
-        trade_simulation: TradeSimulation,
+        maker_fee_ratio: float = 0.001,
+        taker_fee_ratio: float = 0.002,
         quote_currency: str = "USDT"
     ):
         """SpotExchange 초기화.
@@ -31,7 +32,8 @@ class SpotExchange:
         Args:
             initial_balance: 초기 자산 (quote_currency 기준)
             market_data: MarketData 인스턴스
-            trade_simulation: TradeSimulation 인스턴스
+            maker_fee_ratio: Maker 수수료 비율 (기본값: 0.1%)
+            taker_fee_ratio: Taker 수수료 비율 (기본값: 0.2%)
             quote_currency: 기준 화폐
         """
         # Core 컴포넌트 생성
@@ -44,13 +46,23 @@ class SpotExchange:
         self._quote_currency = quote_currency
         self._portfolio.deposit_currency(quote_currency, initial_balance)
 
+        # 수수료 비율 저장
+        self._maker_fee_ratio = maker_fee_ratio
+        self._taker_fee_ratio = taker_fee_ratio
+
+        # TradeSimulation 생성 (내부 컴포넌트)
+        self._trade_simulation = TradeSimulation(
+            maker_fee_ratio=maker_fee_ratio,
+            taker_fee_ratio=taker_fee_ratio
+        )
+
         # Service 컴포넌트 생성
         self._order_validator = OrderValidator(self._portfolio, self._market_data)
         self._order_executor = OrderExecutor(
             self._portfolio,
             self._orderbook,
             self._market_data,
-            trade_simulation
+            self._trade_simulation
         )
         self._position_manager = PositionManager(
             self._portfolio,
@@ -124,7 +136,7 @@ class SpotExchange:
             # symbol로 필터링
             return [
                 trade for trade in self._trade_history
-                if f"{trade.order.stock_address.base}/{trade.order.stock_address.quote}" == symbol
+                if trade.order.stock_address.to_symbol().to_slash() == symbol
             ]
 
     def get_balance(self, currency: str | None = None) -> float | dict[str, float]:
@@ -234,13 +246,19 @@ class SpotExchange:
         # 3. MarketData 커서 리셋
         self._market_data.reset()
 
-        # 4. Service 컴포넌트 재생성 (Portfolio 참조 갱신)
+        # 4. TradeSimulation 재생성
+        self._trade_simulation = TradeSimulation(
+            maker_fee_ratio=self._maker_fee_ratio,
+            taker_fee_ratio=self._taker_fee_ratio
+        )
+
+        # 5. Service 컴포넌트 재생성 (Portfolio 참조 갱신)
         self._order_validator = OrderValidator(self._portfolio, self._market_data)
         self._order_executor = OrderExecutor(
             self._portfolio,
             self._orderbook,
             self._market_data,
-            self._order_executor._trade_simulation  # TradeSimulation 재사용
+            self._trade_simulation
         )
         self._position_manager = PositionManager(
             self._portfolio,
@@ -248,7 +266,7 @@ class SpotExchange:
             self._initial_balance
         )
 
-        # 5. 거래 내역 초기화
+        # 6. 거래 내역 초기화
         self._trade_history = []
 
     def get_current_timestamp(self) -> int | None:
