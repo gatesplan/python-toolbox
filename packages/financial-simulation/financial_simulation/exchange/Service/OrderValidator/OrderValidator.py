@@ -36,12 +36,13 @@ class OrderValidator:
         if order.order_type == OrderType.MARKET:
             # MARKET 주문: 현재 시장가 조회
             symbol = order.stock_address.to_symbol()
-            current_price_data = self._market_data.get_current(symbol)
+            symbol_str = symbol.to_slash()
+            current_price_data = self._market_data.get_current(symbol_str)
             if current_price_data is None:
                 logger.error(
-                    f"MARKET 주문 검증 실패: 현재 시장가 조회 불가 - order_id={order.order_id}, symbol={symbol.to_slash()}"
+                    f"MARKET 주문 검증 실패: 현재 시장가 조회 불가 - order_id={order.order_id}, symbol={symbol_str}"
                 )
-                raise ValueError(f"MARKET 주문 검증 실패: 현재 시장가 조회 불가 (symbol={symbol.to_slash()})")
+                raise ValueError(f"MARKET 주문 검증 실패: 현재 시장가 조회 불가 (symbol={symbol_str})")
             price = current_price_data.c  # close price 사용
         else:
             # LIMIT/STOP_LIMIT: 주문 가격 사용

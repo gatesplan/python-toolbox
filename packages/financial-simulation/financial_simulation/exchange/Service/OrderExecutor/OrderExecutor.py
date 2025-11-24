@@ -41,10 +41,11 @@ class OrderExecutor:
         """주문 실행 및 체결 처리."""
         # 1. 현재 Price 조회
         symbol = order.stock_address.to_symbol()
-        current_price = self._market_data.get_current(symbol)
+        symbol_str = symbol.to_slash()
+        current_price = self._market_data.get_current(symbol_str)
         if current_price is None:
-            logger.error(f"주문 실행 실패: 현재 시장가 조회 불가 - order_id={order.order_id}, symbol={symbol.to_slash()}")
-            raise ValueError(f"주문 실행 실패: 현재 시장가 조회 불가 (symbol={symbol.to_slash()})")
+            logger.error(f"주문 실행 실패: 현재 시장가 조회 불가 - order_id={order.order_id}, symbol={symbol_str}")
+            raise ValueError(f"주문 실행 실패: 현재 시장가 조회 불가 (symbol={symbol_str})")
 
         # 주문 생성 이력 추가 (NEW 상태)
         timestamp = current_price.t

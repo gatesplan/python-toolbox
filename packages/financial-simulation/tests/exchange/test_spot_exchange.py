@@ -1,12 +1,15 @@
 """SpotExchange integration tests"""
 
 import pytest
+import pandas as pd
 from financial_simulation.exchange.API.SpotExchange import SpotExchange
 from financial_simulation.exchange.Core.MarketData.MarketData import MarketData
 from financial_assets.order import SpotOrder
 from financial_assets.stock_address import StockAddress
 from financial_assets.constants import OrderSide, OrderType
 from financial_assets.price import Price
+from financial_assets.candle import Candle
+from financial_assets.multicandle import MultiCandle
 
 
 class TestSpotExchangeIntegration:
@@ -15,22 +18,23 @@ class TestSpotExchangeIntegration:
     @pytest.fixture
     def market_data(self):
         """Create market data fixture"""
-        btc_prices = [
-            Price(
-                exchange="binance",
-                market="BTCUSDT",
-                t=1000 + i * 60,
-                o=50000.0,
-                h=51000.0,
-                l=49000.0,
-                c=50000.0,
-                v=100.0
-            )
-            for i in range(10)
-        ]
+        # BTC/USDT Candle 생성
+        btc_addr = StockAddress("candle", "binance", "spot", "BTC", "USDT", "1m")
+        btc_df = pd.DataFrame({
+            'timestamp': [1000 + i * 60 for i in range(10)],
+            'open': [50000.0] * 10,
+            'high': [51000.0] * 10,
+            'low': [49000.0] * 10,
+            'close': [50000.0] * 10,
+            'volume': [100.0] * 10
+        })
+        btc_candle = Candle(btc_addr, btc_df)
 
-        data = {"BTC/USDT": btc_prices}
-        return MarketData(data=data, availability_threshold=0.8, offset=0)
+        # MultiCandle 생성
+        mc = MultiCandle([btc_candle])
+
+        # MarketData 생성
+        return MarketData(mc, start_offset=0)
 
     def test_exchange_creation_with_fee_ratios(self, market_data):
         """Exchange should be created with fee ratios directly"""
