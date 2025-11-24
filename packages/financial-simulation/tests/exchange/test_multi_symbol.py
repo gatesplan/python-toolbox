@@ -1,12 +1,15 @@
 """Multi-symbol trading simulation tests"""
 
 import pytest
+import pandas as pd
 from financial_simulation.exchange.API.SpotExchange import SpotExchange
 from financial_simulation.exchange.Core.MarketData.MarketData import MarketData
 from financial_assets.order import SpotOrder
 from financial_assets.stock_address import StockAddress
 from financial_assets.constants import OrderSide, OrderType
 from financial_assets.price import Price
+from financial_assets.candle import Candle
+from financial_assets.multicandle import MultiCandle
 
 
 class TestMultiSymbolTrading:
@@ -15,57 +18,47 @@ class TestMultiSymbolTrading:
     @pytest.fixture
     def multi_symbol_market_data(self):
         """복수 종목 시장 데이터 생성"""
-        # BTC/USDT 데이터
-        btc_prices = [
-            Price(
-                exchange="binance",
-                market="BTCUSDT",
-                t=1000 + i * 60,
-                o=50000.0 + i * 100,
-                h=51000.0 + i * 100,
-                l=49000.0 + i * 100,
-                c=50000.0 + i * 100,
-                v=100.0
-            )
-            for i in range(20)
-        ]
+        # BTC/USDT Candle 생성
+        btc_addr = StockAddress("candle", "binance", "spot", "BTC", "USDT", "1m")
+        btc_df = pd.DataFrame({
+            'timestamp': [1000 + i * 60 for i in range(20)],
+            'open': [50000.0 + i * 100 for i in range(20)],
+            'high': [51000.0 + i * 100 for i in range(20)],
+            'low': [49000.0 + i * 100 for i in range(20)],
+            'close': [50000.0 + i * 100 for i in range(20)],
+            'volume': [100.0] * 20
+        })
+        btc_candle = Candle(btc_addr, btc_df)
 
-        # ETH/USDT 데이터
-        eth_prices = [
-            Price(
-                exchange="binance",
-                market="ETHUSDT",
-                t=1000 + i * 60,
-                o=3000.0 + i * 10,
-                h=3100.0 + i * 10,
-                l=2900.0 + i * 10,
-                c=3000.0 + i * 10,
-                v=200.0
-            )
-            for i in range(20)
-        ]
+        # ETH/USDT Candle 생성
+        eth_addr = StockAddress("candle", "binance", "spot", "ETH", "USDT", "1m")
+        eth_df = pd.DataFrame({
+            'timestamp': [1000 + i * 60 for i in range(20)],
+            'open': [3000.0 + i * 10 for i in range(20)],
+            'high': [3100.0 + i * 10 for i in range(20)],
+            'low': [2900.0 + i * 10 for i in range(20)],
+            'close': [3000.0 + i * 10 for i in range(20)],
+            'volume': [200.0] * 20
+        })
+        eth_candle = Candle(eth_addr, eth_df)
 
-        # SOL/USDT 데이터
-        sol_prices = [
-            Price(
-                exchange="binance",
-                market="SOLUSDT",
-                t=1000 + i * 60,
-                o=100.0 + i * 1,
-                h=105.0 + i * 1,
-                l=95.0 + i * 1,
-                c=100.0 + i * 1,
-                v=500.0
-            )
-            for i in range(20)
-        ]
+        # SOL/USDT Candle 생성
+        sol_addr = StockAddress("candle", "binance", "spot", "SOL", "USDT", "1m")
+        sol_df = pd.DataFrame({
+            'timestamp': [1000 + i * 60 for i in range(20)],
+            'open': [100.0 + i * 1 for i in range(20)],
+            'high': [105.0 + i * 1 for i in range(20)],
+            'low': [95.0 + i * 1 for i in range(20)],
+            'close': [100.0 + i * 1 for i in range(20)],
+            'volume': [500.0] * 20
+        })
+        sol_candle = Candle(sol_addr, sol_df)
 
-        data = {
-            "BTC/USDT": btc_prices,
-            "ETH/USDT": eth_prices,
-            "SOL/USDT": sol_prices,
-        }
-        return MarketData(data=data, availability_threshold=0.8, offset=0)
+        # MultiCandle 생성
+        mc = MultiCandle([btc_candle, eth_candle, sol_candle])
+
+        # MarketData 생성
+        return MarketData(mc, start_offset=0)
 
     def test_multi_symbol_market_data_initialization(self, multi_symbol_market_data):
         """복수 종목 MarketData 초기화 테스트"""

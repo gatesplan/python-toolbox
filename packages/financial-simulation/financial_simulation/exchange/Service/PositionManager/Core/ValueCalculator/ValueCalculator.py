@@ -81,7 +81,8 @@ class ValueCalculator:
                 # 다른 화폐는 현재 가격으로 환산
                 try:
                     symbol = Symbol(f"{currency_symbol}/{quote_currency}")
-                    price_data = market_data.get_current(symbol)
+                    symbol_str = symbol.to_slash()
+                    price_data = market_data.get_current(symbol_str)
 
                     if price_data is not None:
                         current_price = price_data.c

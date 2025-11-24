@@ -91,7 +91,9 @@ class PositionManager:
             # 잘못된 ticker 형식
             return 0.0
 
-        price_data = self._market_data.get_current(symbol)
+        # Symbol을 문자열로 변환 (BTC/USDT 형식)
+        symbol_str = symbol.to_slash()
+        price_data = self._market_data.get_current(symbol_str)
 
         if price_data is None:
             return 0.0
