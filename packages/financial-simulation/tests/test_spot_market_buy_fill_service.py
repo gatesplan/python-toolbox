@@ -14,7 +14,7 @@ from financial_simulation.tradesim.Service import SpotMarketBuyFillService
 from financial_assets.order import SpotOrder
 from financial_assets.stock_address import StockAddress
 from financial_assets.price import Price
-from financial_assets.constants import Side, OrderType, TimeInForce
+from financial_assets.constants import OrderSide, OrderType, TimeInForce
 
 
 class TestSpotMarketBuyFillService:
@@ -29,7 +29,7 @@ class TestSpotMarketBuyFillService:
         order = SpotOrder(
             order_id="test-small-1",
             stock_address=stock_address,
-            side=Side.BUY,
+            side=OrderSide.BUY,
             order_type=OrderType.MARKET,
             price=None,
             amount=0.1,  # 0.1 / 500 = 0.0002 = 0.02% (0.1% 이하)
@@ -55,7 +55,7 @@ class TestSpotMarketBuyFillService:
         order = SpotOrder(
             order_id="test-medium-1",
             stock_address=stock_address,
-            side=Side.BUY,
+            side=OrderSide.BUY,
             order_type=OrderType.MARKET,
             price=None,
             amount=2.0,  # 2.0 / 500 = 0.004 = 0.4% (0.1% ~ 1%)
@@ -82,7 +82,7 @@ class TestSpotMarketBuyFillService:
         order = SpotOrder(
             order_id="test-large-1",
             stock_address=stock_address,
-            side=Side.BUY,
+            side=OrderSide.BUY,
             order_type=OrderType.MARKET,
             price=None,
             amount=10.0,  # 10.0 / 500 = 0.02 = 2% (1% ~ 5%)
@@ -109,7 +109,7 @@ class TestSpotMarketBuyFillService:
         order = SpotOrder(
             order_id="test-huge-1",
             stock_address=stock_address,
-            side=Side.BUY,
+            side=OrderSide.BUY,
             order_type=OrderType.MARKET,
             price=None,
             amount=40.0,  # 40.0 / 500 = 0.08 = 8% (5% ~ 20%)
@@ -136,7 +136,7 @@ class TestSpotMarketBuyFillService:
         order = SpotOrder(
             order_id="test-excessive-1",
             stock_address=stock_address,
-            side=Side.BUY,
+            side=OrderSide.BUY,
             order_type=OrderType.MARKET,
             price=None,
             amount=250.0,  # 250.0 / 500 = 0.5 = 50% (20% 초과)
@@ -163,7 +163,7 @@ class TestSpotMarketBuyFillService:
         order = SpotOrder(
             order_id="test-excessive-fok-1",
             stock_address=stock_address,
-            side=Side.BUY,
+            side=OrderSide.BUY,
             order_type=OrderType.MARKET,
             price=None,
             amount=250.0,  # 250.0 / 500 = 0.5 = 50% (20% 초과)
@@ -189,7 +189,7 @@ class TestSpotMarketBuyFillService:
         order = SpotOrder(
             order_id="test-slippage-1",
             stock_address=stock_address,
-            side=Side.BUY,
+            side=OrderSide.BUY,
             order_type=OrderType.MARKET,
             price=None,
             amount=0.1,  # 소액 주문으로 전량 체결 보장
@@ -215,7 +215,7 @@ class TestSpotMarketBuyFillService:
         order = SpotOrder(
             order_id="test-split-1",
             stock_address=stock_address,
-            side=Side.BUY,
+            side=OrderSide.BUY,
             order_type=OrderType.MARKET,
             price=None,
             amount=0.1,  # 소액 주문으로 전량 체결 보장
@@ -240,7 +240,7 @@ class TestSpotMarketBuyFillService:
         order = SpotOrder(
             order_id="test-price-sampling-1",
             stock_address=stock_address,
-            side=Side.BUY,
+            side=OrderSide.BUY,
             order_type=OrderType.MARKET,
             price=None,
             amount=0.1,  # 소액 주문으로 전량 체결 보장

@@ -4,7 +4,7 @@ import pytest
 from financial_simulation.exchange.Core.OrderBook.OrderBook import OrderBook
 from financial_assets.order import SpotOrder
 from financial_assets.stock_address import StockAddress
-from financial_assets.constants import Side, OrderType, TimeInForce
+from financial_assets.constants import OrderSide, OrderType, TimeInForce
 
 
 class TestOrderBook:
@@ -17,7 +17,7 @@ class TestOrderBook:
         order = SpotOrder(
             order_id="order_1",
             stock_address=stock_address,
-            side=Side.BUY,
+            side=OrderSide.BUY,
             order_type=OrderType.LIMIT,
             price=50000.0,
             amount=0.1,
@@ -36,7 +36,7 @@ class TestOrderBook:
         order = SpotOrder(
             order_id="order_1",
             stock_address=stock_address,
-            side=Side.BUY,
+            side=OrderSide.BUY,
             order_type=OrderType.LIMIT,
             price=50000.0,
             amount=0.1,
@@ -55,7 +55,7 @@ class TestOrderBook:
         order = SpotOrder(
             order_id="order_1",
             stock_address=stock_address,
-            side=Side.BUY,
+            side=OrderSide.BUY,
             order_type=OrderType.LIMIT,
             price=50000.0,
             amount=0.1,
@@ -82,7 +82,7 @@ class TestOrderBook:
         order = SpotOrder(
             order_id="order_1",
             stock_address=stock_address,
-            side=Side.BUY,
+            side=OrderSide.BUY,
             order_type=OrderType.LIMIT,
             price=50000.0,
             amount=0.1,
@@ -107,14 +107,14 @@ class TestOrderBook:
 
         # BTC/USDT 주문 2개
         btc_address = StockAddress("candle", "binance", "spot", "BTC", "USDT", "1m")
-        order1 = SpotOrder("order_1", btc_address, Side.BUY, OrderType.LIMIT, 50000.0, 0.1, 1000)
-        order2 = SpotOrder("order_2", btc_address, Side.SELL, OrderType.LIMIT, 51000.0, 0.2, 2000)
+        order1 = SpotOrder("order_1", btc_address, OrderSide.BUY, OrderType.LIMIT, 50000.0, 0.1, 1000)
+        order2 = SpotOrder("order_2", btc_address, OrderSide.SELL, OrderType.LIMIT, 51000.0, 0.2, 2000)
         order_book.add_order(order1)
         order_book.add_order(order2)
 
         # ETH/USDT 주문 1개
         eth_address = StockAddress("candle", "binance", "spot", "ETH", "USDT", "1m")
-        order3 = SpotOrder("order_3", eth_address, Side.BUY, OrderType.LIMIT, 3000.0, 1.0, 3000)
+        order3 = SpotOrder("order_3", eth_address, OrderSide.BUY, OrderType.LIMIT, 3000.0, 1.0, 3000)
         order_book.add_order(order3)
 
         btc_orders = order_book.get_orders_by_symbol("BTC/USDT")
@@ -136,8 +136,8 @@ class TestOrderBook:
         order_book = OrderBook()
 
         btc_address = StockAddress("candle", "binance", "spot", "BTC", "USDT", "1m")
-        order1 = SpotOrder("order_1", btc_address, Side.BUY, OrderType.LIMIT, 50000.0, 0.1, 1000)
-        order2 = SpotOrder("order_2", btc_address, Side.SELL, OrderType.LIMIT, 51000.0, 0.2, 2000)
+        order1 = SpotOrder("order_1", btc_address, OrderSide.BUY, OrderType.LIMIT, 50000.0, 0.1, 1000)
+        order2 = SpotOrder("order_2", btc_address, OrderSide.SELL, OrderType.LIMIT, 51000.0, 0.2, 2000)
         order_book.add_order(order1)
         order_book.add_order(order2)
 
@@ -151,7 +151,7 @@ class TestOrderBook:
         assert order_book.get_order_count() == 0
 
         btc_address = StockAddress("candle", "binance", "spot", "BTC", "USDT", "1m")
-        order1 = SpotOrder("order_1", btc_address, Side.BUY, OrderType.LIMIT, 50000.0, 0.1, 1000)
+        order1 = SpotOrder("order_1", btc_address, OrderSide.BUY, OrderType.LIMIT, 50000.0, 0.1, 1000)
         order_book.add_order(order1)
 
         assert order_book.get_order_count() == 1
@@ -165,7 +165,7 @@ class TestOrderBook:
         order1 = SpotOrder(
             order_id="order_1",
             stock_address=stock_address,
-            side=Side.BUY,
+            side=OrderSide.BUY,
             order_type=OrderType.LIMIT,
             price=50000.0,
             amount=0.1,
@@ -178,7 +178,7 @@ class TestOrderBook:
         order2 = SpotOrder(
             order_id="order_2",
             stock_address=stock_address,
-            side=Side.BUY,
+            side=OrderSide.BUY,
             order_type=OrderType.LIMIT,
             price=50000.0,
             amount=0.2,
@@ -208,7 +208,7 @@ class TestOrderBook:
         order = SpotOrder(
             order_id="order_1",
             stock_address=stock_address,
-            side=Side.BUY,
+            side=OrderSide.BUY,
             order_type=OrderType.LIMIT,
             price=50000.0,
             amount=0.1,
@@ -227,8 +227,8 @@ class TestOrderBook:
         order_book = OrderBook()
         stock_address = StockAddress("candle", "binance", "spot", "BTC", "USDT", "1m")
 
-        order1 = SpotOrder("order_1", stock_address, Side.BUY, OrderType.LIMIT, 50000.0, 0.1, 1000)
-        order2 = SpotOrder("order_2", stock_address, Side.BUY, OrderType.LIMIT, 51000.0, 0.2, 2000)
+        order1 = SpotOrder("order_1", stock_address, OrderSide.BUY, OrderType.LIMIT, 50000.0, 0.1, 1000)
+        order2 = SpotOrder("order_2", stock_address, OrderSide.BUY, OrderType.LIMIT, 51000.0, 0.2, 2000)
         order_book.add_order(order1)
         order_book.add_order(order2)
 

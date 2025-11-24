@@ -206,19 +206,16 @@ class SpotExchange:
             return False
 
         # 2. GTD 주문 만료 처리
-        symbols = self._market_data.get_symbols()
-        if symbols:
-            current_timestamp = self._market_data.get_current_timestamp(symbols[0])
-            if current_timestamp is not None:
-                expired_order_ids = self._orderbook.expire_orders(current_timestamp)
+        current_timestamp = self._market_data.get_current_timestamp()
+        expired_order_ids = self._orderbook.expire_orders(current_timestamp)
 
-                # 3. 만료된 주문의 자산 잠금 해제
-                for order_id in expired_order_ids:
-                    try:
-                        self._portfolio.unlock_currency(order_id)
-                    except KeyError:
-                        # 이미 해제된 경우 무시
-                        pass
+        # 3. 만료된 주문의 자산 잠금 해제
+        for order_id in expired_order_ids:
+            try:
+                self._portfolio.unlock_currency(order_id)
+            except KeyError:
+                # 이미 해제된 경우 무시
+                pass
 
         return True
 
@@ -257,11 +254,7 @@ class SpotExchange:
         Returns:
             int | None: 타임스탬프
         """
-        # MarketData에서 첫 번째 심볼의 현재 타임스탬프 조회
-        symbols = self._market_data.get_symbols()
-        if not symbols:
-            return None
-        return self._market_data.get_current_timestamp(symbols[0])
+        return self._market_data.get_current_timestamp()
 
     def get_current_price(self, symbol: str) -> float | None:
         """현재 시장 가격 조회.

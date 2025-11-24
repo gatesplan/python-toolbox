@@ -14,7 +14,7 @@ if TYPE_CHECKING:
     from ...Core.MarketData import MarketData
     from financial_simulation.tradesim.API.TradeSimulation import TradeSimulation
 
-from financial_assets.constants import Side, TimeInForce
+from financial_assets.constants import OrderSide, TimeInForce
 
 
 class OrderExecutor:
@@ -114,7 +114,7 @@ class OrderExecutor:
             reversed_order = SpotOrder(
                 order_id=f"rollback_{trade.order.order_id}",
                 stock_address=trade.order.stock_address,
-                side=Side.SELL if trade.order.side == Side.BUY else Side.BUY,
+                side=OrderSide.SELL if trade.order.side == OrderSide.BUY else OrderSide.BUY,
                 order_type=trade.order.order_type,
                 price=trade.order.price,
                 amount=trade.pair.get_asset(),
@@ -133,7 +133,7 @@ class OrderExecutor:
 
     def _lock_assets(self, order: SpotOrder, amount: float) -> None:
         """미체결 수량에 대한 자산 잠금."""
-        if order.side == Side.BUY:
+        if order.side == OrderSide.BUY:
             # BUY: quote 화폐 잠금
             quote_symbol = order.stock_address.quote
             required = order.price * amount
@@ -142,7 +142,7 @@ class OrderExecutor:
                 f"BUY 주문 자산 잠금: order_id={order.order_id}, "
                 f"quote={quote_symbol}, amount={required}"
             )
-        elif order.side == Side.SELL:
+        elif order.side == OrderSide.SELL:
             # SELL: base Position 잠금
             ticker = f"{order.stock_address.base}-{order.stock_address.quote}"
             self._portfolio.lock_position(order.order_id, ticker, amount)

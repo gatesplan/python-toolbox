@@ -7,7 +7,7 @@ from financial_simulation.exchange.Core.MarketData.MarketData import MarketData
 from financial_simulation.tradesim.API.TradeSimulation import TradeSimulation
 from financial_assets.order import SpotOrder
 from financial_assets.stock_address import StockAddress
-from financial_assets.constants import Side, OrderType, TimeInForce
+from financial_assets.constants import OrderSide, OrderType, TimeInForce
 from financial_assets.price import Price
 
 
@@ -127,7 +127,7 @@ class TestSpotExchangeComprehensive:
         btc_buy_order_1 = SpotOrder(
             order_id="btc_buy_1",
             stock_address=StockAddress("candle", "binance", "spot", "BTC", "USDT", "1m"),
-            side=Side.BUY,
+            side=OrderSide.BUY,
             order_type=OrderType.LIMIT,
             price=btc_price_initial,
             amount=0.5,  # 0.5 BTC 매수
@@ -163,7 +163,7 @@ class TestSpotExchangeComprehensive:
         eth_buy_order = SpotOrder(
             order_id="eth_buy_1",
             stock_address=StockAddress("candle", "binance", "spot", "ETH", "USDT", "1m"),
-            side=Side.BUY,
+            side=OrderSide.BUY,
             order_type=OrderType.LIMIT,
             price=eth_price,
             amount=5.0,  # 5 ETH 매수
@@ -194,7 +194,7 @@ class TestSpotExchangeComprehensive:
         sol_buy_order = SpotOrder(
             order_id="sol_buy_1",
             stock_address=StockAddress("candle", "binance", "spot", "SOL", "USDT", "1m"),
-            side=Side.BUY,
+            side=OrderSide.BUY,
             order_type=OrderType.LIMIT,
             price=sol_price,
             amount=50.0,  # 50 SOL 매수
@@ -233,7 +233,7 @@ class TestSpotExchangeComprehensive:
             btc_sell_order = SpotOrder(
                 order_id="btc_sell_1",
                 stock_address=StockAddress("candle", "binance", "spot", "BTC", "USDT", "1m"),
-                side=Side.SELL,
+                side=OrderSide.SELL,
                 order_type=OrderType.LIMIT,
                 price=btc_price_sell,
                 amount=btc_amount * 0.5,
@@ -270,7 +270,7 @@ class TestSpotExchangeComprehensive:
             eth_sell_order = SpotOrder(
                 order_id="eth_sell_1",
                 stock_address=StockAddress("candle", "binance", "spot", "ETH", "USDT", "1m"),
-                side=Side.SELL,
+                side=OrderSide.SELL,
                 order_type=OrderType.LIMIT,
                 price=eth_price_sell,
                 amount=eth_amount,
@@ -357,7 +357,7 @@ class TestSpotExchangeComprehensive:
             SpotOrder(
                 order_id=f"concurrent_buy_{symbol}",
                 stock_address=StockAddress("candle", "binance", "spot", symbol.split("/")[0], "USDT", "1m"),
-                side=Side.BUY,
+                side=OrderSide.BUY,
                 order_type=OrderType.LIMIT,
                 price=price,
                 amount=amount,
@@ -398,7 +398,7 @@ class TestSpotExchangeComprehensive:
         order = SpotOrder(
             order_id="stability_buy",
             stock_address=StockAddress("candle", "binance", "spot", "BTC", "USDT", "1m"),
-            side=Side.BUY,
+            side=OrderSide.BUY,
             order_type=OrderType.LIMIT,
             price=btc_price,
             amount=0.2,
@@ -434,7 +434,7 @@ class TestSpotExchangeComprehensive:
         buy_order = SpotOrder(
             order_id="pnl_buy",
             stock_address=StockAddress("candle", "binance", "spot", "BTC", "USDT", "1m"),
-            side=Side.BUY,
+            side=OrderSide.BUY,
             order_type=OrderType.LIMIT,
             price=btc_price_buy,
             amount=1.0,
@@ -498,7 +498,7 @@ class TestSpotExchangeComprehensive:
         btc_order = SpotOrder(
             order_id="alloc_btc",
             stock_address=StockAddress("candle", "binance", "spot", "BTC", "USDT", "1m"),
-            side=Side.BUY,
+            side=OrderSide.BUY,
             order_type=OrderType.LIMIT,
             price=btc_price,
             amount=0.5,
@@ -521,7 +521,7 @@ class TestSpotExchangeComprehensive:
         eth_order = SpotOrder(
             order_id="alloc_eth",
             stock_address=StockAddress("candle", "binance", "spot", "ETH", "USDT", "1m"),
-            side=Side.BUY,
+            side=OrderSide.BUY,
             order_type=OrderType.LIMIT,
             price=eth_price,
             amount=3.0,

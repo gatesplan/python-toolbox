@@ -13,7 +13,7 @@ from financial_simulation.tradesim.Service import SpotLimitFillService
 from financial_assets.order import SpotOrder
 from financial_assets.stock_address import StockAddress
 from financial_assets.price import Price
-from financial_assets.constants import Side, OrderType
+from financial_assets.constants import OrderSide, OrderType
 
 
 class TestSpotLimitFillService:
@@ -26,7 +26,7 @@ class TestSpotLimitFillService:
         order = SpotOrder(
             order_id="test-1",
             stock_address=stock_address,
-            side=Side.BUY,
+            side=OrderSide.BUY,
             order_type=OrderType.LIMIT,
             price=105.0,  # body 범위 (100~110)
             amount=1.0,
@@ -51,7 +51,7 @@ class TestSpotLimitFillService:
         order = SpotOrder(
             order_id="test-2",
             stock_address=stock_address,
-            side=Side.BUY,
+            side=OrderSide.BUY,
             order_type=OrderType.LIMIT,
             price=115.0,  # head 범위 (110~120)
             amount=1.0,
@@ -84,7 +84,7 @@ class TestSpotLimitFillService:
         order = SpotOrder(
             order_id="test-3",
             stock_address=stock_address,
-            side=Side.BUY,
+            side=OrderSide.BUY,
             order_type=OrderType.LIMIT,
             price=130.0,  # 범위 밖 (h=120)
             amount=1.0,
@@ -107,7 +107,7 @@ class TestSpotLimitFillService:
         order = SpotOrder(
             order_id="test-4",
             stock_address=stock_address,
-            side=Side.BUY,
+            side=OrderSide.BUY,
             order_type=OrderType.LIMIT,
             price=115.0,  # head 범위
             amount=10.0,

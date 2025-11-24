@@ -1,209 +1,178 @@
-# 시장 데이터 및 커서 관리
+"""MarketData: MultiCandle 기반 시뮬레이션 시장 데이터 관리"""
 
-from typing import Optional
 import random
+from typing import Optional
 from financial_assets.price import Price
+from financial_assets.multicandle import MultiCandle
 from simple_logger import init_logging, logger
 
 
 class MarketData:
-    # 심볼별 캔들 데이터를 보관하고, 현재 시점을 추적하며, 가격 조회 API를 제공
+    """
+    MultiCandle 위에 커서 관리 레이어를 추가한 시뮬레이션용 시장 데이터 관리자
+    """
 
     @init_logging(level="INFO")
     def __init__(
         self,
-        data: dict[str, list[Price]],
-        availability_threshold: float = 0.8,
-        offset: int = 0,
-        random_additional_offset: bool = False,
+        multicandle: MultiCandle,
+        start_offset: int = 0,
+        random_offset: bool = False,
     ) -> None:
-        if not data:
-            raise ValueError("Data cannot be empty")
+        """
+        Args:
+            multicandle: MultiCandle 인스턴스
+            start_offset: 시작 오프셋 (인덱스)
+            random_offset: 랜덤 오프셋 추가 여부
+        """
+        self._multicandle = multicandle
+        self._start_offset = start_offset
+        self._random_offset = random_offset
+
+        # timestamps 가져오기
+        self._timestamps = multicandle._timestamps
+        self._n_timestamps = len(self._timestamps)
 
         logger.info(
-            f"MarketData 초기화: symbols={len(data)}, "
-            f"threshold={availability_threshold}, offset={offset}, "
-            f"random_offset={random_additional_offset}"
+            f"MarketData 초기화: n_timestamps={self._n_timestamps}, "
+            f"start_offset={start_offset}, random_offset={random_offset}"
         )
 
-        self._data = data
-        self._availability_threshold = availability_threshold
-        self._offset = offset
-        self._random_additional_offset = random_additional_offset
+        # 시작 커서 계산
+        self._start_idx = self._calculate_start_idx()
+        self._cursor_idx = self._start_idx
 
-        # 최대 길이 계산
-        self._max_length = max(len(prices) for prices in data.values())
-        logger.debug(f"최대 데이터 길이: {self._max_length}")
+        logger.info(f"MarketData 초기화 완료: start_idx={self._start_idx}")
 
-        # 데이터 정합성 검사
-        self._validate_data()
+    def _calculate_start_idx(self) -> int:
+        """시작 인덱스 계산 (offset + random)"""
+        start = self._start_offset
 
-        # 합리적 시작 커서 찾기
-        self._base_start_cursor = self._find_valid_start_cursor()
-        logger.info(f"기본 시작 커서: {self._base_start_cursor}")
-
-        # 최종 시작 커서 계산 (base + offset + random)
-        self._start_cursor = self._calculate_start_cursor()
-        self._cursor = self._start_cursor
-
-        logger.info(f"MarketData 초기화 완료: start_cursor={self._start_cursor}")
-
-    def _validate_data(self) -> None:
-        # 데이터 정합성 검사: 시간순 정렬 및 마지막 타임스탬프 일치 확인
-        last_timestamps = {}
-
-        for symbol, prices in self._data.items():
-            if len(prices) == 0:
-                continue
-
-            # 시간순 정렬 확인
-            for i in range(len(prices) - 1):
-                if prices[i].t >= prices[i + 1].t:
-                    raise ValueError(
-                        f"Symbol {symbol}: data is not sorted in time order at index {i}"
-                    )
-
-            # 마지막 타임스탬프 저장
-            last_timestamps[symbol] = prices[-1].t
-
-        # 모든 심볼의 마지막 타임스탬프가 같은지 확인
-        if len(set(last_timestamps.values())) > 1:
-            raise ValueError(
-                f"Last timestamps do not match across symbols: {last_timestamps}"
-            )
-
-        logger.debug("데이터 정합성 검사 통과")
-
-    def _find_valid_start_cursor(self) -> int:
-        # availability_threshold 이상인 첫 번째 인덱스 찾기
-        # 각 심볼의 데이터는 뒤 끝이 정렬되어 있으므로 시작 오프셋을 고려
-        total_symbols = len(self._data)
-
-        for cursor in range(self._max_length):
-            valid_count = 0
-            for prices in self._data.values():
-                # 각 심볼의 시작 인덱스 = max_length - len(prices)
-                start_index = self._max_length - len(prices)
-                if cursor >= start_index:
-                    valid_count += 1
-
-            availability = valid_count / total_symbols
-
-            if availability >= self._availability_threshold:
-                logger.debug(
-                    f"합리적 시작점 발견: cursor={cursor}, availability={availability:.2f}"
-                )
-                return cursor
-
-        raise ValueError(
-            f"No valid start cursor found with threshold {self._availability_threshold}"
-        )
-
-    def _calculate_start_cursor(self) -> int:
-        # 최종 시작 커서 계산 (base + offset + random)
-        start = self._base_start_cursor + self._offset
-
-        if self._random_additional_offset:
-            remaining_length = self._max_length - start
-            max_random_offset = remaining_length // 2
-            if max_random_offset > 0:
-                random_offset = random.randint(0, max_random_offset)
+        if self._random_offset:
+            # 남은 길이의 절반 범위 내에서 랜덤
+            remaining = self._n_timestamps - start
+            if remaining > 1:
+                max_random = remaining // 2
+                random_offset = random.randint(0, max_random)
                 start += random_offset
                 logger.debug(f"랜덤 오프셋 적용: {random_offset}")
+
+        # 범위 체크
+        if start >= self._n_timestamps:
+            start = self._n_timestamps - 1
 
         return start
 
     def reset(self, override: bool = False) -> None:
-        # 커서를 시작 위치로 리셋 (override=True면 새로운 랜덤 시작 커서 생성)
-        if override and self._random_additional_offset:
-            logger.info("새로운 랜덤 시작 커서 생성")
-            self._start_cursor = self._calculate_start_cursor()
+        """
+        커서 리셋
 
-        self._cursor = self._start_cursor
-        logger.info(f"커서 리셋 완료: cursor={self._cursor}")
+        Args:
+            override: True면 새로운 랜덤 시작점 생성 (random_offset=True인 경우)
+        """
+        if override and self._random_offset:
+            logger.info("새로운 랜덤 시작 인덱스 생성")
+            self._start_idx = self._calculate_start_idx()
+
+        self._cursor_idx = self._start_idx
+        logger.info(f"커서 리셋 완료: cursor_idx={self._cursor_idx}")
 
     def step(self) -> bool:
-        # 다음 틱으로 이동 (모든 심볼 동기화)
-        if self._cursor >= self._max_length - 1:
+        """
+        다음 타임스탬프로 이동
+
+        Returns:
+            bool: 이동 성공 시 True, 끝에 도달했으면 False
+        """
+        if self._cursor_idx >= self._n_timestamps - 1:
             logger.debug("데이터 끝에 도달")
             return False
 
-        self._cursor += 1
-        logger.debug(f"커서 이동: {self._cursor}")
+        self._cursor_idx += 1
+        logger.debug(f"커서 이동: {self._cursor_idx}")
         return True
 
-    def get_current(self, symbol: str) -> Optional[Price]:
-        # 특정 심볼의 현재 커서 위치 가격 데이터 조회
-        if symbol not in self._data:
-            return None
+    def get_current(self, symbol: str) -> Price:
+        """
+        특정 심볼의 현재 커서 위치 가격 조회
 
-        prices = self._data[symbol]
-        # 각 심볼의 시작 인덱스 = max_length - len(prices)
-        start_index = self._max_length - len(prices)
+        Args:
+            symbol: 심볼 (예: "BTC/USDT")
 
-        if self._cursor < start_index:
-            return None
+        Returns:
+            Price: 가격 객체
 
-        # 심볼 내부 인덱스 계산
-        symbol_index = self._cursor - start_index
-        return prices[symbol_index]
+        Raises:
+            KeyError: 심볼이 존재하지 않거나 해당 시점에 데이터가 없는 경우
+        """
+        current_timestamp = int(self._timestamps[self._cursor_idx])
+        snapshot = self._multicandle.get_snapshot(current_timestamp, as_price=True)
+
+        if symbol not in snapshot:
+            raise KeyError(f"Symbol {symbol} not found at timestamp {current_timestamp}")
+
+        return snapshot[symbol]
 
     def get_current_all(self) -> dict[str, Price]:
-        # 현재 커서 위치에서 유효한 모든 심볼의 가격 데이터 조회
-        result = {}
-        for symbol in self._data:
-            price = self.get_current(symbol)
-            if price is not None:
-                result[symbol] = price
-        return result
+        """
+        현재 커서 위치의 모든 유효한 심볼 가격 조회
 
-    def get_current_timestamp(self, symbol: str) -> Optional[int]:
-        # 특정 심볼의 현재 타임스탬프 조회
-        price = self.get_current(symbol)
-        return price.t if price is not None else None
+        Returns:
+            dict[str, Price]: 심볼별 가격 딕셔너리
+        """
+        current_timestamp = int(self._timestamps[self._cursor_idx])
+        return self._multicandle.get_snapshot(current_timestamp, as_price=True)
+
+    def get_current_timestamp(self) -> int:
+        """
+        현재 커서 위치의 타임스탬프 조회
+
+        Returns:
+            int: 타임스탬프 (초 단위)
+        """
+        return int(self._timestamps[self._cursor_idx])
 
     def get_symbols(self) -> list[str]:
-        # 관리 중인 모든 심볼 리스트
-        return list(self._data.keys())
+        """
+        관리 중인 모든 심볼 리스트
 
-    def get_cursor(self) -> int:
-        # 현재 커서 위치 조회
-        return self._cursor
+        Returns:
+            list[str]: 심볼 리스트
+        """
+        return self._multicandle._symbols.copy()
 
-    def get_max_length(self) -> int:
-        # 가장 긴 데이터 길이 조회
-        return self._max_length
+    def get_cursor_idx(self) -> int:
+        """
+        현재 커서 인덱스 조회
+
+        Returns:
+            int: 커서 인덱스
+        """
+        return self._cursor_idx
 
     def is_finished(self) -> bool:
-        # 시뮬레이션 종료 여부 (커서가 최대 길이 도달)
-        return self._cursor >= self._max_length - 1
+        """
+        시뮬레이션 종료 여부
+
+        Returns:
+            bool: 커서가 마지막 위치에 도달했으면 True
+        """
+        return self._cursor_idx >= self._n_timestamps - 1
 
     def get_progress(self) -> float:
-        # 시뮬레이션 진행률 (0.0 ~ 1.0)
-        if self._max_length == 0:
+        """
+        시뮬레이션 진행률 (0.0 ~ 1.0)
+
+        Returns:
+            float: 진행률
+        """
+        if self._n_timestamps <= 1:
             return 1.0
-        return self._cursor / (self._max_length - 1)
-
-    def get_availability(self, cursor_position: Optional[int] = None) -> float:
-        # 특정 커서 위치의 데이터 유효성 비율
-        position = cursor_position if cursor_position is not None else self._cursor
-        total_symbols = len(self._data)
-
-        if total_symbols == 0:
-            return 0.0
-
-        valid_count = 0
-        for prices in self._data.values():
-            # 각 심볼의 시작 인덱스 = max_length - len(prices)
-            start_index = self._max_length - len(prices)
-            if position >= start_index:
-                valid_count += 1
-
-        return valid_count / total_symbols
+        return self._cursor_idx / (self._n_timestamps - 1)
 
     def __repr__(self) -> str:
         return (
-            f"MarketData(symbols={len(self._data)}, "
-            f"cursor={self._cursor}/{self._max_length}, "
+            f"MarketData(symbols={len(self._multicandle._symbols)}, "
+            f"cursor_idx={self._cursor_idx}/{self._n_timestamps}, "
             f"progress={self.get_progress():.2%})"
         )

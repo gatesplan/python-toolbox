@@ -9,7 +9,7 @@ if TYPE_CHECKING:
     from ...Core.Portfolio import Portfolio
     from ...Core.MarketData import MarketData
 
-from financial_assets.constants import Side, OrderType
+from financial_assets.constants import OrderSide, OrderType
 
 
 class OrderValidator:
@@ -22,9 +22,9 @@ class OrderValidator:
 
     def validate_order(self, order: SpotOrder) -> None:
         """주문 실행 전 거래소 컨텍스트 검증."""
-        if order.side == Side.BUY:
+        if order.side == OrderSide.BUY:
             self._validate_buy_order(order)
-        elif order.side == Side.SELL:
+        elif order.side == OrderSide.SELL:
             self._validate_sell_order(order)
 
     def _validate_buy_order(self, order: SpotOrder) -> None:

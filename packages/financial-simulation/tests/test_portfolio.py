@@ -7,7 +7,7 @@ from financial_assets.token import Token
 from financial_assets.pair import Pair
 from financial_assets.order import SpotOrder
 from financial_assets.stock_address import StockAddress
-from financial_assets.constants import Side, OrderType
+from financial_assets.constants import OrderSide, OrderType
 
 
 class TestPortfolio:
@@ -113,7 +113,7 @@ class TestPortfolio:
         order = SpotOrder(
             order_id="order_1",
             stock_address=stock_address,
-            side=Side.BUY,
+            side=OrderSide.BUY,
             order_type=OrderType.MARKET,
             price=50000.0,
             amount=0.1,
@@ -146,7 +146,7 @@ class TestPortfolio:
         buy_order = SpotOrder(
             order_id="order_1",
             stock_address=stock_address,
-            side=Side.BUY,
+            side=OrderSide.BUY,
             order_type=OrderType.MARKET,
             price=50000.0,
             amount=0.1,
@@ -166,7 +166,7 @@ class TestPortfolio:
         sell_order = SpotOrder(
             order_id="order_2",
             stock_address=stock_address,
-            side=Side.SELL,
+            side=OrderSide.SELL,
             order_type=OrderType.MARKET,
             price=55000.0,
             amount=0.1,
@@ -198,7 +198,7 @@ class TestPortfolio:
         btc_order = SpotOrder(
             order_id="order_1",
             stock_address=btc_address,
-            side=Side.BUY,
+            side=OrderSide.BUY,
             order_type=OrderType.MARKET,
             price=20000.0,
             amount=0.5,
@@ -213,7 +213,7 @@ class TestPortfolio:
         eth_order = SpotOrder(
             order_id="order_2",
             stock_address=eth_address,
-            side=Side.BUY,
+            side=OrderSide.BUY,
             order_type=OrderType.MARKET,
             price=2500.0,
             amount=2.0,
@@ -271,7 +271,7 @@ class TestPortfolio:
         order = SpotOrder(
             order_id="order_buy",
             stock_address=stock_address,
-            side=Side.BUY,
+            side=OrderSide.BUY,
             order_type=OrderType.MARKET,
             price=50000.0,
             amount=1.0,
@@ -301,7 +301,7 @@ class TestPortfolio:
         order = SpotOrder(
             order_id="order_buy",
             stock_address=stock_address,
-            side=Side.BUY,
+            side=OrderSide.BUY,
             order_type=OrderType.MARKET,
             price=50000.0,
             amount=1.0,
@@ -325,7 +325,7 @@ class TestPortfolio:
         order = SpotOrder(
             order_id="order_buy",
             stock_address=stock_address,
-            side=Side.BUY,
+            side=OrderSide.BUY,
             order_type=OrderType.MARKET,
             price=50000.0,
             amount=1.0,
@@ -357,7 +357,7 @@ class TestPortfolio:
         order = SpotOrder(
             order_id="order_buy",
             stock_address=stock_address,
-            side=Side.BUY,
+            side=OrderSide.BUY,
             order_type=OrderType.MARKET,
             price=50000.0,
             amount=1.0,
@@ -391,7 +391,7 @@ class TestPortfolio:
         order = SpotOrder(
             order_id="order_buy",
             stock_address=stock_address,
-            side=Side.BUY,
+            side=OrderSide.BUY,
             order_type=OrderType.MARKET,
             price=50000.0,
             amount=1.0,

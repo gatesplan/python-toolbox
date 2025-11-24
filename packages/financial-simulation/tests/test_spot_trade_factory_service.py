@@ -12,7 +12,7 @@ from financial_simulation.tradesim.Service import SpotTradeFactoryService
 from financial_simulation.tradesim.InternalStruct import TradeParams
 from financial_assets.order import SpotOrder
 from financial_assets.stock_address import StockAddress
-from financial_assets.constants import Side, OrderType
+from financial_assets.constants import OrderSide, OrderType
 
 
 class TestSpotTradeFactoryService:
@@ -25,7 +25,7 @@ class TestSpotTradeFactoryService:
         order = SpotOrder(
             order_id="test-1",
             stock_address=stock_address,
-            side=Side.BUY,
+            side=OrderSide.BUY,
             order_type=OrderType.MARKET,
             price=None,
             amount=1.0,
@@ -51,7 +51,7 @@ class TestSpotTradeFactoryService:
         order = SpotOrder(
             order_id="test-2",
             stock_address=stock_address,
-            side=Side.BUY,
+            side=OrderSide.BUY,
             order_type=OrderType.MARKET,
             price=None,
             amount=3.0,
@@ -79,7 +79,7 @@ class TestSpotTradeFactoryService:
         order = SpotOrder(
             order_id="test-3",
             stock_address=stock_address,
-            side=Side.BUY,
+            side=OrderSide.BUY,
             order_type=OrderType.MARKET,
             price=None,
             amount=1.0,
@@ -105,7 +105,7 @@ class TestSpotTradeFactoryService:
         order = SpotOrder(
             order_id="order-12345",
             stock_address=stock_address,
-            side=Side.BUY,
+            side=OrderSide.BUY,
             order_type=OrderType.MARKET,
             price=None,
             amount=1.0,
@@ -128,7 +128,7 @@ class TestSpotTradeFactoryService:
         order = SpotOrder(
             order_id="test-5",
             stock_address=stock_address,
-            side=Side.SELL,
+            side=OrderSide.SELL,
             order_type=OrderType.MARKET,
             price=None,
             amount=10.0,

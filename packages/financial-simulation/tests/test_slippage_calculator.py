@@ -10,7 +10,7 @@ sys.path.insert(0, str(financial_assets_root))
 
 from financial_simulation.tradesim.Core import SlippageCalculator
 from financial_assets.price import Price
-from financial_assets.constants import Side
+from financial_assets.constants import OrderSide
 
 
 class TestSlippageCalculator:
@@ -19,7 +19,7 @@ class TestSlippageCalculator:
         # BUY는 head 범위 (bodytop ~ h)
         price = Price("binance", "BTCUSDT", 1000000, 120.0, 90.0, 100.0, 110.0, 1000.0)
 
-        range_min, range_max = SlippageCalculator.calculate_range(price, Side.BUY)
+        range_min, range_max = SlippageCalculator.calculate_range(price, OrderSide.BUY)
 
         assert range_min == 110.0  # bodytop
         assert range_max == 120.0  # h
@@ -28,7 +28,7 @@ class TestSlippageCalculator:
         # SELL은 tail 범위 (l ~ bodybottom)
         price = Price("binance", "BTCUSDT", 1000000, 120.0, 90.0, 100.0, 110.0, 1000.0)
 
-        range_min, range_max = SlippageCalculator.calculate_range(price, Side.SELL)
+        range_min, range_max = SlippageCalculator.calculate_range(price, OrderSide.SELL)
 
         assert range_min == 90.0   # l
         assert range_max == 100.0  # bodybottom

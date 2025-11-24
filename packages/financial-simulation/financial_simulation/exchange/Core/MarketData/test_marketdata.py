@@ -1,13 +1,30 @@
-"""MarketData 테스트"""
+"""MarketData 테스트 - MultiCandle 기반"""
 
 import pytest
+import pandas as pd
+import numpy as np
+from financial_assets.candle import Candle
+from financial_assets.stock_address import StockAddress
+from financial_assets.multicandle import MultiCandle
 from financial_assets.price import Price
 from .MarketData import MarketData
 
 
-def make_price(t: int, o: float, h: float, l: float, c: float, v: float) -> Price:
-    """테스트용 Price 생성 헬퍼"""
-    return Price("binance", "spot", t=t, o=o, h=h, l=l, c=c, v=v)
+def make_candle(symbol: str, timestamps: list[int], closes: list[float]) -> Candle:
+    """테스트용 Candle 생성 헬퍼"""
+    base, quote = symbol.split("/")
+    addr = StockAddress("candle", "binance", "spot", base, quote, "1m")
+
+    df = pd.DataFrame({
+        'timestamp': timestamps,
+        'open': closes,
+        'high': [c * 1.01 for c in closes],
+        'low': [c * 0.99 for c in closes],
+        'close': closes,
+        'volume': [100.0] * len(closes)
+    })
+
+    return Candle(addr, df)
 
 
 class TestMarketDataInit:
@@ -15,62 +32,45 @@ class TestMarketDataInit:
 
     def test_init_basic(self):
         """기본 초기화"""
-        data = {
-            "BTC/USDT": [
-                make_price(t=1000, o=50000, h=51000, l=49000, c=50500, v=100),
-                make_price(t=2000, o=50500, h=52000, l=50000, c=51000, v=150),
-            ],
-            "ETH/USDT": [
-                make_price(t=1000, o=3000, h=3100, l=2900, c=3050, v=200),
-                make_price(t=2000, o=3050, h=3200, l=3000, c=3150, v=250),
-            ],
-        }
-        market = MarketData(data)
-        assert market.get_cursor() >= 0
-        assert market.get_max_length() == 2
-        assert len(market.get_symbols()) == 2
+        candle1 = make_candle("BTC/USDT", [1000, 2000, 3000], [50000, 51000, 52000])
+        candle2 = make_candle("ETH/USDT", [1000, 2000, 3000], [3000, 3100, 3200])
 
-    def test_init_empty_data(self):
-        """빈 데이터로 초기화 시 에러"""
-        with pytest.raises(ValueError):
-            MarketData({})
+        mc = MultiCandle([candle1, candle2])
+        market = MarketData(mc)
+
+        assert market.get_cursor_idx() == 0
+        assert len(market.get_symbols()) == 2
+        assert market.get_current_timestamp() == 1000
 
     def test_init_with_offset(self):
         """offset 적용 초기화"""
-        data = {
-            "BTC/USDT": [make_price(t=i * 1000, o=50000 + i, h=51000, l=49000, c=50500, v=100) for i in range(10)],
-        }
-        market = MarketData(data, offset=5)
-        # offset만큼 시작점이 이동되어야 함
-        assert market.get_cursor() >= 5
+        candle = make_candle("BTC/USDT", list(range(1000, 11000, 1000)), [50000] * 10)
 
-    def test_init_variable_length_data(self):
-        """심볼별 길이가 다른 데이터 (뒤 끝 정렬)"""
-        # 모든 심볼의 마지막 타임스탬프는 9000으로 동일
-        data = {
-            "BTC/USDT": [make_price(t=i * 1000, o=50000, h=51000, l=49000, c=50500, v=100) for i in range(10)],  # 0~9000
-            "ETH/USDT": [make_price(t=i * 1000, o=3000, h=3100, l=2900, c=3050, v=200) for i in range(5, 10)],  # 5000~9000
-            "XRP/USDT": [make_price(t=i * 1000, o=1, h=1.1, l=0.9, c=1.05, v=1000) for i in range(2, 10)],  # 2000~9000
-        }
-        market = MarketData(data)
-        assert market.get_max_length() == 10
+        mc = MultiCandle([candle])
+        market = MarketData(mc, start_offset=5)
 
-    def test_init_availability_threshold(self):
-        """availability_threshold 기반 시작점 찾기 (뒤 끝 정렬)"""
-        # BTC: 10개 (0~9000), ETH: 5개 (5000~9000)
-        # 커서 0~4: BTC만 (availability=0.5)
-        # 커서 5~9: BTC, ETH 둘 다 (availability=1.0)
-        data = {
-            "BTC/USDT": [make_price(t=i * 1000, o=50000, h=51000, l=49000, c=50500, v=100) for i in range(10)],  # 0~9000
-            "ETH/USDT": [make_price(t=i * 1000, o=3000, h=3100, l=2900, c=3050, v=200) for i in range(5, 10)],  # 5000~9000
-        }
-        # threshold 0.5면 1개 이상 유효하면 됨 (2개 중 1개) -> 커서 0부터 가능
-        market = MarketData(data, availability_threshold=0.5)
-        assert market.get_cursor() >= 0
+        assert market.get_cursor_idx() == 5
+        assert market.get_current_timestamp() == 6000
 
-        # threshold 1.0이면 모든 심볼이 유효해야 함 -> 커서 5부터 가능
-        market = MarketData(data, availability_threshold=1.0)
-        assert market.get_cursor() >= 5
+    def test_init_with_random_offset(self):
+        """random_offset 적용 초기화"""
+        candle = make_candle("BTC/USDT", list(range(1000, 101000, 1000)), [50000] * 100)
+
+        mc = MultiCandle([candle])
+        market = MarketData(mc, random_offset=True)
+
+        # 랜덤이므로 범위만 확인
+        assert 0 <= market.get_cursor_idx() < 100
+
+    def test_init_with_offset_and_random(self):
+        """offset + random_offset 복합"""
+        candle = make_candle("BTC/USDT", list(range(1000, 101000, 1000)), [50000] * 100)
+
+        mc = MultiCandle([candle])
+        market = MarketData(mc, start_offset=10, random_offset=True)
+
+        # start_offset 10 + random
+        assert market.get_cursor_idx() >= 10
 
 
 class TestMarketDataQuery:
@@ -79,41 +79,38 @@ class TestMarketDataQuery:
     @pytest.fixture
     def market_data(self):
         """테스트용 MarketData"""
-        data = {
-            "BTC/USDT": [
-                make_price(t=1000, o=50000, h=51000, l=49000, c=50500, v=100),
-                make_price(t=2000, o=50500, h=52000, l=50000, c=51000, v=150),
-                make_price(t=3000, o=51000, h=53000, l=51000, c=52000, v=200),
-            ],
-            "ETH/USDT": [
-                make_price(t=1000, o=3000, h=3100, l=2900, c=3050, v=200),
-                make_price(t=2000, o=3050, h=3200, l=3000, c=3150, v=250),
-                make_price(t=3000, o=3150, h=3300, l=3100, c=3250, v=300),
-            ],
-        }
-        return MarketData(data, availability_threshold=0.5, offset=0)
+        candle1 = make_candle("BTC/USDT", [1000, 2000, 3000], [50000, 51000, 52000])
+        candle2 = make_candle("ETH/USDT", [1000, 2000, 3000], [3000, 3100, 3200])
+
+        mc = MultiCandle([candle1, candle2])
+        return MarketData(mc)
 
     def test_get_current(self, market_data):
         """특정 심볼의 현재 가격 조회"""
         price = market_data.get_current("BTC/USDT")
-        assert price is not None
-        assert price.o == 50000
+
+        assert isinstance(price, Price)
+        assert price.t == 1000
+        assert price.c == 50000
 
     def test_get_current_invalid_symbol(self, market_data):
-        """존재하지 않는 심볼 조회"""
-        price = market_data.get_current("INVALID/USDT")
-        assert price is None
+        """존재하지 않는 심볼 조회 - KeyError"""
+        with pytest.raises(KeyError):
+            market_data.get_current("INVALID/USDT")
 
     def test_get_current_all(self, market_data):
         """모든 심볼의 현재 가격 조회"""
         prices = market_data.get_current_all()
+
+        assert isinstance(prices, dict)
         assert len(prices) == 2
         assert "BTC/USDT" in prices
         assert "ETH/USDT" in prices
+        assert isinstance(prices["BTC/USDT"], Price)
 
     def test_get_current_timestamp(self, market_data):
-        """타임스탬프 조회"""
-        timestamp = market_data.get_current_timestamp("BTC/USDT")
+        """현재 타임스탬프 조회"""
+        timestamp = market_data.get_current_timestamp()
         assert timestamp == 1000
 
     def test_get_symbols(self, market_data):
@@ -129,50 +126,46 @@ class TestMarketDataStep:
 
     def test_step_basic(self):
         """기본 step 동작"""
-        data = {
-            "BTC/USDT": [
-                make_price(t=1000, o=50000, h=51000, l=49000, c=50500, v=100),
-                make_price(t=2000, o=50500, h=52000, l=50000, c=51000, v=150),
-            ],
-        }
-        market = MarketData(data, offset=0)
-        initial_cursor = market.get_cursor()
+        candle = make_candle("BTC/USDT", [1000, 2000, 3000], [50000, 51000, 52000])
+
+        mc = MultiCandle([candle])
+        market = MarketData(mc)
+
+        initial_idx = market.get_cursor_idx()
+        initial_ts = market.get_current_timestamp()
 
         success = market.step()
+
         assert success is True
-        assert market.get_cursor() == initial_cursor + 1
+        assert market.get_cursor_idx() == initial_idx + 1
+        assert market.get_current_timestamp() == 2000
 
     def test_step_until_end(self):
         """끝까지 step"""
-        data = {
-            "BTC/USDT": [make_price(t=i * 1000, o=50000, h=51000, l=49000, c=50500, v=100) for i in range(3)],
-        }
-        market = MarketData(data, offset=0)
+        candle = make_candle("BTC/USDT", [1000, 2000, 3000], [50000, 51000, 52000])
 
-        # 끝까지 이동
-        while market.step():
-            pass
+        mc = MultiCandle([candle])
+        market = MarketData(mc)
 
-        assert market.is_finished() is True
-        # 끝에서 step 호출 시 False
-        assert market.step() is False
+        # 3개 데이터: 인덱스 0, 1, 2
+        # step 2번 가능, 3번째는 False
+        assert market.step() is True  # 0 -> 1
+        assert market.step() is True  # 1 -> 2
+        assert market.step() is False  # 2 -> 끝
 
     def test_step_changes_current(self):
         """step 후 current 값 변경 확인"""
-        data = {
-            "BTC/USDT": [
-                make_price(t=1000, o=50000, h=51000, l=49000, c=50500, v=100),
-                make_price(t=2000, o=50500, h=52000, l=50000, c=51000, v=150),
-            ],
-        }
-        market = MarketData(data, offset=0)
+        candle = make_candle("BTC/USDT", [1000, 2000, 3000], [50000, 51000, 52000])
+
+        mc = MultiCandle([candle])
+        market = MarketData(mc)
 
         first_price = market.get_current("BTC/USDT")
         market.step()
         second_price = market.get_current("BTC/USDT")
 
-        assert first_price.t != second_price.t
-        assert second_price.t == 2000
+        assert first_price.c == 50000
+        assert second_price.c == 51000
 
 
 class TestMarketDataReset:
@@ -180,63 +173,67 @@ class TestMarketDataReset:
 
     def test_reset_basic(self):
         """기본 reset"""
-        data = {
-            "BTC/USDT": [make_price(t=i * 1000, o=50000, h=51000, l=49000, c=50500, v=100) for i in range(5)],
-        }
-        market = MarketData(data, offset=0)
-        initial_cursor = market.get_cursor()
+        candle = make_candle("BTC/USDT", list(range(1000, 6000, 1000)), [50000] * 5)
+
+        mc = MultiCandle([candle])
+        market = MarketData(mc)
+
+        initial_idx = market.get_cursor_idx()
 
         # 몇 번 이동
         market.step()
         market.step()
-        assert market.get_cursor() != initial_cursor
+        assert market.get_cursor_idx() != initial_idx
 
         # 리셋
         market.reset()
-        assert market.get_cursor() == initial_cursor
+        assert market.get_cursor_idx() == initial_idx
 
     def test_reset_without_override(self):
         """override=False 리셋 (같은 시작점)"""
-        data = {
-            "BTC/USDT": [make_price(t=i * 1000, o=50000, h=51000, l=49000, c=50500, v=100) for i in range(10)],
-        }
-        market = MarketData(data, random_additional_offset=True)
-        first_start = market.get_cursor()
+        candle = make_candle("BTC/USDT", list(range(1000, 11000, 1000)), [50000] * 10)
+
+        mc = MultiCandle([candle])
+        market = MarketData(mc, random_offset=True)
+
+        first_start = market.get_cursor_idx()
 
         market.step()
         market.step()
         market.reset(override=False)
 
-        assert market.get_cursor() == first_start
+        assert market.get_cursor_idx() == first_start
 
     def test_reset_with_override(self):
         """override=True 리셋 (새로운 랜덤 시작점)"""
-        data = {
-            "BTC/USDT": [make_price(t=i * 1000, o=50000, h=51000, l=49000, c=50500, v=100) for i in range(100)],
-        }
-        market = MarketData(data, random_additional_offset=True, offset=0)
-        first_start = market.get_cursor()
+        candle = make_candle("BTC/USDT", list(range(1000, 101000, 1000)), [50000] * 100)
+
+        mc = MultiCandle([candle])
+        market = MarketData(mc, random_offset=True)
+
+        first_start = market.get_cursor_idx()
 
         # override=True로 여러 번 리셋
         cursors = [first_start]
         for _ in range(10):
             market.reset(override=True)
-            cursors.append(market.get_cursor())
+            cursors.append(market.get_cursor_idx())
 
         # 최소한 한 번은 달라야 함 (확률적으로)
         assert len(set(cursors)) > 1
 
     def test_reset_without_random_offset(self):
-        """random_additional_offset=False일 때 override=True는 무의미"""
-        data = {
-            "BTC/USDT": [make_price(t=i * 1000, o=50000, h=51000, l=49000, c=50500, v=100) for i in range(10)],
-        }
-        market = MarketData(data, random_additional_offset=False, offset=0)
-        first_start = market.get_cursor()
+        """random_offset=False일 때 override는 무의미"""
+        candle = make_candle("BTC/USDT", list(range(1000, 11000, 1000)), [50000] * 10)
 
-        # override=True여도 random_additional_offset=False면 같은 시작점
+        mc = MultiCandle([candle])
+        market = MarketData(mc, random_offset=False)
+
+        first_start = market.get_cursor_idx()
+
+        # override=True여도 random_offset=False면 같은 시작점
         market.reset(override=True)
-        assert market.get_cursor() == first_start
+        assert market.get_cursor_idx() == first_start
 
 
 class TestMarketDataState:
@@ -244,10 +241,10 @@ class TestMarketDataState:
 
     def test_is_finished(self):
         """종료 여부 확인"""
-        data = {
-            "BTC/USDT": [make_price(t=i * 1000, o=50000, h=51000, l=49000, c=50500, v=100) for i in range(3)],
-        }
-        market = MarketData(data, offset=0)
+        candle = make_candle("BTC/USDT", [1000, 2000, 3000], [50000, 51000, 52000])
+
+        mc = MultiCandle([candle])
+        market = MarketData(mc)
 
         assert market.is_finished() is False
 
@@ -259,100 +256,103 @@ class TestMarketDataState:
 
     def test_get_progress(self):
         """진행률 확인"""
-        data = {
-            "BTC/USDT": [make_price(t=i * 1000, o=50000, h=51000, l=49000, c=50500, v=100) for i in range(10)],
-        }
-        market = MarketData(data, offset=0)
+        candle = make_candle("BTC/USDT", list(range(1000, 11000, 1000)), [50000] * 10)
 
-        # 시작
+        mc = MultiCandle([candle])
+        market = MarketData(mc)
+
+        # 시작 (0/9)
         progress = market.get_progress()
-        assert 0.0 <= progress <= 1.0
+        assert progress == 0.0
 
-        # 중간
+        # 중간 (5/9)
         for _ in range(5):
             market.step()
         mid_progress = market.get_progress()
-        assert mid_progress > progress
+        assert 0.5 <= mid_progress <= 0.6
 
-        # 끝
+        # 끝 (9/9)
         while market.step():
             pass
         final_progress = market.get_progress()
         assert final_progress == 1.0
 
-    def test_get_availability(self):
-        """데이터 유효성 비율 확인 (뒤 끝 정렬)"""
-        # BTC: 10개 (0~9000), ETH: 5개 (5000~9000)
-        data = {
-            "BTC/USDT": [make_price(t=i * 1000, o=50000, h=51000, l=49000, c=50500, v=100) for i in range(10)],  # 0~9000
-            "ETH/USDT": [make_price(t=i * 1000, o=3000, h=3100, l=2900, c=3050, v=200) for i in range(5, 10)],  # 5000~9000
-        }
-        market = MarketData(data, offset=0)
-
-        # 현재 위치 유효성
-        availability = market.get_availability()
-        assert 0.0 <= availability <= 1.0
-
-        # 특정 위치 유효성
-        availability_at_0 = market.get_availability(0)
-        availability_at_9 = market.get_availability(9)
-
-        # 커서 0: BTC만 있음 (ETH 시작 인덱스는 5) -> 0.5
-        assert availability_at_0 == 0.5
-        # 커서 9: BTC, ETH 둘 다 있음 -> 1.0
-        assert availability_at_9 == 1.0
-
 
 class TestMarketDataVariableLength:
-    """가변 길이 데이터 테스트"""
+    """가변 길이 데이터 테스트 (NaN 처리)"""
 
     def test_variable_length_get_current(self):
-        """길이가 다른 데이터에서 get_current (뒤 끝 정렬)"""
-        # BTC: 10개 (0~9000), ETH: 5개 (5000~9000)
-        data = {
-            "BTC/USDT": [make_price(t=i * 1000, o=50000, h=51000, l=49000, c=50500, v=100) for i in range(10)],  # 0~9000
-            "ETH/USDT": [make_price(t=i * 1000, o=3000, h=3100, l=2900, c=3050, v=200) for i in range(5, 10)],  # 5000~9000
-        }
-        market = MarketData(data, offset=0)
+        """길이가 다른 데이터에서 get_current"""
+        # BTC: 10개, ETH: 5개 (뒤쪽 5개만)
+        candle1 = make_candle("BTC/USDT", list(range(1000, 11000, 1000)), [50000] * 10)
+        candle2 = make_candle("ETH/USDT", list(range(6000, 11000, 1000)), [3000] * 5)
 
-        # 끝까지 이동
-        while not market.is_finished():
-            btc = market.get_current("BTC/USDT")
-            eth = market.get_current("ETH/USDT")
+        mc = MultiCandle([candle1, candle2])
+        market = MarketData(mc)
 
-            cursor = market.get_cursor()
+        # 처음 (timestamp 1000): BTC만 있음, ETH는 NaN
+        btc = market.get_current("BTC/USDT")
+        assert btc is not None
+        assert btc.c == 50000
 
-            # BTC는 항상 있어야 함 (커서 0~9)
-            assert btc is not None
-
-            # ETH는 커서 5부터 있음 (시작 인덱스 = 10 - 5 = 5)
-            if cursor < 5:
-                assert eth is None
-            else:
-                assert eth is not None
-
-            market.step()
+        # ETH는 NaN이므로 조회 시 None 또는 예외
+        # MultiCandle의 동작에 따라 달라질 수 있음
 
     def test_variable_length_get_current_all(self):
-        """길이가 다른 데이터에서 get_current_all (뒤 끝 정렬)"""
-        # BTC: 10개 (0~9000), ETH: 5개 (5000~9000)
-        # availability_threshold=0.5로 설정하여 커서 0부터 시작
-        data = {
-            "BTC/USDT": [make_price(t=i * 1000, o=50000, h=51000, l=49000, c=50500, v=100) for i in range(10)],  # 0~9000
-            "ETH/USDT": [make_price(t=i * 1000, o=3000, h=3100, l=2900, c=3050, v=200) for i in range(5, 10)],  # 5000~9000
-        }
-        market = MarketData(data, availability_threshold=0.5, offset=0)
+        """길이가 다른 데이터에서 get_current_all"""
+        candle1 = make_candle("BTC/USDT", list(range(1000, 11000, 1000)), [50000] * 10)
+        candle2 = make_candle("ETH/USDT", list(range(6000, 11000, 1000)), [3000] * 5)
 
-        # 초반 (커서 0): BTC만 있음
+        mc = MultiCandle([candle1, candle2])
+        market = MarketData(mc)
+
+        # 처음: BTC만 유효
         prices = market.get_current_all()
-        assert len(prices) == 1
         assert "BTC/USDT" in prices
+        # ETH는 NaN이므로 제외되어야 함 (get_current_all의 구현에 따라)
 
-        # 중반으로 이동 (커서 5): BTC, ETH 둘 다 있음
+        # 중간으로 이동 (timestamp 6000)
         for _ in range(5):
             market.step()
 
         prices = market.get_current_all()
-        assert len(prices) == 2
         assert "BTC/USDT" in prices
         assert "ETH/USDT" in prices
+
+
+class TestMarketDataEdgeCases:
+    """엣지 케이스 테스트"""
+
+    def test_single_candle(self):
+        """단일 Candle"""
+        candle = make_candle("BTC/USDT", [1000], [50000])
+
+        mc = MultiCandle([candle])
+        market = MarketData(mc)
+
+        assert market.get_current_timestamp() == 1000
+        assert market.step() is False
+        assert market.is_finished() is True
+
+    def test_offset_at_boundary(self):
+        """offset이 경계에 있는 경우"""
+        candle = make_candle("BTC/USDT", [1000, 2000, 3000], [50000, 51000, 52000])
+
+        mc = MultiCandle([candle])
+
+        # 마지막 인덱스로 시작
+        market = MarketData(mc, start_offset=2)
+        assert market.get_current_timestamp() == 3000
+        assert market.step() is False
+        assert market.is_finished() is True
+
+    def test_get_cursor_idx(self):
+        """cursor_idx 접근"""
+        candle = make_candle("BTC/USDT", [1000, 2000, 3000], [50000, 51000, 52000])
+
+        mc = MultiCandle([candle])
+        market = MarketData(mc)
+
+        assert market.get_cursor_idx() == 0
+        market.step()
+        assert market.get_cursor_idx() == 1

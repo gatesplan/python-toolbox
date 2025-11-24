@@ -14,7 +14,7 @@ from financial_simulation.tradesim import TradeSimulation
 from financial_assets.order import SpotOrder
 from financial_assets.stock_address import StockAddress
 from financial_assets.price import Price
-from financial_assets.constants import Side, OrderType
+from financial_assets.constants import OrderSide, OrderType
 
 
 class TestTradeSimulationInitialization:
@@ -40,7 +40,7 @@ class TestTradeSimulationSpotLimitOrders:
         order = SpotOrder(
             order_id="limit-buy-1",
             stock_address=stock_address,
-            side=Side.BUY,
+            side=OrderSide.BUY,
             order_type=OrderType.LIMIT,
             price=105.0,  # body 범위 (100~110)
             amount=1.5,
@@ -67,7 +67,7 @@ class TestTradeSimulationSpotLimitOrders:
         order = SpotOrder(
             order_id="limit-sell-1",
             stock_address=stock_address,
-            side=Side.SELL,
+            side=OrderSide.SELL,
             order_type=OrderType.LIMIT,
             price=105.0,  # body 범위 (100~110)
             amount=1.5,
@@ -92,7 +92,7 @@ class TestTradeSimulationSpotLimitOrders:
         order = SpotOrder(
             order_id="limit-body-1",
             stock_address=stock_address,
-            side=Side.BUY,
+            side=OrderSide.BUY,
             order_type=OrderType.LIMIT,
             price=105.0,
             amount=1.0,
@@ -116,7 +116,7 @@ class TestTradeSimulationSpotLimitOrders:
         order = SpotOrder(
             order_id="limit-wick-1",
             stock_address=stock_address,
-            side=Side.BUY,
+            side=OrderSide.BUY,
             order_type=OrderType.LIMIT,
             price=115.0,  # head 범위
             amount=1.0,
@@ -149,7 +149,7 @@ class TestTradeSimulationSpotMarketOrders:
         order = SpotOrder(
             order_id="market-buy-1",
             stock_address=stock_address,
-            side=Side.BUY,
+            side=OrderSide.BUY,
             order_type=OrderType.MARKET,
             price=None,
             amount=1.5,
@@ -175,7 +175,7 @@ class TestTradeSimulationSpotMarketOrders:
         order = SpotOrder(
             order_id="market-sell-1",
             stock_address=stock_address,
-            side=Side.SELL,
+            side=OrderSide.SELL,
             order_type=OrderType.MARKET,
             price=None,
             amount=1.5,
@@ -201,7 +201,7 @@ class TestTradeSimulationSpotMarketOrders:
         buy_order = SpotOrder(
             order_id="market-buy-2",
             stock_address=stock_address,
-            side=Side.BUY,
+            side=OrderSide.BUY,
             order_type=OrderType.MARKET,
             price=None,
             amount=1.0,
@@ -221,7 +221,7 @@ class TestTradeSimulationSpotMarketOrders:
         sell_order = SpotOrder(
             order_id="market-sell-2",
             stock_address=stock_address,
-            side=Side.SELL,
+            side=OrderSide.SELL,
             order_type=OrderType.MARKET,
             price=None,
             amount=1.0,
@@ -245,7 +245,7 @@ class TestTradeSimulationSpotMarketOrders:
         order = SpotOrder(
             order_id="market-split-1",
             stock_address=stock_address,
-            side=Side.BUY,
+            side=OrderSide.BUY,
             order_type=OrderType.MARKET,
             price=None,
             amount=0.1,  # 0.1 / 500 = 0.0002 = 0.02% (소액 주문)
@@ -287,7 +287,7 @@ class TestTradeSimulationErrorHandling:
         order = SpotOrder(
             order_id="limit-outside-1",
             stock_address=stock_address,
-            side=Side.BUY,
+            side=OrderSide.BUY,
             order_type=OrderType.LIMIT,
             price=130.0,  # 범위 밖 (h=120)
             amount=1.0,

@@ -2,7 +2,7 @@
 
 import pytest
 from financial_assets.order import SpotOrder
-from financial_assets.constants import Side, OrderType
+from financial_assets.constants import OrderSide, OrderType
 from financial_assets.price import Price
 from financial_assets.stock_address import StockAddress
 from financial_simulation.exchange.Core.Portfolio import Portfolio
@@ -58,7 +58,7 @@ class TestOrderValidatorBuyOrders:
         order = SpotOrder(
             order_id="order_1",
             stock_address=stock_address,
-            side=Side.BUY,
+            side=OrderSide.BUY,
             order_type=OrderType.LIMIT,
             price=50000.0,
             amount=0.1,
@@ -72,7 +72,7 @@ class TestOrderValidatorBuyOrders:
         order = SpotOrder(
             order_id="order_2",
             stock_address=stock_address,
-            side=Side.BUY,
+            side=OrderSide.BUY,
             order_type=OrderType.LIMIT,
             price=50000.0,
             amount=1.0,
@@ -87,7 +87,7 @@ class TestOrderValidatorBuyOrders:
         order = SpotOrder(
             order_id="order_3",
             stock_address=stock_address,
-            side=Side.BUY,
+            side=OrderSide.BUY,
             order_type=OrderType.MARKET,
             price=None,
             amount=0.1,
@@ -101,7 +101,7 @@ class TestOrderValidatorBuyOrders:
         order = SpotOrder(
             order_id="order_4",
             stock_address=stock_address,
-            side=Side.BUY,
+            side=OrderSide.BUY,
             order_type=OrderType.MARKET,
             price=None,
             amount=1.0,
@@ -120,7 +120,7 @@ class TestOrderValidatorSellOrders:
         order = SpotOrder(
             order_id="order_5",
             stock_address=stock_address,
-            side=Side.SELL,
+            side=OrderSide.SELL,
             order_type=OrderType.LIMIT,
             price=50000.0,
             amount=0.5,
@@ -134,7 +134,7 @@ class TestOrderValidatorSellOrders:
         order = SpotOrder(
             order_id="order_6",
             stock_address=stock_address,
-            side=Side.SELL,
+            side=OrderSide.SELL,
             order_type=OrderType.LIMIT,
             price=50000.0,
             amount=2.0,
@@ -149,7 +149,7 @@ class TestOrderValidatorSellOrders:
         order = SpotOrder(
             order_id="order_7",
             stock_address=stock_address,
-            side=Side.SELL,
+            side=OrderSide.SELL,
             order_type=OrderType.MARKET,
             price=None,
             amount=0.5,
@@ -170,7 +170,7 @@ class TestOrderValidatorLockedAssets:
         order = SpotOrder(
             order_id="order_8",
             stock_address=stock_address,
-            side=Side.BUY,
+            side=OrderSide.BUY,
             order_type=OrderType.LIMIT,
             price=50000.0,
             amount=0.15,
@@ -189,7 +189,7 @@ class TestOrderValidatorLockedAssets:
         order = SpotOrder(
             order_id="order_9",
             stock_address=stock_address,
-            side=Side.SELL,
+            side=OrderSide.SELL,
             order_type=OrderType.LIMIT,
             price=50000.0,
             amount=0.5,

@@ -7,7 +7,7 @@ from simple_logger import init_logging, func_logging
 from financial_assets.order import Order, SpotOrder
 from financial_assets.price import Price
 from financial_assets.trade import Trade
-from financial_assets.constants import OrderType, Side
+from financial_assets.constants import OrderType, OrderSide
 
 from ...Service import (
     SpotLimitFillService,
@@ -39,9 +39,9 @@ class TradeSimulation:
             if order.order_type == OrderType.LIMIT:
                 params_list = self._limit_fill_service.execute(order, price)
             elif order.order_type == OrderType.MARKET:
-                if order.side == Side.BUY:
+                if order.side == OrderSide.BUY:
                     params_list = self._market_buy_fill_service.execute(order, price)
-                elif order.side == Side.SELL:
+                elif order.side == OrderSide.SELL:
                     params_list = self._market_sell_fill_service.execute(order, price)
                 else:
                     raise ValueError(f"Unknown side: {order.side}")

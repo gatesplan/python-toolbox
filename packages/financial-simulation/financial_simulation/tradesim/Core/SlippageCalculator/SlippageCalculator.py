@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 from simple_logger import func_logging
 
 if TYPE_CHECKING:
-    from financial_assets.constants import Side
+    from financial_assets.constants import OrderSide
 
 
 class SlippageCalculator:

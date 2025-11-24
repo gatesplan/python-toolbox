@@ -1,56 +1,50 @@
 """Tests for SpotExchange"""
 
 import pytest
+import pandas as pd
 from financial_simulation.exchange.API.SpotExchange import SpotExchange
 from financial_simulation.exchange.Core.MarketData.MarketData import MarketData
 from financial_simulation.tradesim.API.TradeSimulation import TradeSimulation
 from financial_assets.order import SpotOrder
 from financial_assets.stock_address import StockAddress
-from financial_assets.constants import Side, OrderType, TimeInForce
+from financial_assets.constants import OrderSide, OrderType, TimeInForce
 from financial_assets.price import Price
+from financial_assets.candle import Candle
+from financial_assets.multicandle import MultiCandle
 
 
 @pytest.fixture
 def sample_market_data():
     """테스트용 MarketData 생성 (충분한 유동성 제공)"""
-    # BTC/USDT 가격 데이터 (10개 틱)
-    # o=c로 설정하여 body 범위를 명확히 (체결 보장)
-    # volume을 충분히 크게 설정 (100 BTC = 5,000,000 USDT 가치)
-    btc_prices = [
-        Price(
-            exchange="binance",
-            market="BTCUSDT",
-            t=1000 + i * 60,
-            o=50000.0,
-            h=51000.0,
-            l=49000.0,
-            c=50000.0,
-            v=100.0
-        )
-        for i in range(10)
-    ]
+    # BTC/USDT Candle 생성
+    btc_addr = StockAddress("candle", "binance", "spot", "BTC", "USDT", "1m")
+    btc_df = pd.DataFrame({
+        'timestamp': [1000 + i * 60 for i in range(10)],
+        'open': [50000.0] * 10,
+        'high': [51000.0] * 10,
+        'low': [49000.0] * 10,
+        'close': [50000.0] * 10,
+        'volume': [100.0] * 10
+    })
+    btc_candle = Candle(btc_addr, btc_df)
 
-    # ETH/USDT 가격 데이터 (10개 틱)
-    eth_prices = [
-        Price(
-            exchange="binance",
-            market="ETHUSDT",
-            t=1000 + i * 60,
-            o=3000.0,
-            h=3100.0,
-            l=2900.0,
-            c=3000.0,
-            v=1000.0
-        )
-        for i in range(10)
-    ]
+    # ETH/USDT Candle 생성
+    eth_addr = StockAddress("candle", "binance", "spot", "ETH", "USDT", "1m")
+    eth_df = pd.DataFrame({
+        'timestamp': [1000 + i * 60 for i in range(10)],
+        'open': [3000.0] * 10,
+        'high': [3100.0] * 10,
+        'low': [2900.0] * 10,
+        'close': [3000.0] * 10,
+        'volume': [1000.0] * 10
+    })
+    eth_candle = Candle(eth_addr, eth_df)
 
-    data = {
-        "BTC/USDT": btc_prices,
-        "ETH/USDT": eth_prices,
-    }
+    # MultiCandle 생성
+    mc = MultiCandle([btc_candle, eth_candle])
 
-    return MarketData(data=data, availability_threshold=0.8, offset=0)
+    # MarketData 생성
+    return MarketData(mc, start_offset=0)
 
 
 @pytest.fixture
@@ -104,7 +98,7 @@ class TestSpotExchangePlaceOrder:
         order = SpotOrder(
             order_id="order_001",
             stock_address=StockAddress("candle", "binance", "spot", "BTC", "USDT", "1m"),
-            side=Side.BUY,
+            side=OrderSide.BUY,
             order_type=OrderType.LIMIT,
             price=50000.0,  # body 범위 (o=c=50000)
             amount=1.0,
@@ -129,7 +123,7 @@ class TestSpotExchangePlaceOrder:
         buy_order = SpotOrder(
             order_id="order_001",
             stock_address=StockAddress("candle", "binance", "spot", "BTC", "USDT", "1m"),
-            side=Side.BUY,
+            side=OrderSide.BUY,
             order_type=OrderType.LIMIT,
             price=50000.0,
             amount=1.0,
@@ -144,7 +138,7 @@ class TestSpotExchangePlaceOrder:
         sell_order = SpotOrder(
             order_id="order_002",
             stock_address=StockAddress("candle", "binance", "spot", "BTC", "USDT", "1m"),
-            side=Side.SELL,
+            side=OrderSide.SELL,
             order_type=OrderType.LIMIT,
             price=50000.0,  # body 범위
             amount=0.5,
@@ -168,7 +162,7 @@ class TestSpotExchangePlaceOrder:
         order = SpotOrder(
             order_id="order_001",
             stock_address=StockAddress("candle", "binance", "spot", "BTC", "USDT", "1m"),
-            side=Side.BUY,
+            side=OrderSide.BUY,
             order_type=OrderType.LIMIT,
             price=50000.0,
             amount=100.0,  # 5,000,000 USDT 필요 (잔고 100,000 초과)
@@ -186,7 +180,7 @@ class TestSpotExchangePlaceOrder:
         order = SpotOrder(
             order_id="order_001",
             stock_address=StockAddress("candle", "binance", "spot", "BTC", "USDT", "1m"),
-            side=Side.SELL,
+            side=OrderSide.SELL,
             order_type=OrderType.LIMIT,
             price=50000.0,
             amount=1.0,
@@ -207,7 +201,7 @@ class TestSpotExchangePlaceOrder:
         order = SpotOrder(
             order_id="order_001",
             stock_address=StockAddress("candle", "binance", "spot", "BTC", "USDT", "1m"),
-            side=Side.BUY,
+            side=OrderSide.BUY,
             order_type=OrderType.LIMIT,
             price=50000.0,  # body 범위
             amount=0.1,
@@ -235,7 +229,7 @@ class TestSpotExchangeCancelOrder:
         order = SpotOrder(
             order_id="order_001",
             stock_address=StockAddress("candle", "binance", "spot", "BTC", "USDT", "1m"),
-            side=Side.BUY,
+            side=OrderSide.BUY,
             order_type=OrderType.LIMIT,
             price=10000.0,  # 현재가보다 훨씬 낮은 가격
             amount=1.0,
@@ -270,7 +264,7 @@ class TestSpotExchangeGetOpenOrders:
         order1 = SpotOrder(
             order_id="order_001",
             stock_address=StockAddress("candle", "binance", "spot", "BTC", "USDT", "1m"),
-            side=Side.BUY,
+            side=OrderSide.BUY,
             order_type=OrderType.LIMIT,
             price=10000.0,
             amount=1.0,
@@ -280,7 +274,7 @@ class TestSpotExchangeGetOpenOrders:
         order2 = SpotOrder(
             order_id="order_002",
             stock_address=StockAddress("candle", "binance", "spot", "ETH", "USDT", "1m"),
-            side=Side.BUY,
+            side=OrderSide.BUY,
             order_type=OrderType.LIMIT,
             price=1000.0,
             amount=5.0,
@@ -302,7 +296,7 @@ class TestSpotExchangeGetOpenOrders:
         order1 = SpotOrder(
             order_id="order_001",
             stock_address=StockAddress("candle", "binance", "spot", "BTC", "USDT", "1m"),
-            side=Side.BUY,
+            side=OrderSide.BUY,
             order_type=OrderType.LIMIT,
             price=10000.0,
             amount=1.0,
@@ -312,7 +306,7 @@ class TestSpotExchangeGetOpenOrders:
         order2 = SpotOrder(
             order_id="order_002",
             stock_address=StockAddress("candle", "binance", "spot", "ETH", "USDT", "1m"),
-            side=Side.BUY,
+            side=OrderSide.BUY,
             order_type=OrderType.LIMIT,
             price=1000.0,
             amount=5.0,
@@ -339,7 +333,7 @@ class TestSpotExchangeGetTradeHistory:
         order1 = SpotOrder(
             order_id="order_001",
             stock_address=StockAddress("candle", "binance", "spot", "BTC", "USDT", "1m"),
-            side=Side.BUY,
+            side=OrderSide.BUY,
             order_type=OrderType.LIMIT,
             price=50000.0,
             amount=0.1,
@@ -349,7 +343,7 @@ class TestSpotExchangeGetTradeHistory:
         order2 = SpotOrder(
             order_id="order_002",
             stock_address=StockAddress("candle", "binance", "spot", "ETH", "USDT", "1m"),
-            side=Side.BUY,
+            side=OrderSide.BUY,
             order_type=OrderType.LIMIT,
             price=3000.0,
             amount=1.0,
@@ -374,7 +368,7 @@ class TestSpotExchangeGetTradeHistory:
         order1 = SpotOrder(
             order_id="order_001",
             stock_address=StockAddress("candle", "binance", "spot", "BTC", "USDT", "1m"),
-            side=Side.BUY,
+            side=OrderSide.BUY,
             order_type=OrderType.LIMIT,
             price=50000.0,
             amount=0.1,
@@ -384,7 +378,7 @@ class TestSpotExchangeGetTradeHistory:
         order2 = SpotOrder(
             order_id="order_002",
             stock_address=StockAddress("candle", "binance", "spot", "ETH", "USDT", "1m"),
-            side=Side.BUY,
+            side=OrderSide.BUY,
             order_type=OrderType.LIMIT,
             price=3000.0,
             amount=1.0,
@@ -434,7 +428,7 @@ class TestSpotExchangeBalance:
         order = SpotOrder(
             order_id="order_001",
             stock_address=StockAddress("candle", "binance", "spot", "BTC", "USDT", "1m"),
-            side=Side.BUY,
+            side=OrderSide.BUY,
             order_type=OrderType.LIMIT,
             price=50000.0,
             amount=0.1,
@@ -467,7 +461,7 @@ class TestSpotExchangePositions:
         order = SpotOrder(
             order_id="order_001",
             stock_address=StockAddress("candle", "binance", "spot", "BTC", "USDT", "1m"),
-            side=Side.BUY,
+            side=OrderSide.BUY,
             order_type=OrderType.LIMIT,
             price=50000.0,
             amount=0.5,
@@ -494,7 +488,7 @@ class TestSpotExchangePositionValue:
         order = SpotOrder(
             order_id="order_001",
             stock_address=StockAddress("candle", "binance", "spot", "BTC", "USDT", "1m"),
-            side=Side.BUY,
+            side=OrderSide.BUY,
             order_type=OrderType.LIMIT,
             price=50000.0,
             amount=0.5,
@@ -536,7 +530,7 @@ class TestSpotExchangeTotalValue:
         order = SpotOrder(
             order_id="order_001",
             stock_address=StockAddress("candle", "binance", "spot", "BTC", "USDT", "1m"),
-            side=Side.BUY,
+            side=OrderSide.BUY,
             order_type=OrderType.LIMIT,
             price=50000.0,
             amount=0.5,
@@ -563,7 +557,7 @@ class TestSpotExchangeStatistics:
         order = SpotOrder(
             order_id="order_001",
             stock_address=StockAddress("candle", "binance", "spot", "BTC", "USDT", "1m"),
-            side=Side.BUY,
+            side=OrderSide.BUY,
             order_type=OrderType.LIMIT,
             price=50000.0,
             amount=0.5,
@@ -612,7 +606,7 @@ class TestSpotExchangeStep:
         order = SpotOrder(
             order_id="order_001",
             stock_address=StockAddress("candle", "binance", "spot", "BTC", "USDT", "1m"),
-            side=Side.BUY,
+            side=OrderSide.BUY,
             order_type=OrderType.LIMIT,
             price=10000.0,  # 체결되기 어려운 가격
             amount=1.0,
@@ -654,7 +648,7 @@ class TestSpotExchangeReset:
         order = SpotOrder(
             order_id="order_001",
             stock_address=StockAddress("candle", "binance", "spot", "BTC", "USDT", "1m"),
-            side=Side.BUY,
+            side=OrderSide.BUY,
             order_type=OrderType.LIMIT,
             price=50000.0,
             amount=0.5,
@@ -679,7 +673,7 @@ class TestSpotExchangeReset:
         order = SpotOrder(
             order_id="order_001",
             stock_address=StockAddress("candle", "binance", "spot", "BTC", "USDT", "1m"),
-            side=Side.BUY,
+            side=OrderSide.BUY,
             order_type=OrderType.LIMIT,
             price=50000.0,
             amount=0.1,
@@ -704,7 +698,7 @@ class TestSpotExchangeReset:
         order = SpotOrder(
             order_id="order_001",
             stock_address=StockAddress("candle", "binance", "spot", "BTC", "USDT", "1m"),
-            side=Side.BUY,
+            side=OrderSide.BUY,
             order_type=OrderType.LIMIT,
             price=50000.0,
             amount=0.5,

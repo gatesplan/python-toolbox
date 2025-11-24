@@ -20,7 +20,7 @@ from financial_assets.token import Token
 from financial_assets.pair import Pair
 from financial_assets.order import SpotOrder
 from financial_assets.stock_address import StockAddress
-from financial_assets.constants import Side, OrderType
+from financial_assets.constants import OrderSide, OrderType
 
 
 class TestPositionManager:
@@ -100,7 +100,7 @@ class TestPositionManager:
         order = SpotOrder(
             order_id="order_1",
             stock_address=stock_address,
-            side=Side.BUY,
+            side=OrderSide.BUY,
             order_type=OrderType.MARKET,
             price=50000.0,
             amount=0.5,
@@ -144,7 +144,7 @@ class TestPositionManager:
         order = SpotOrder(
             order_id="order_1",
             stock_address=stock_address,
-            side=Side.BUY,
+            side=OrderSide.BUY,
             order_type=OrderType.MARKET,
             price=45000.0,  # 매입가 (현재가 50,000과 다름)
             amount=0.5,
@@ -185,7 +185,7 @@ class TestPositionManager:
         order = SpotOrder(
             order_id="order_1",
             stock_address=stock_address,
-            side=Side.BUY,
+            side=OrderSide.BUY,
             order_type=OrderType.MARKET,
             price=45000.0,
             amount=0.5,
@@ -308,7 +308,7 @@ class TestPositionManager:
         order = SpotOrder(
             order_id="order_1",
             stock_address=stock_address,
-            side=Side.BUY,
+            side=OrderSide.BUY,
             order_type=OrderType.MARKET,
             price=45000.0,
             amount=0.5,
@@ -322,7 +322,7 @@ class TestPositionManager:
         eth_order = SpotOrder(
             order_id="order_2",
             stock_address=eth_address,
-            side=Side.BUY,
+            side=OrderSide.BUY,
             order_type=OrderType.MARKET,
             price=2400.0,
             amount=2.0,
@@ -409,7 +409,7 @@ class TestPositionManager:
         order = SpotOrder(
             order_id="order_1",
             stock_address=stock_address,
-            side=Side.BUY,
+            side=OrderSide.BUY,
             order_type=OrderType.MARKET,
             price=45000.0,
             amount=0.5,
@@ -459,7 +459,7 @@ class TestPositionManager:
         order = SpotOrder(
             order_id="order_1",
             stock_address=stock_address,
-            side=Side.BUY,
+            side=OrderSide.BUY,
             order_type=OrderType.MARKET,
             price=45000.0,
             amount=0.5,
@@ -524,7 +524,7 @@ class TestPositionManager:
         order = SpotOrder(
             order_id="order_1",
             stock_address=stock_address,
-            side=Side.BUY,
+            side=OrderSide.BUY,
             order_type=OrderType.MARKET,
             price=45000.0,
             amount=0.5,
@@ -574,7 +574,7 @@ class TestPositionManager:
         order = SpotOrder(
             order_id="order_1",
             stock_address=stock_address,
-            side=Side.BUY,
+            side=OrderSide.BUY,
             order_type=OrderType.MARKET,
             price=45000.0,
             amount=0.5,
@@ -634,7 +634,7 @@ class TestPositionManager:
         order = SpotOrder(
             order_id="order_1",
             stock_address=stock_address,
-            side=Side.BUY,
+            side=OrderSide.BUY,
             order_type=OrderType.MARKET,
             price=45000.0,
             amount=0.5,
@@ -649,7 +649,7 @@ class TestPositionManager:
         eth_order = SpotOrder(
             order_id="order_2",
             stock_address=eth_address,
-            side=Side.BUY,
+            side=OrderSide.BUY,
             order_type=OrderType.MARKET,
             price=2400.0,
             amount=2.0,
@@ -748,7 +748,7 @@ class TestPositionManager:
         order = SpotOrder(
             order_id="order_1",
             stock_address=stock_address,
-            side=Side.BUY,
+            side=OrderSide.BUY,
             order_type=OrderType.MARKET,
             price=50000.0,
             amount=0.5,

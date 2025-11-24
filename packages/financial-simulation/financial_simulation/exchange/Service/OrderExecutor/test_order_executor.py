@@ -6,7 +6,7 @@ from financial_assets.order import SpotOrder
 from financial_assets.trade import SpotTrade
 from financial_assets.pair import Pair
 from financial_assets.token import Token
-from financial_assets.constants import Side, OrderType, TimeInForce
+from financial_assets.constants import OrderSide, OrderType, TimeInForce
 from financial_assets.price import Price
 from financial_assets.stock_address import StockAddress
 from financial_simulation.exchange.Core.Portfolio import Portfolio
@@ -23,7 +23,7 @@ def portfolio():
     from financial_assets.token import Token
     from financial_assets.order import SpotOrder
     from financial_assets.stock_address import StockAddress
-    from financial_assets.constants import Side, OrderType
+    from financial_assets.constants import OrderSide, OrderType
 
     portfolio = Portfolio()
     portfolio.deposit_currency("USDT", 100000.0)
@@ -41,7 +41,7 @@ def portfolio():
     dummy_order = SpotOrder(
         order_id="dummy_init",
         stock_address=dummy_stock_address,
-        side=Side.BUY,
+        side=OrderSide.BUY,
         order_type=OrderType.LIMIT,
         price=50000.0,
         amount=10.0,
@@ -130,7 +130,7 @@ class TestOrderExecutorFullFill:
         order = SpotOrder(
             order_id="order_1",
             stock_address=stock_address,
-            side=Side.BUY,
+            side=OrderSide.BUY,
             order_type=OrderType.LIMIT,
             price=50000.0,
             amount=1.0,
@@ -163,7 +163,7 @@ class TestOrderExecutorFullFill:
         order = SpotOrder(
             order_id="order_2",
             stock_address=stock_address,
-            side=Side.SELL,
+            side=OrderSide.SELL,
             order_type=OrderType.LIMIT,
             price=50000.0,
             amount=1.0,
@@ -200,7 +200,7 @@ class TestOrderExecutorPartialFill:
         order = SpotOrder(
             order_id="order_3",
             stock_address=stock_address,
-            side=Side.BUY,
+            side=OrderSide.BUY,
             order_type=OrderType.LIMIT,
             price=50000.0,
             amount=2.0,
@@ -238,7 +238,7 @@ class TestOrderExecutorPartialFill:
         order = SpotOrder(
             order_id="order_4",
             stock_address=stock_address,
-            side=Side.SELL,
+            side=OrderSide.SELL,
             order_type=OrderType.LIMIT,
             price=50000.0,
             amount=2.0,
@@ -280,7 +280,7 @@ class TestOrderExecutorNoFill:
         order = SpotOrder(
             order_id="order_5",
             stock_address=stock_address,
-            side=Side.BUY,
+            side=OrderSide.BUY,
             order_type=OrderType.LIMIT,
             price=50000.0,
             amount=1.0,
@@ -319,7 +319,7 @@ class TestOrderExecutorTimeInForce:
         order = SpotOrder(
             order_id="order_6",
             stock_address=stock_address,
-            side=Side.BUY,
+            side=OrderSide.BUY,
             order_type=OrderType.LIMIT,
             price=50000.0,
             amount=1.0,
@@ -343,7 +343,7 @@ class TestOrderExecutorTimeInForce:
         order = SpotOrder(
             order_id="order_7",
             stock_address=stock_address,
-            side=Side.BUY,
+            side=OrderSide.BUY,
             order_type=OrderType.LIMIT,
             price=50000.0,
             amount=2.0,
@@ -374,7 +374,7 @@ class TestOrderExecutorTimeInForce:
         order = SpotOrder(
             order_id="order_8",
             stock_address=stock_address,
-            side=Side.BUY,
+            side=OrderSide.BUY,
             order_type=OrderType.LIMIT,
             price=50000.0,
             amount=2.0,
@@ -408,7 +408,7 @@ class TestOrderExecutorCancelOrder:
         order = SpotOrder(
             order_id="order_9",
             stock_address=stock_address,
-            side=Side.BUY,
+            side=OrderSide.BUY,
             order_type=OrderType.LIMIT,
             price=50000.0,
             amount=1.0,
