@@ -2,6 +2,7 @@
 
 from financial_simulation.exchange.Core.Portfolio.Portfolio import Portfolio
 from financial_simulation.exchange.Core.MarketData.MarketData import MarketData
+from financial_assets.symbol import Symbol
 from .Core.ValueCalculator.ValueCalculator import ValueCalculator
 from .Core.PnLCalculator.PnLCalculator import PnLCalculator
 from simple_logger import init_logging, logger
@@ -83,8 +84,13 @@ class PositionManager:
         if amount == 0:
             return 0.0
 
-        # ticker → symbol 변환 (BTC-USDT → BTC/USDT)
-        symbol = ticker.replace("-", "/")
+        # ticker → Symbol 객체로 변환 (BTC-USDT → Symbol)
+        try:
+            symbol = Symbol(ticker)
+        except ValueError:
+            # 잘못된 ticker 형식
+            return 0.0
+
         price_data = self._market_data.get_current(symbol)
 
         if price_data is None:

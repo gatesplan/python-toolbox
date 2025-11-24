@@ -2,7 +2,9 @@
 
 ## 개요
 
-체결 내역 조회 요청. 특정 주문의 체결 내역 또는 특정 마켓의 모든 체결 내역을 조회한다.
+**내 계정의** 체결 내역 조회 요청. 특정 주문의 체결 내역 또는 특정 마켓에서 내가 실행한 모든 체결 내역을 조회한다.
+
+**중요:** 이 API는 내 계정의 체결 내역(my trades)만 조회한다. 마켓의 공개 체결 내역(public trades)은 별도 API를 사용한다.
 
 ## see_trades Request 파라미터
 
@@ -16,10 +18,10 @@
 - `address: StockAddress` - 조회할 마켓 주소 (financial-assets)
 
 **주문 필터링 (선택):**
-- `order: Optional[SpotOrder]` - 특정 주문의 체결만 조회 (None이면 마켓 전체 조회)
+- `order: Optional[SpotOrder]` - 특정 주문의 체결만 조회 (None이면 내 계정의 해당 마켓 전체 체결 조회)
 
 **동작:**
-- `order=None`: 해당 마켓의 모든 체결 내역 조회
+- `order=None`: 내 계정의 해당 마켓 모든 체결 내역 조회
 - `order=SpotOrder(...)`: 해당 주문의 체결 내역만 조회
 
 ### 조회 옵션
@@ -118,15 +120,33 @@ request = SeeTradesRequest(
 )
 ```
 
-**2. 마켓 전체 체결 내역:**
+**2. 내 계정의 해당 마켓 전체 체결 내역:**
 ```python
 request = SeeTradesRequest(
     request_id="req-001",
     gateway_name="binance",
     address=stock_address,
-    order=None  # 전체 조회
+    order=None  # 내 계정의 해당 마켓 전체 조회
 )
 ```
+
+### 내 계정 체결 vs Public Trades
+
+이 API는 **내 계정의 체결 내역(my trades)**만 조회:
+- 내가 실행한 주문의 체결만 반환
+- 인증(API 키) 필수
+- 거래소 API: Binance `GET /api/v3/myTrades`, Upbit `GET /v1/orders`, etc.
+
+**공개 체결 내역(public trades):**
+- 마켓의 모든 참여자 체결 (다른 사람 포함)
+- 인증 불필요
+- 별도 API: `see_market_trades` (별도 구현 필요 시)
+- 거래소 API: Binance `GET /api/v3/trades`, Upbit `GET /v1/trades/ticks`, etc.
+
+**설계 이유:**
+- 대부분의 트레이딩 전략은 자신의 체결만 관심
+- 공개 체결은 시장 분석용으로 용도가 다름
+- API 권한 및 Rate Limit 고려
 
 ### order → order.order_id 변환
 

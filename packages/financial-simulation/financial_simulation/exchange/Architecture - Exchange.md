@@ -37,6 +37,7 @@ graph TB
     OrderValidator[OrderValidator<br/>주문 검증]
     OrderExecutor[OrderExecutor<br/>체결 처리 및 자산 업데이트]
     PositionManager[PositionManager<br/>포지션 조회 및 통계]
+    MarketDataService[MarketDataService<br/>시장 데이터 조회 및 변환]
 
     Portfolio[Portfolio<br/>잔고 및 자산 관리]
     OrderBook[OrderBook<br/>미체결 주문 관리]
@@ -47,6 +48,7 @@ graph TB
     API --> OrderValidator
     API --> OrderExecutor
     API --> PositionManager
+    API --> MarketDataService
     API --> Portfolio
     API --> OrderBook
     API --> MarketData
@@ -59,6 +61,8 @@ graph TB
     OrderExecutor --> OrderBook
 
     PositionManager --> Portfolio
+
+    MarketDataService --> MarketData
 ```
 
 **Component Responsibilities:**
@@ -70,16 +74,19 @@ graph TB
 - **OrderValidator**: 주문 생성 전 자금 충분성, 자산 보유량 검증. 미체결 주문으로 인한 잠금 자산 고려.
 - **OrderExecutor**: 검증된 주문을 tradesim에 위임하여 체결 처리. 체결 결과를 받아 Portfolio 업데이트 및 OrderBook에서 주문 제거.
 - **PositionManager**: 현재 보유 포지션 조회 및 통계 제공 (총 자산 가치, 손익률 등).
+- **MarketDataService**: 시장 데이터 기반 조회 및 변환. OHLC 기반 호가창 생성, 마켓 목록 조회 등 Gateway API 호환 기능 제공.
 
 **Core Layer:**
 - **Portfolio**: 현금 잔고 및 다수 코인 보유량 관리. 자산 잠금/해제 (주문 시 필요 자금/자산 예약), 잔고 업데이트.
 - **OrderBook**: 미체결 주문 저장 및 조회. order_id 기반 검색, 취소 처리, 조건부 자동 취소 (예: TimeInForce).
+- **OrderHistory**: 모든 주문의 상태 이력 관리. 체결/취소된 주문도 영구 보관하여 전체 주문 추적 지원.
 - **MarketData**: 심볼별 캔들 데이터 저장 및 관리. 정수 인덱스 커서로 현재 시점 추적, step() 호출 시 다음 틱으로 이동, 심볼별 현재 가격 조회.
 
 **Dependencies:**
 - API Layer는 모든 Service 및 Core 컴포넌트에 접근
 - Service Layer는 필요한 Core 컴포넌트를 조합하여 사용
 - OrderExecutor만 외부 tradesim 모듈에 의존
+- MarketDataService는 MarketData에만 의존
 - Core Layer 컴포넌트들은 서로 독립적
 
 **Notes:**
@@ -94,4 +101,6 @@ graph TB
 4. [OrderValidator] Done
 5. [OrderExecutor] Done
 6. [PositionManager] Done
-7. [SpotExchange] Designing (API 명세 완료, 구현 준비 완료)
+7. [MarketDataService] Done
+8. [SpotExchange] Done
+9. [OrderHistory] Done

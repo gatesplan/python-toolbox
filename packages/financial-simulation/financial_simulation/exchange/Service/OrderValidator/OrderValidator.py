@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 from typing import TYPE_CHECKING
-from simple_logger import logger
+from simple_logger import func_logging, logger
 
 if TYPE_CHECKING:
     from financial_assets import SpotOrder
@@ -27,6 +27,7 @@ class OrderValidator:
         elif order.side == OrderSide.SELL:
             self._validate_sell_order(order)
 
+    @func_logging(level="INFO")
     def _validate_buy_order(self, order: SpotOrder) -> None:
         """BUY 주문 잔고 검증."""
         quote_symbol = order.stock_address.quote
@@ -34,13 +35,13 @@ class OrderValidator:
         # 가격 결정 (LIMIT/MARKET)
         if order.order_type == OrderType.MARKET:
             # MARKET 주문: 현재 시장가 조회
-            symbol = f"{order.stock_address.base}/{order.stock_address.quote}"
+            symbol = order.stock_address.to_symbol()
             current_price_data = self._market_data.get_current(symbol)
             if current_price_data is None:
                 logger.error(
-                    f"MARKET 주문 검증 실패: 현재 시장가 조회 불가 - order_id={order.order_id}, symbol={symbol}"
+                    f"MARKET 주문 검증 실패: 현재 시장가 조회 불가 - order_id={order.order_id}, symbol={symbol.to_slash()}"
                 )
-                raise ValueError(f"MARKET 주문 검증 실패: 현재 시장가 조회 불가 (symbol={symbol})")
+                raise ValueError(f"MARKET 주문 검증 실패: 현재 시장가 조회 불가 (symbol={symbol.to_slash()})")
             price = current_price_data.c  # close price 사용
         else:
             # LIMIT/STOP_LIMIT: 주문 가격 사용
@@ -64,15 +65,15 @@ class OrderValidator:
             f"quote={quote_symbol}, available={available}, required={required}"
         )
 
+    @func_logging(level="INFO")
     def _validate_sell_order(self, order: SpotOrder) -> None:
         """SELL 주문 자산 보유량 검증."""
-        base_symbol = order.stock_address.base
-        quote_symbol = order.stock_address.quote
-        ticker = f"{base_symbol}-{quote_symbol}"
+        symbol = order.stock_address.to_symbol()
+        ticker = symbol.to_dash()
 
         # 필요 자산 (Position 확인)
         required = order.amount
-        available = self._portfolio.get_available_position(ticker)
+        available = self._portfolio.get_available_position(symbol)
 
         if available < required:
             logger.error(

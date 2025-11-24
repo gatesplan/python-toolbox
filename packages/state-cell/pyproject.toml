@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "state-cell"
+version = "0.0.1"
+description = "실시간 제어 로직을 위한 조건부 상태 관리 라이브러리"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [
+    {name = "생선공장", email = "gatesplan@gmail.com"}
+]
+license = {text = "MIT"}
+dependencies = [
+    "portion>=2.5.0"
+]
+
+[project.urls]
+Homepage = "https://github.com/gatesplan/python-toolbox"
+Repository = "https://github.com/gatesplan/python-toolbox"

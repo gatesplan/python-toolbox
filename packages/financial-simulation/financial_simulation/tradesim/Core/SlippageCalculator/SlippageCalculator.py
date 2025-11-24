@@ -12,7 +12,7 @@ class SlippageCalculator:
 
     @staticmethod
     @func_logging(level="DEBUG")
-    def calculate_range(price, side: Side) -> tuple[float, float]:
+    def calculate_range(price, side: OrderSide) -> tuple[float, float]:
         # 주문 방향에 따른 슬리피지 범위 계산 (side.value: "buy" or "sell")
         side_value = side.value
 
