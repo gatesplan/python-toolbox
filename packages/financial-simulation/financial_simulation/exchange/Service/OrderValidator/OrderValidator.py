@@ -1,15 +1,12 @@
 """주문 실행 전 거래소 컨텍스트 검증."""
 
 from __future__ import annotations
-from typing import TYPE_CHECKING
+
 from simple_logger import func_logging, logger
-
-if TYPE_CHECKING:
-    from financial_assets import SpotOrder
-    from ...Core.Portfolio import Portfolio
-    from ...Core.MarketData import MarketData
-
+from financial_assets.order import SpotOrder
 from financial_assets.constants import OrderSide, OrderType
+from ...Core.Portfolio import Portfolio
+from ...Core.MarketData import MarketData
 
 
 class OrderValidator:

@@ -1,21 +1,18 @@
 """주문 실행 및 체결 처리."""
 
 from __future__ import annotations
-from typing import TYPE_CHECKING
+
 from simple_logger import func_logging, logger
 from financial_assets.order import SpotOrder
 from financial_assets.trade import SpotTrade
 from financial_assets.pair import Pair
 from financial_assets.token import Token
-
-if TYPE_CHECKING:
-    from ...Core.Portfolio import Portfolio
-    from ...Core.OrderBook import OrderBook
-    from ...Core.MarketData import MarketData
-    from ...Core.OrderHistory import OrderHistory
-    from financial_simulation.tradesim.API.TradeSimulation import TradeSimulation
-
 from financial_assets.constants import OrderSide, OrderType, TimeInForce, OrderStatus
+from ...Core.Portfolio import Portfolio
+from ...Core.OrderBook import OrderBook
+from ...Core.MarketData import MarketData
+from ...Core.OrderHistory import OrderHistory
+from ....tradesim.API.TradeSimulation import TradeSimulation
 
 
 class OrderExecutor:

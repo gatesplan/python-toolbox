@@ -1,7 +1,7 @@
 """포지션 조회 및 통계 제공 (Service Layer)"""
 
-from financial_simulation.exchange.Core.Portfolio.Portfolio import Portfolio
-from financial_simulation.exchange.Core.MarketData.MarketData import MarketData
+from ...Core.Portfolio import Portfolio
+from ...Core.MarketData import MarketData
 from financial_assets.symbol import Symbol
 from .Core.ValueCalculator.ValueCalculator import ValueCalculator
 from .Core.PnLCalculator.PnLCalculator import PnLCalculator

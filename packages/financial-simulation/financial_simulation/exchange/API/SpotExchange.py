@@ -1,22 +1,19 @@
 """SpotExchange API Layer"""
 
 from __future__ import annotations
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from financial_simulation.exchange.Core.MarketData.MarketData import MarketData
 
 from financial_assets.order import SpotOrder
 from financial_assets.trade import SpotTrade
 from financial_assets.constants import OrderStatus
-from financial_simulation.exchange.Core.Portfolio.Portfolio import Portfolio
-from financial_simulation.exchange.Core.OrderBook.OrderBook import OrderBook
-from financial_simulation.exchange.Core.OrderHistory import OrderHistory, OrderRecord
-from financial_simulation.exchange.Service.OrderValidator.OrderValidator import OrderValidator
-from financial_simulation.exchange.Service.OrderExecutor.OrderExecutor import OrderExecutor
-from financial_simulation.exchange.Service.PositionManager.PositionManager import PositionManager
-from financial_simulation.exchange.Service.MarketDataService.MarketDataService import MarketDataService
-from financial_simulation.tradesim.API.TradeSimulation import TradeSimulation
+from ..Core.Portfolio import Portfolio
+from ..Core.OrderBook import OrderBook
+from ..Core.MarketData import MarketData
+from ..Core.OrderHistory import OrderHistory, OrderRecord
+from ..Service.OrderValidator import OrderValidator
+from ..Service.OrderExecutor import OrderExecutor
+from ..Service.PositionManager import PositionManager
+from ..Service.MarketDataService import MarketDataService
+from ...tradesim.API.TradeSimulation import TradeSimulation
 
 
 class SpotExchange:

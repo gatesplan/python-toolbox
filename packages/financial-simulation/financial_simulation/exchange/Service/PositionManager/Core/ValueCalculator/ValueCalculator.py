@@ -3,7 +3,7 @@
 from typing import Optional
 from financial_assets.pair import PairStack
 from financial_assets.symbol import Symbol
-from financial_simulation.exchange.Core.MarketData.MarketData import MarketData
+from .....Core.MarketData import MarketData
 
 
 class ValueCalculator:
