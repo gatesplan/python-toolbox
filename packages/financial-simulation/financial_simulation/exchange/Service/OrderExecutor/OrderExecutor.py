@@ -12,9 +12,10 @@ if TYPE_CHECKING:
     from ...Core.Portfolio import Portfolio
     from ...Core.OrderBook import OrderBook
     from ...Core.MarketData import MarketData
+    from ...Core.OrderHistory import OrderHistory
     from financial_simulation.tradesim.API.TradeSimulation import TradeSimulation
 
-from financial_assets.constants import OrderSide, OrderType, TimeInForce
+from financial_assets.constants import OrderSide, OrderType, TimeInForce, OrderStatus
 
 
 class OrderExecutor:
@@ -26,12 +27,14 @@ class OrderExecutor:
         orderbook: OrderBook,
         market_data: MarketData,
         trade_simulation: TradeSimulation,
+        order_history: OrderHistory,
     ):
         """OrderExecutor 초기화."""
         self._portfolio = portfolio
         self._orderbook = orderbook
         self._market_data = market_data
         self._trade_simulation = trade_simulation
+        self._order_history = order_history
 
     @func_logging(level="INFO")
     def execute_order(self, order: SpotOrder) -> list[SpotTrade]:
@@ -42,6 +45,10 @@ class OrderExecutor:
         if current_price is None:
             logger.error(f"주문 실행 실패: 현재 시장가 조회 불가 - order_id={order.order_id}, symbol={symbol.to_slash()}")
             raise ValueError(f"주문 실행 실패: 현재 시장가 조회 불가 (symbol={symbol.to_slash()})")
+
+        # 주문 생성 이력 추가 (NEW 상태)
+        timestamp = current_price.t
+        self._order_history.add_record(order, OrderStatus.NEW, timestamp)
 
         # 2. TradeSimulation에 위임
         trades = self._trade_simulation.process(order, current_price)
@@ -57,6 +64,11 @@ class OrderExecutor:
 
         # 5. MARKET 주문은 항상 IOC로 처리 (미체결 즉시 취소)
         if order.order_type == OrderType.MARKET:
+            # 체결된 수량이 있으면 FILLED, 없으면 CANCELED
+            if filled_amount > 0:
+                self._order_history.add_record(order, OrderStatus.FILLED, timestamp)
+            else:
+                self._order_history.add_record(order, OrderStatus.CANCELED, timestamp)
             logger.info(
                 f"MARKET 주문 처리 완료: order_id={order.order_id}, "
                 f"filled={filled_amount}, unfilled={unfilled_amount} (즉시 취소)"
@@ -69,16 +81,24 @@ class OrderExecutor:
             if unfilled_amount > 0:
                 # Portfolio 롤백 (체결된 Trade들을 역으로 처리)
                 self._rollback_trades(trades)
+                # 실패한 주문은 REJECTED 상태로 변경
+                self._order_history.add_record(order, OrderStatus.REJECTED, timestamp)
                 logger.error(
                     f"FOK 주문 실패: 부분 체결 - order_id={order.order_id}, "
                     f"amount={order.amount}, filled={filled_amount}"
                 )
                 raise ValueError(f"FOK 주문 실패: 부분 체결 (filled={filled_amount}/{order.amount})")
+            # 완전 체결 성공
+            self._order_history.add_record(order, OrderStatus.FILLED, timestamp)
             logger.info(f"FOK 주문 완전 체결 성공: order_id={order.order_id}, amount={filled_amount}")
             return trades
 
         elif order.time_in_force == TimeInForce.IOC:
             # IOC: 부분 체결만 처리, 미체결 즉시 취소
+            if filled_amount > 0:
+                self._order_history.add_record(order, OrderStatus.FILLED, timestamp)
+            else:
+                self._order_history.add_record(order, OrderStatus.CANCELED, timestamp)
             logger.info(
                 f"IOC 주문 처리 완료: order_id={order.order_id}, "
                 f"filled={filled_amount}, unfilled={unfilled_amount} (즉시 취소)"
@@ -90,11 +110,15 @@ class OrderExecutor:
             if unfilled_amount > 0:
                 self._orderbook.add_order(order)
                 self._lock_assets(order, unfilled_amount)
+                # 부분 체결
+                self._order_history.add_record(order, OrderStatus.PARTIALLY_FILLED, timestamp)
                 logger.info(
                     f"주문 부분 체결 후 OrderBook 추가: order_id={order.order_id}, "
                     f"filled={filled_amount}, unfilled={unfilled_amount}"
                 )
             else:
+                # 완전 체결
+                self._order_history.add_record(order, OrderStatus.FILLED, timestamp)
                 logger.info(f"주문 완전 체결: order_id={order.order_id}, amount={filled_amount}")
 
             return trades
@@ -108,11 +132,19 @@ class OrderExecutor:
             logger.error(f"주문 취소 실패: 주문을 찾을 수 없음 - order_id={order_id}")
             raise KeyError(f"주문을 찾을 수 없음: order_id={order_id}")
 
+        # 현재 타임스탬프 조회
+        symbol = order.stock_address.to_symbol()
+        current_price = self._market_data.get_current(symbol)
+        timestamp = current_price.t if current_price else order.timestamp
+
         # OrderBook에서 제거
         self._orderbook.remove_order(order_id)
 
         # 잠긴 자산 해제
         self._portfolio.unlock_currency(order_id)
+
+        # 취소 이력 추가
+        self._order_history.add_record(order, OrderStatus.CANCELED, timestamp)
 
         logger.info(f"주문 취소 완료: order_id={order_id}")
 

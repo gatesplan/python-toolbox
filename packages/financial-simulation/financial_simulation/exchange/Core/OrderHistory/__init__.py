@@ -1,4 +1,4 @@
-"""Core layer"""
+"""OrderHistory Core Component."""
 
 from .OrderHistory import OrderHistory, OrderRecord
 

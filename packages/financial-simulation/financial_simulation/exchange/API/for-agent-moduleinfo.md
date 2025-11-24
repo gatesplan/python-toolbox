@@ -3,6 +3,7 @@ Spot 거래소 API Layer. 외부 시스템의 진입점으로 주문 생성, 취
 
 _portfolio: Portfolio
 _orderbook: OrderBook
+_order_history: OrderHistory
 _market_data: MarketData
 _order_validator: OrderValidator
 _order_executor: OrderExecutor
@@ -37,6 +38,24 @@ place_order(order: SpotOrder) -> list[SpotTrade]
 cancel_order(order_id: str) -> None
     raise KeyError
     미체결 주문 취소. OrderExecutor.cancel_order() 위임.
+
+get_order(order_id: str) -> SpotOrder | None
+    개별 주문 조회 (미체결 + 이력). OrderBook과 OrderHistory에서 조회.
+
+    Args:
+        order_id: 주문 ID
+
+    Returns:
+        SpotOrder | None: 주문 객체 또는 None (미체결 우선, 없으면 이력에서 조회)
+
+get_order_status(order_id: str) -> OrderStatus | None
+    주문 상태 조회. OrderHistory에서 최신 상태 반환.
+
+    Args:
+        order_id: 주문 ID
+
+    Returns:
+        OrderStatus | None: 주문 상태 (NEW, PARTIALLY_FILLED, FILLED, CANCELED, EXPIRED, REJECTED) 또는 None
 
 get_open_orders(symbol: str | None = None) -> list[SpotOrder]
     미체결 주문 조회. symbol 지정 시 해당 심볼만 반환, 미지정 시 전체 반환.

@@ -8,11 +8,14 @@ if TYPE_CHECKING:
 
 from financial_assets.order import SpotOrder
 from financial_assets.trade import SpotTrade
+from financial_assets.constants import OrderStatus
 from financial_simulation.exchange.Core.Portfolio.Portfolio import Portfolio
 from financial_simulation.exchange.Core.OrderBook.OrderBook import OrderBook
+from financial_simulation.exchange.Core.OrderHistory import OrderHistory, OrderRecord
 from financial_simulation.exchange.Service.OrderValidator.OrderValidator import OrderValidator
 from financial_simulation.exchange.Service.OrderExecutor.OrderExecutor import OrderExecutor
 from financial_simulation.exchange.Service.PositionManager.PositionManager import PositionManager
+from financial_simulation.exchange.Service.MarketDataService.MarketDataService import MarketDataService
 from financial_simulation.tradesim.API.TradeSimulation import TradeSimulation
 
 
@@ -39,6 +42,7 @@ class SpotExchange:
         # Core 컴포넌트 생성
         self._portfolio = Portfolio()
         self._orderbook = OrderBook()
+        self._order_history = OrderHistory()
         self._market_data = market_data
 
         # 초기 자금 입금
@@ -62,13 +66,15 @@ class SpotExchange:
             self._portfolio,
             self._orderbook,
             self._market_data,
-            self._trade_simulation
+            self._trade_simulation,
+            self._order_history
         )
         self._position_manager = PositionManager(
             self._portfolio,
             self._market_data,
             initial_balance
         )
+        self._market_data_service = MarketDataService(self._market_data)
 
         # 거래 내역
         self._trade_history: list[SpotTrade] = []
@@ -106,6 +112,44 @@ class SpotExchange:
             KeyError: 주문이 존재하지 않을 때
         """
         self._order_executor.cancel_order(order_id)
+
+    def get_order(self, order_id: str) -> SpotOrder | None:
+        """개별 주문 조회 (미체결 + 이력).
+
+        Args:
+            order_id: 주문 ID
+
+        Returns:
+            SpotOrder | None: 주문 객체 또는 None
+        """
+        # 1. OrderBook에서 미체결 주문 조회
+        order = self._orderbook.get_order(order_id)
+        if order is not None:
+            return order
+
+        # 2. OrderHistory에서 이력 조회
+        record = self._order_history.get_record(order_id)
+        return record.order if record else None
+
+    def get_order_status(self, order_id: str) -> OrderStatus | None:
+        """주문 상태 조회.
+
+        Args:
+            order_id: 주문 ID
+
+        Returns:
+            OrderStatus | None: 주문 상태 또는 None
+        """
+        # OrderBook에 있으면 미체결 상태 확인
+        order = self._orderbook.get_order(order_id)
+        if order is not None:
+            # OrderHistory에서 최신 상태 조회
+            record = self._order_history.get_record(order_id)
+            return record.status if record else OrderStatus.NEW
+
+        # OrderHistory에서만 조회
+        record = self._order_history.get_record(order_id)
+        return record.status if record else None
 
     def get_open_orders(self, symbol: str | None = None) -> list[SpotOrder]:
         """미체결 주문 조회.
@@ -224,13 +268,22 @@ class SpotExchange:
             if current_timestamp is not None:
                 expired_order_ids = self._orderbook.expire_orders(current_timestamp)
 
-                # 3. 만료된 주문의 자산 잠금 해제
+                # 3. 만료된 주문의 자산 잠금 해제 및 이력 추가
                 for order_id in expired_order_ids:
                     try:
                         self._portfolio.unlock_currency(order_id)
                     except KeyError:
                         # 이미 해제된 경우 무시
                         pass
+
+                    # 만료 이력 추가
+                    record = self._order_history.get_record(order_id)
+                    if record:
+                        self._order_history.add_record(
+                            record.order,
+                            OrderStatus.EXPIRED,
+                            current_timestamp
+                        )
 
         return True
 
@@ -243,30 +296,35 @@ class SpotExchange:
         # 2. OrderBook 초기화 (새로 생성)
         self._orderbook = OrderBook()
 
-        # 3. MarketData 커서 리셋
+        # 3. OrderHistory 초기화 (새로 생성)
+        self._order_history = OrderHistory()
+
+        # 4. MarketData 커서 리셋
         self._market_data.reset()
 
-        # 4. TradeSimulation 재생성
+        # 5. TradeSimulation 재생성
         self._trade_simulation = TradeSimulation(
             maker_fee_ratio=self._maker_fee_ratio,
             taker_fee_ratio=self._taker_fee_ratio
         )
 
-        # 5. Service 컴포넌트 재생성 (Portfolio 참조 갱신)
+        # 6. Service 컴포넌트 재생성 (Portfolio, OrderHistory 참조 갱신)
         self._order_validator = OrderValidator(self._portfolio, self._market_data)
         self._order_executor = OrderExecutor(
             self._portfolio,
             self._orderbook,
             self._market_data,
-            self._trade_simulation
+            self._trade_simulation,
+            self._order_history
         )
         self._position_manager = PositionManager(
             self._portfolio,
             self._market_data,
             self._initial_balance
         )
+        self._market_data_service = MarketDataService(self._market_data)
 
-        # 6. 거래 내역 초기화
+        # 7. 거래 내역 초기화
         self._trade_history = []
 
     def get_current_timestamp(self) -> int | None:
@@ -302,3 +360,23 @@ class SpotExchange:
             bool: 종료 여부
         """
         return self._market_data.is_finished()
+
+    def get_orderbook(self, symbol: str, depth: int = 20):
+        """OHLC 기반 더미 호가창 생성 (Gateway API 호환용).
+
+        Args:
+            symbol: 심볼 (예: "BTC/USDT")
+            depth: 호가 깊이 (기본값: 20)
+
+        Returns:
+            Orderbook: financial-assets Orderbook 객체
+        """
+        return self._market_data_service.generate_orderbook(symbol, depth)
+
+    def get_available_markets(self) -> list[dict]:
+        """마켓 목록 조회 (Gateway API 호환용).
+
+        Returns:
+            list[dict]: [{"symbol": Symbol, "status": MarketStatus}, ...]
+        """
+        return self._market_data_service.get_available_markets()
