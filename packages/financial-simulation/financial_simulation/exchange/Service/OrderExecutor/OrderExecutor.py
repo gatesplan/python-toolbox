@@ -8,11 +8,8 @@ from financial_assets.trade import SpotTrade
 from financial_assets.pair import Pair
 from financial_assets.token import Token
 from financial_assets.constants import OrderSide, OrderType, TimeInForce, OrderStatus
-from ...Core.Portfolio import Portfolio
-from ...Core.OrderBook import OrderBook
-from ...Core.MarketData import MarketData
-from ...Core.OrderHistory import OrderHistory
-from ....tradesim.API.TradeSimulation import TradeSimulation
+from ...Core import Portfolio, OrderBook, MarketData, OrderHistory
+from ....tradesim.API import TradeSimulation
 
 
 class OrderExecutor:

@@ -5,8 +5,7 @@ from __future__ import annotations
 from simple_logger import func_logging, logger
 from financial_assets.order import SpotOrder
 from financial_assets.constants import OrderSide, OrderType
-from ...Core.Portfolio import Portfolio
-from ...Core.MarketData import MarketData
+from ...Core import Portfolio, MarketData
 
 
 class OrderValidator:

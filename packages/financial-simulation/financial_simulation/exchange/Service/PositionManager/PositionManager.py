@@ -1,8 +1,7 @@
 """포지션 조회 및 통계 제공 (Service Layer)"""
 
-from ...Core.Portfolio import Portfolio
-from ...Core.MarketData import MarketData
 from financial_assets.symbol import Symbol
+from ...Core import Portfolio, MarketData
 from .Core.ValueCalculator.ValueCalculator import ValueCalculator
 from .Core.PnLCalculator.PnLCalculator import PnLCalculator
 from simple_logger import init_logging, logger

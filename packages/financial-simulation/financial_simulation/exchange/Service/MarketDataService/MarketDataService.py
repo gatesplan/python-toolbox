@@ -4,7 +4,7 @@ from simple_logger import init_logging, func_logging
 from financial_assets.orderbook import Orderbook, OrderbookLevel
 from financial_assets.symbol import Symbol
 from financial_assets.constants import MarketStatus
-from ...Core.MarketData import MarketData
+from ...Core import MarketData
 
 
 class MarketDataService:

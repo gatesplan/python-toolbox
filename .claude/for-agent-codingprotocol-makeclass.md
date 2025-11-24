@@ -12,3 +12,24 @@
 - 의존성 순서 점검
 - 불필요한 동적 임포트, 타입체킹 금지
 - 임포트 순서 코드 prettify (일반적 원칙대로)
+
+```python
+## 베스트 임포트 예제
+
+# standard library
+import os
+
+# third party
+from django.db import models
+from __future__ import annotations
+
+# second party
+from financial_assets.order import SpotOrder
+from financial_assets.trade import SpotTrade
+from financial_assets.constants import OrderStatus
+
+# local (in same package)
+from ..Core import Portfolio, OrderBook, MarketData, OrderHistory, OrderRecord
+from ..Service import OrderValidator, OrderExecutor, PositionManager, MarketDataService
+from ...tradesim.API import TradeSimulation
+```
