@@ -128,7 +128,7 @@ class OrderExecutor:
             raise KeyError(f"주문을 찾을 수 없음: order_id={order_id}")
 
         # 현재 타임스탬프 조회
-        symbol = order.stock_address.to_symbol()
+        symbol = order.stock_address.to_symbol().to_slash()
         current_price = self._market_data.get_current(symbol)
         timestamp = current_price.t if current_price else order.timestamp
 

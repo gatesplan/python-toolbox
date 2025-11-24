@@ -176,3 +176,64 @@ class MarketData:
             f"cursor_idx={self._cursor_idx}/{self._n_timestamps}, "
             f"progress={self.get_progress():.2%})"
         )
+
+    def get_candles(
+        self,
+        symbol: str,
+        start_ts: int = None,
+        end_ts: int = None,
+        limit: int = None
+    ):
+        """과거 캔들 데이터 조회 (MultiCandle의 고정 timeframe 사용)
+
+        Args:
+            symbol: 심볼 (예: "BTC/USDT")
+            start_ts: 시작 타임스탬프 (None이면 처음부터)
+            end_ts: 종료 타임스탬프 (None이면 현재 커서까지)
+            limit: 최대 개수 (None이면 전체)
+
+        Returns:
+            pd.DataFrame: 캔들 데이터
+
+        Raises:
+            KeyError: 심볼이 존재하지 않음
+        """
+        import pandas as pd
+
+        # 기본값 설정
+        if start_ts is None:
+            start_ts = int(self._timestamps[0])
+        if end_ts is None:
+            # 현재 커서를 포함하려면 다음 타임스탬프 사용 (exclusive range이므로)
+            if self._cursor_idx < self._n_timestamps - 1:
+                end_ts = int(self._timestamps[self._cursor_idx + 1])
+            else:
+                # 마지막 커서인 경우, 마지막 타임스탬프 + 1 사용
+                end_ts = int(self._timestamps[self._cursor_idx]) + 1
+
+        # MultiCandle에서 Price 리스트 조회
+        prices = self._multicandle.get_symbol_range(
+            symbol,
+            start_ts,
+            end_ts,
+            as_price=True
+        )
+
+        # DataFrame 변환
+        df = pd.DataFrame([
+            {
+                'timestamp': p.t,
+                'open': p.o,
+                'high': p.h,
+                'low': p.l,
+                'close': p.c,
+                'volume': p.v
+            }
+            for p in prices
+        ])
+
+        # limit 적용
+        if limit is not None and len(df) > limit:
+            df = df.tail(limit).reset_index(drop=True)
+
+        return df

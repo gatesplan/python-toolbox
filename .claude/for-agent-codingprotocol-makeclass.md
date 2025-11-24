@@ -13,9 +13,8 @@
 - 불필요한 동적 임포트, 타입체킹 금지
 - 임포트 순서 코드 prettify (일반적 원칙대로)
 
+#### 예시
 ```python
-## 베스트 임포트 예제
-
 # standard library
 import os
 

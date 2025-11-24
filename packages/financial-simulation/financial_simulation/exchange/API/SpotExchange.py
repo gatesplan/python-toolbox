@@ -364,3 +364,28 @@ class SpotExchange:
             list[dict]: [{"symbol": Symbol, "status": MarketStatus}, ...]
         """
         return self._market_data_service.get_available_markets()
+
+    def get_candles(
+        self,
+        symbol: str,
+        start_time: int = None,
+        end_time: int = None,
+        limit: int = None
+    ):
+        """과거 캔들 데이터 조회 (Gateway API 호환용).
+
+        Args:
+            symbol: 심볼 (예: "BTC/USDT")
+            start_time: 시작 타임스탬프 (None이면 처음부터)
+            end_time: 종료 타임스탬프 (None이면 현재까지)
+            limit: 최대 개수 (None이면 전체)
+
+        Returns:
+            pd.DataFrame: 캔들 데이터 (columns: timestamp, open, high, low, close, volume)
+        """
+        return self._market_data.get_candles(
+            symbol=symbol,
+            start_ts=start_time,
+            end_ts=end_time,
+            limit=limit
+        )

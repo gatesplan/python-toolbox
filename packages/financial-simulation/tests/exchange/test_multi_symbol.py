@@ -302,3 +302,243 @@ class TestMultiSymbolTrading:
         # BTC는 줄어들고 ETH는 그대로
         assert positions_after["BTC-USDT"] < btc_amount
         assert positions_after["ETH-USDT"] == eth_amount
+
+
+class TestMarketDataCandles:
+    """MarketData 캔들 조회 기능 테스트"""
+
+    @pytest.fixture
+    def market_data_with_candles(self):
+        """캔들 데이터를 가진 MarketData 생성"""
+        # BTC/USDT Candle 생성 (20개)
+        btc_addr = StockAddress("candle", "binance", "spot", "BTC", "USDT", "1m")
+        btc_df = pd.DataFrame({
+            'timestamp': [1000 + i * 60 for i in range(20)],
+            'open': [50000.0 + i * 100 for i in range(20)],
+            'high': [51000.0 + i * 100 for i in range(20)],
+            'low': [49000.0 + i * 100 for i in range(20)],
+            'close': [50000.0 + i * 100 for i in range(20)],
+            'volume': [100.0 + i * 5 for i in range(20)]
+        })
+        btc_candle = Candle(btc_addr, btc_df)
+
+        # ETH/USDT Candle 생성 (20개)
+        eth_addr = StockAddress("candle", "binance", "spot", "ETH", "USDT", "1m")
+        eth_df = pd.DataFrame({
+            'timestamp': [1000 + i * 60 for i in range(20)],
+            'open': [3000.0 + i * 10 for i in range(20)],
+            'high': [3100.0 + i * 10 for i in range(20)],
+            'low': [2900.0 + i * 10 for i in range(20)],
+            'close': [3000.0 + i * 10 for i in range(20)],
+            'volume': [200.0 + i * 10 for i in range(20)]
+        })
+        eth_candle = Candle(eth_addr, eth_df)
+
+        # MultiCandle 생성
+        mc = MultiCandle([btc_candle, eth_candle])
+
+        # MarketData 생성 (커서를 중간으로)
+        market_data = MarketData(mc, start_offset=5)
+        return market_data
+
+    def test_get_candles_full_range(self, market_data_with_candles):
+        """전체 범위 캔들 조회 테스트"""
+        # start_ts, end_ts 모두 None이면 처음부터 현재 커서까지
+        df = market_data_with_candles.get_candles("BTC/USDT")
+
+        # DataFrame 구조 확인
+        assert isinstance(df, pd.DataFrame)
+        assert list(df.columns) == ['timestamp', 'open', 'high', 'low', 'close', 'volume']
+
+        # 데이터 개수 확인 (start_offset=5이므로 0~5 인덱스, 총 6개)
+        assert len(df) == 6
+
+        # 첫 번째 데이터 확인
+        assert df.iloc[0]['timestamp'] == 1000
+        assert df.iloc[0]['open'] == 50000.0
+        assert df.iloc[0]['close'] == 50000.0
+
+        # 마지막 데이터 확인 (인덱스 5)
+        assert df.iloc[-1]['timestamp'] == 1000 + 5 * 60
+        assert df.iloc[-1]['open'] == 50000.0 + 5 * 100
+
+    def test_get_candles_with_start_end(self, market_data_with_candles):
+        """시작/종료 타임스탬프 지정 캔들 조회 테스트"""
+        start_ts = 1000 + 2 * 60  # 인덱스 2
+        end_ts = 1000 + 8 * 60    # 인덱스 8
+
+        df = market_data_with_candles.get_candles(
+            "BTC/USDT",
+            start_ts=start_ts,
+            end_ts=end_ts
+        )
+
+        # 인덱스 2부터 8까지 (2, 3, 4, 5, 6, 7, 8 = 7개)
+        assert len(df) >= 5  # 최소 5개 이상
+
+        # 타임스탬프 범위 확인
+        assert df.iloc[0]['timestamp'] >= start_ts
+        assert df.iloc[-1]['timestamp'] <= end_ts
+
+    def test_get_candles_with_limit(self, market_data_with_candles):
+        """limit 지정 캔들 조회 테스트"""
+        # 전체 범위에서 최근 3개만
+        df = market_data_with_candles.get_candles(
+            "BTC/USDT",
+            limit=3
+        )
+
+        # 정확히 3개
+        assert len(df) == 3
+
+        # 가장 최근 데이터부터 3개 (인덱스 3, 4, 5)
+        assert df.iloc[-1]['timestamp'] == 1000 + 5 * 60
+
+    def test_get_candles_with_start_and_limit(self, market_data_with_candles):
+        """시작 타임스탬프 + limit 조회 테스트"""
+        start_ts = 1000  # 처음부터
+
+        df = market_data_with_candles.get_candles(
+            "BTC/USDT",
+            start_ts=start_ts,
+            limit=4
+        )
+
+        # 최대 4개
+        assert len(df) <= 4
+
+    def test_get_candles_multiple_symbols(self, market_data_with_candles):
+        """여러 심볼 캔들 조회 테스트"""
+        btc_df = market_data_with_candles.get_candles("BTC/USDT")
+        eth_df = market_data_with_candles.get_candles("ETH/USDT")
+
+        # 둘 다 조회 가능
+        assert len(btc_df) > 0
+        assert len(eth_df) > 0
+
+        # 동일한 개수
+        assert len(btc_df) == len(eth_df)
+
+        # 동일한 타임스탬프
+        assert list(btc_df['timestamp']) == list(eth_df['timestamp'])
+
+    def test_get_candles_invalid_symbol(self, market_data_with_candles):
+        """존재하지 않는 심볼 조회 테스트"""
+        with pytest.raises(KeyError):
+            market_data_with_candles.get_candles("INVALID/USDT")
+
+    def test_get_candles_dataframe_types(self, market_data_with_candles):
+        """DataFrame 데이터 타입 확인 테스트"""
+        df = market_data_with_candles.get_candles("BTC/USDT")
+
+        # 각 컬럼의 데이터 타입 확인
+        assert df['timestamp'].dtype in [int, 'int64']
+        assert df['open'].dtype in [float, 'float64']
+        assert df['high'].dtype in [float, 'float64']
+        assert df['low'].dtype in [float, 'float64']
+        assert df['close'].dtype in [float, 'float64']
+        assert df['volume'].dtype in [float, 'float64']
+
+    def test_get_candles_values_consistency(self, market_data_with_candles):
+        """캔들 데이터 값 일관성 테스트"""
+        df = market_data_with_candles.get_candles("BTC/USDT")
+
+        for _, row in df.iterrows():
+            # high >= open, close, low
+            assert row['high'] >= row['open']
+            assert row['high'] >= row['close']
+            assert row['high'] >= row['low']
+
+            # low <= open, close, high
+            assert row['low'] <= row['open']
+            assert row['low'] <= row['close']
+            assert row['low'] <= row['high']
+
+            # volume >= 0
+            assert row['volume'] >= 0
+
+
+class TestSpotExchangeCandles:
+    """SpotExchange 캔들 조회 기능 테스트"""
+
+    @pytest.fixture
+    def exchange_with_candles(self):
+        """캔들 데이터를 가진 SpotExchange 생성"""
+        # BTC/USDT Candle 생성
+        btc_addr = StockAddress("candle", "binance", "spot", "BTC", "USDT", "1m")
+        btc_df = pd.DataFrame({
+            'timestamp': [1000 + i * 60 for i in range(20)],
+            'open': [50000.0 + i * 100 for i in range(20)],
+            'high': [51000.0 + i * 100 for i in range(20)],
+            'low': [49000.0 + i * 100 for i in range(20)],
+            'close': [50000.0 + i * 100 for i in range(20)],
+            'volume': [100.0 + i * 5 for i in range(20)]
+        })
+        btc_candle = Candle(btc_addr, btc_df)
+
+        # ETH/USDT Candle 생성
+        eth_addr = StockAddress("candle", "binance", "spot", "ETH", "USDT", "1m")
+        eth_df = pd.DataFrame({
+            'timestamp': [1000 + i * 60 for i in range(20)],
+            'open': [3000.0 + i * 10 for i in range(20)],
+            'high': [3100.0 + i * 10 for i in range(20)],
+            'low': [2900.0 + i * 10 for i in range(20)],
+            'close': [3000.0 + i * 10 for i in range(20)],
+            'volume': [200.0 + i * 10 for i in range(20)]
+        })
+        eth_candle = Candle(eth_addr, eth_df)
+
+        # MultiCandle 생성
+        mc = MultiCandle([btc_candle, eth_candle])
+
+        # MarketData 생성
+        market_data = MarketData(mc, start_offset=5)
+
+        # SpotExchange 생성
+        exchange = SpotExchange(
+            initial_balance=100000.0,
+            market_data=market_data,
+            maker_fee_ratio=0.001,
+            taker_fee_ratio=0.002,
+            quote_currency="USDT"
+        )
+        return exchange
+
+    def test_get_candles_through_exchange(self, exchange_with_candles):
+        """SpotExchange를 통한 캔들 조회 테스트"""
+        df = exchange_with_candles.get_candles("BTC/USDT")
+
+        # DataFrame 구조 확인
+        assert isinstance(df, pd.DataFrame)
+        assert list(df.columns) == ['timestamp', 'open', 'high', 'low', 'close', 'volume']
+
+        # 데이터 존재 확인
+        assert len(df) > 0
+
+    def test_get_candles_with_parameters(self, exchange_with_candles):
+        """SpotExchange 캔들 조회 파라미터 테스트"""
+        start_time = 1000
+        end_time = 1000 + 10 * 60
+        limit = 5
+
+        df = exchange_with_candles.get_candles(
+            symbol="BTC/USDT",
+            start_time=start_time,
+            end_time=end_time,
+            limit=limit
+        )
+
+        # limit 적용 확인
+        assert len(df) <= limit
+
+    def test_get_candles_multiple_symbols_through_exchange(self, exchange_with_candles):
+        """SpotExchange를 통한 여러 심볼 캔들 조회 테스트"""
+        btc_df = exchange_with_candles.get_candles("BTC/USDT")
+        eth_df = exchange_with_candles.get_candles("ETH/USDT")
+
+        # 둘 다 조회 가능
+        assert len(btc_df) > 0
+        assert len(eth_df) > 0
+
+        # 동일한 타임스탬프
+        assert list(btc_df['timestamp']) == list(eth_df['timestamp'])

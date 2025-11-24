@@ -130,6 +130,18 @@ get_current_price(symbol: str) -> float | None
 is_finished() -> bool
     시뮬레이션 종료 여부 (MarketData.is_finished() 래핑)
 
+get_candles(symbol: str, start_time: int = None, end_time: int = None, limit: int = None) -> pd.DataFrame
+    과거 캔들 데이터 조회 (Gateway API 호환용, MarketData.get_candles() 래핑)
+
+    Args:
+        symbol: 심볼 (예: "BTC/USDT")
+        start_time: 시작 타임스탬프 (None이면 처음부터)
+        end_time: 종료 타임스탬프 (None이면 현재까지, 커서 포함)
+        limit: 최대 개수 (None이면 전체)
+
+    Returns:
+        pd.DataFrame: 캔들 데이터 (columns: timestamp, open, high, low, close, volume)
+
 ---
 
 **주문 생성 흐름:**

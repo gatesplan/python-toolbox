@@ -47,6 +47,19 @@ get_progress() -> float
 get_availability(cursor_position: int | None = None) -> float
     특정 커서 위치의 데이터 유효성 비율
 
+get_candles(symbol: str, start_ts: int = None, end_ts: int = None, limit: int = None) -> pd.DataFrame
+    raise KeyError
+    과거 캔들 데이터 조회 (MultiCandle의 고정 timeframe 사용)
+
+    Args:
+        symbol: 심볼 (예: "BTC/USDT")
+        start_ts: 시작 타임스탬프 (None이면 처음부터)
+        end_ts: 종료 타임스탬프 (None이면 현재 커서까지, 커서 포함)
+        limit: 최대 개수 (None이면 전체, 지정 시 최근 데이터부터 limit개)
+
+    Returns:
+        pd.DataFrame: 캔들 데이터 (columns: timestamp, open, high, low, close, volume)
+
 ---
 
 **시간 동기화:**
