@@ -40,10 +40,9 @@ class AuthService:
 
 ## 코드 품질 관리를 위한 세부 사항
 
-### 1. `import` 규칙
+### 1. 클래스 작성시 규칙
 
-임포트는 기본적으로 Python PEP 8 스타일 가이드에 따르며, Type checking 대상인지 여부는 패키지 의존성 확인을 거쳐 필요시 사용.
-
+@.claude/for-agent-codingprotocol-makeclass.md 참조
 
 ### 2. 로깅 규칙
 

@@ -1,53 +1,58 @@
+# standard library
 from typing import Dict, Type
+
+# third party
 from simple_logger import init_logging, logger
 from throttled_api.providers.upbit import UpbitSpotThrottler
-from financial_gateway.gateways.base import SpotMarketGatewayBase
-from financial_gateway.structures.base import BaseRequest, BaseResponse
-from financial_gateway.structures.create_order import CreateOrderRequest
-from financial_gateway.structures.cancel_order import CancelOrderRequest
-from financial_gateway.structures.modify_or_replace_order import ModifyOrReplaceOrderRequest
-from financial_gateway.structures.see_order import SeeOrderRequest
-from financial_gateway.structures.see_open_orders import SeeOpenOrdersRequest
-from financial_gateway.structures.see_holdings import SeeHoldingsRequest
-from financial_gateway.structures.see_balance import SeeBalanceRequest
-from financial_gateway.structures.see_available_markets import SeeAvailableMarketsRequest
-from financial_gateway.structures.see_ticker import SeeTickerRequest
-from financial_gateway.structures.see_orderbook import SeeOrderbookRequest
-from financial_gateway.structures.see_trades import SeeTradesRequest
-from financial_gateway.structures.see_candles import SeeCandlesRequest
-from financial_gateway.structures.see_server_time import SeeServerTimeRequest
+
+# local (in same package)
+from ..base import SpotMarketGatewayBase
+from ...structures import (
+    BaseRequest,
+    BaseResponse,
+    CancelOrderRequest,
+    CreateOrderRequest,
+    ModifyOrReplaceOrderRequest,
+    SeeAvailableMarketsRequest,
+    SeeBalanceRequest,
+    SeeCandlesRequest,
+    SeeHoldingsRequest,
+    SeeOpenOrdersRequest,
+    SeeOrderRequest,
+    SeeOrderbookRequest,
+    SeeServerTimeRequest,
+    SeeTickerRequest,
+    SeeTradesRequest,
+)
+from .workers import (
+    CancelOrderWorker,
+    CreateOrderWorker,
+    ModifyOrReplaceOrderWorker,
+    SeeAvailableMarketsWorker,
+    SeeBalanceWorker,
+    SeeCandlesWorker,
+    SeeHoldingsWorker,
+    SeeOpenOrdersWorker,
+    SeeOrderWorker,
+    SeeOrderbookWorker,
+    SeeServerTimeWorker,
+    SeeTickerWorker,
+    SeeTradesWorker,
+)
 
 
 class UpbitSpotGateway(SpotMarketGatewayBase):
-    """Upbit Spot Gateway Director (SDW 패턴)
-
-    Throttler를 공유 리소스로 보유하며, Request 타입에 따라 적절한 Worker로 라우팅.
-
-    Upbit 특징:
-    - 기본 quote currency: KRW
-    - 평단가 직접 제공 (avg_buy_price)
-    - 주문 타입: bid(매수), ask(매도)
-    - ord_type: limit(지정가), price(시장가 매수), market(시장가 매도)
-    """
+    # Upbit Spot Gateway Director (SDW 패턴)
+    # Throttler를 공유 리소스로 보유하며, Request 타입에 따라 적절한 Worker로 라우팅
+    # Upbit 특징:
+    # - 기본 quote currency: KRW
+    # - 평단가 직접 제공 (avg_buy_price)
+    # - 주문 타입: bid(매수), ask(매도)
+    # - ord_type: limit(지정가), price(시장가 매수), market(시장가 매도)
 
     @init_logging(level="INFO", log_params=True)
     def __init__(self, throttler: UpbitSpotThrottler):
         self.throttler = throttler
-
-        # Workers 생성 (지연 임포트로 순환 참조 방지)
-        from .workers.CreateOrderWorker import CreateOrderWorker
-        from .workers.CancelOrderWorker import CancelOrderWorker
-        from .workers.ModifyOrReplaceOrderWorker import ModifyOrReplaceOrderWorker
-        from .workers.SeeOrderWorker import SeeOrderWorker
-        from .workers.SeeOpenOrdersWorker import SeeOpenOrdersWorker
-        from .workers.SeeHoldingsWorker import SeeHoldingsWorker
-        from .workers.SeeBalanceWorker import SeeBalanceWorker
-        from .workers.SeeAvailableMarketsWorker import SeeAvailableMarketsWorker
-        from .workers.SeeTickerWorker import SeeTickerWorker
-        from .workers.SeeOrderbookWorker import SeeOrderbookWorker
-        from .workers.SeeTradesWorker import SeeTradesWorker
-        from .workers.SeeCandlesWorker import SeeCandlesWorker
-        from .workers.SeeServerTimeWorker import SeeServerTimeWorker
 
         # Worker 인스턴스 생성
         self._create_order_worker = CreateOrderWorker(throttler)

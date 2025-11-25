@@ -64,7 +64,7 @@ class MarketDataService:
 
         for symbol_str in symbols:
             markets.append({
-                "symbol": Symbol.from_slash(symbol_str),
+                "symbol": Symbol(symbol_str),
                 "status": MarketStatus.TRADING  # 시뮬레이션은 항상 TRADING
             })
 
