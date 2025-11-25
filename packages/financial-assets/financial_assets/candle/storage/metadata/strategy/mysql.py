@@ -44,7 +44,7 @@ class MySQLMetadataStrategy(BaseMetadataStrategy):
         # 2. 메타데이터 테이블 생성 (없으면)
         create_table_sql = f"""
         CREATE TABLE IF NOT EXISTS {self.METADATA_TABLE} (
-            address_key VARCHAR(255) PRIMARY KEY,
+            address_key VARCHAR(64) PRIMARY KEY,
             last_update_ts BIGINT NOT NULL,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
         )
