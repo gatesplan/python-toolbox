@@ -34,7 +34,7 @@ class SeeCandlesWorker:
     def __init__(self, throttler: BinanceSpotThrottler):
         self.throttler = throttler
 
-    @func_logging(level="INFO", log_params=True, log_result=True)
+    @func_logging(level="INFO", log_params=True)
     async def execute(self, request: SeeCandlesRequest) -> SeeCandlesResponse:
         send_when = self._utc_now_ms()
 
