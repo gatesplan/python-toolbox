@@ -12,9 +12,11 @@
 캔들 데이터를 쉽게 저장/로드/업데이트할 수 있는 **목적성 있는 인터페이스** 제공.
 
 **핵심 기능:**
-- `save()`: 데이터 저장 (저장소 준비 + 마지막 row 교체 + 신규 추가)
+- `save()`: 데이터 저장 (저장소 준비 + 마지막 row 교체 + 신규 추가 + 메타데이터 업데이트)
 - `load(start_ts, end_ts)`: 범위 조회
 - `update(new_df, save_immediately)`: 온메모리 병합 (선택적 즉시 저장)
+- `get_last_update_ts(address)`: 마지막 업데이트 타임스탬프 조회 (데이터 로드 없이)
+- `get_time_since_last_update(address)`: 마지막 업데이트 이후 경과 시간 조회
 
 **데이터 특성:**
 - 캔들 데이터는 마지막 row를 제외하면 불변
@@ -60,28 +62,34 @@ graph TB
     PrepareWorker[PrepareWorker]
     SaveWorker[SaveWorker]
     LoadWorker[LoadWorker]
+    MetadataWorker[MetadataWorker]
 
     BasePrepareStrategy[BasePrepareStrategy]
     BaseSaveStrategy[BaseSaveStrategy]
     BaseLoadStrategy[BaseLoadStrategy]
+    BaseMetadataStrategy[BaseMetadataStrategy]
 
     ParquetPrepare[ParquetPrepareStrategy]
     ParquetSave[ParquetSaveStrategy]
     ParquetLoad[ParquetLoadStrategy]
+    ParquetMetadata[ParquetMetadataStrategy]
 
     MySQLPrepare[MySQLPrepareStrategy]
     MySQLSave[MySQLSaveStrategy]
     MySQLLoad[MySQLLoadStrategy]
+    MySQLMetadata[MySQLMetadataStrategy]
 
     Candle --> EnvManageWorker
     Candle --> StorageDirector
     StorageDirector --> PrepareWorker
     StorageDirector --> SaveWorker
     StorageDirector --> LoadWorker
+    StorageDirector --> MetadataWorker
 
     PrepareWorker --> BasePrepareStrategy
     SaveWorker --> BaseSaveStrategy
     LoadWorker --> BaseLoadStrategy
+    MetadataWorker --> BaseMetadataStrategy
 
     BasePrepareStrategy -.-> ParquetPrepare
     BasePrepareStrategy -.-> MySQLPrepare
@@ -89,19 +97,22 @@ graph TB
     BaseSaveStrategy -.-> MySQLSave
     BaseLoadStrategy -.-> ParquetLoad
     BaseLoadStrategy -.-> MySQLLoad
+    BaseMetadataStrategy -.-> ParquetMetadata
+    BaseMetadataStrategy -.-> MySQLMetadata
 ```
 
 **레이어 구조:**
 1. **Candle**: 사용자 인터페이스
 2. **EnvManageWorker**: 환경변수 관리 (전처리, 자동 생성)
 3. **StorageDirector**: 전략 선택 및 Worker 관리
-4. **Worker**: 각 작업(prepare/save/load) 흐름 관장
-5. **Strategy**: 백엔드별 구현 (현재 Parquet만, 미래 MySQL 등)
+4. **Worker**: 각 작업(prepare/save/load/metadata) 흐름 관장
+5. **Strategy**: 백엔드별 구현 (Parquet, MySQL)
 
 **작업별 책임:**
-- **prepare**: 저장소(파일, db+table) 존재 확인 및 없으면 생성
-- **save**: 마지막 타임스탬프 캔들은 새 값으로 업데이트, 이후 값은 저장
+- **prepare**: 저장소(파일, db+table, 메타데이터) 존재 확인 및 없으면 생성
+- **save**: 마지막 타임스탬프 캔들은 새 값으로 업데이트, 이후 값은 저장, 메타데이터 업데이트
 - **load**: address를 받아서 start, end까지 데이터 로드해 반환
+- **metadata**: 마지막 업데이트 타임스탬프 조회/저장 (데이터 로드 없이)
 
 ## 데이터
 
@@ -165,6 +176,8 @@ classDiagram
         +last_timestamp() int
         +get_price_by_iloc(idx: int) Price
         +get_price_by_timestamp(timestamp: int) Price
+        +static get_last_update_ts(address: StockAddress) int | None
+        +static get_time_since_last_update(address: StockAddress) int | None
     }
 ```
 
@@ -192,6 +205,7 @@ classDiagram
   - `is_new=True`면 PrepareStrategy 먼저 실행
   - SaveStrategy로 데이터 저장 (storage_last_ts와 candle_df를 비교해 중복 제거 후 저장)
   - 저장 후 `is_new=False`, `storage_last_ts=candle_df 마지막 타임스탬프` 설정
+  - MetadataStrategy로 마지막 업데이트 타임스탬프 저장
 - `update(new_df, save_immediately)`: 온메모리 병합
   - new_df의 timestamp와 기존 candle_df의 timestamp 비교
   - 기존 timestamp와 일치하는 row는 new_df 값으로 업데이트
@@ -201,6 +215,12 @@ classDiagram
 - `last_timestamp()`: 마지막 타임스탬프 반환
 - `get_price_by_iloc(idx)`: 인덱스로 Price 조회
 - `get_price_by_timestamp(timestamp)`: 타임스탬프로 Price 조회
+- `get_last_update_ts(address)` (static): 마지막 업데이트 타임스탬프 조회 (데이터 로드 없이)
+  - MetadataStrategy로 메타데이터만 조회
+  - 데이터 없으면 None 반환
+- `get_time_since_last_update(address)` (static): 마지막 업데이트 이후 경과 시간 (초)
+  - `get_last_update_ts()` 결과와 현재 시각 비교
+  - 데이터 없으면 None 반환
 
 ### EnvManageWorker
 
@@ -239,18 +259,22 @@ classDiagram
         -prepare_worker: PrepareWorker
         -save_worker: SaveWorker
         -load_worker: LoadWorker
+        -metadata_worker: MetadataWorker
         +__init__(env_config)
         +get_prepare_worker()
         +get_save_worker()
         +get_load_worker()
+        +get_metadata_worker()
     }
     class PrepareWorker
     class SaveWorker
     class LoadWorker
+    class MetadataWorker
 
     StorageDirector o-- PrepareWorker
     StorageDirector o-- SaveWorker
     StorageDirector o-- LoadWorker
+    StorageDirector o-- MetadataWorker
 ```
 
 **Worker 관리 방식:**
@@ -263,6 +287,7 @@ classDiagram
 - `get_prepare_worker() -> PrepareWorker`: PrepareWorker 인스턴스 반환 (캐싱)
 - `get_save_worker() -> SaveWorker`: SaveWorker 인스턴스 반환 (캐싱)
 - `get_load_worker() -> LoadWorker`: LoadWorker 인스턴스 반환 (캐싱)
+- `get_metadata_worker() -> MetadataWorker`: MetadataWorker 인스턴스 반환 (캐싱)
 
 ### PrepareWorker
 
@@ -324,6 +349,28 @@ classDiagram
 - `__init__(strategy: BaseLoadStrategy) -> None`: Strategy 주입받아 초기화
 - `__call__(address: StockAddress, start_ts: int = None, end_ts: int = None) -> pd.DataFrame`: 데이터 로드 및 반환 (내부에서 strategy.load 호출)
 
+### MetadataWorker
+
+메타데이터 관리 작업 흐름 관장. Strategy를 실행하여 메타데이터를 조회/저장한다.
+
+```mermaid
+classDiagram
+    class MetadataWorker {
+        -strategy: BaseMetadataStrategy
+        +__init__(strategy)
+        +get_last_update_ts(address)
+        +set_last_update_ts(address, timestamp)
+    }
+    class BaseMetadataStrategy
+
+    MetadataWorker o-- BaseMetadataStrategy
+```
+
+**메서드:**
+- `__init__(strategy: BaseMetadataStrategy) -> None`: Strategy 주입받아 초기화
+- `get_last_update_ts(address: StockAddress) -> int | None`: 마지막 업데이트 타임스탬프 조회 (내부에서 strategy.get_last_update_ts 호출)
+- `set_last_update_ts(address: StockAddress, timestamp: int) -> None`: 마지막 업데이트 타임스탬프 저장 (내부에서 strategy.set_last_update_ts 호출)
+
 ### BasePrepareStrategy
 
 저장소 준비 전략의 추상 클래스. 전략별로 저장소를 준비한다.
@@ -349,8 +396,8 @@ classDiagram
 - `prepare(address: StockAddress) -> None`: 저장소 준비
 
 **구현체:**
-- **ParquetPrepareStrategy**: 디렉토리 생성 (`basepath` 확인 및 생성)
-- **MySQLPrepareStrategy**: 테이블 생성
+- **ParquetPrepareStrategy**: 디렉토리 생성 (`basepath` 확인 및 생성), 메타데이터 파일 초기화 (`_metadata.json`)
+- **MySQLPrepareStrategy**: 데이터베이스 생성, 메타데이터 테이블 생성 (`fa_candles_metadata`), 캔들 데이터 테이블 생성
 
 **MySQL 테이블 스키마:**
 ```sql
@@ -431,6 +478,58 @@ classDiagram
 - **ParquetLoadStrategy**: parquet 파일 로드 → metadata에서 unit 읽기 → tick → timestamp 역변환 (start_ts/end_ts 무시, 전체 로드) → 데이터 없으면 빈 DataFrame 반환 (storage_last_ts=0)
 - **MySQLLoadStrategy**: SELECT 쿼리 실행 (`WHERE timestamp >= start_ts AND timestamp < end_ts`) → DataFrame 변환 → 데이터 없으면 빈 DataFrame 반환 (storage_last_ts=0)
 
+### BaseMetadataStrategy
+
+메타데이터 관리 전략의 추상 클래스. 전략별로 메타데이터를 조회/저장한다.
+
+```mermaid
+classDiagram
+    class BaseMetadataStrategy {
+        <<abstract>>
+        +get_last_update_ts(address)*
+        +set_last_update_ts(address, timestamp)*
+    }
+    class ParquetMetadataStrategy {
+        -basepath: Path
+        -metadata_file: Path
+        -_lock: Lock
+        +get_last_update_ts(address)
+        +set_last_update_ts(address, timestamp)
+    }
+    class MySQLMetadataStrategy {
+        -engine: Engine
+        -METADATA_TABLE: str
+        +get_last_update_ts(address)
+        +set_last_update_ts(address, timestamp)
+    }
+
+    BaseMetadataStrategy <|-- ParquetMetadataStrategy
+    BaseMetadataStrategy <|-- MySQLMetadataStrategy
+```
+
+**메서드:**
+- `get_last_update_ts(address: StockAddress) -> int | None`: 마지막 업데이트 타임스탬프 조회 (없으면 None)
+- `set_last_update_ts(address: StockAddress, timestamp: int) -> None`: 마지막 업데이트 타임스탬프 저장
+
+**구현체:**
+- **ParquetMetadataStrategy**:
+  - `{basepath}/_metadata.json` 파일 사용
+  - JSON 구조: `{"address_key": last_update_ts, ...}` (address_key = address.to_filename())
+  - 파일 lock(Threading.Lock)을 통한 동시성 처리
+- **MySQLMetadataStrategy**:
+  - `fa_candles_metadata` 테이블 사용
+  - UPSERT (INSERT ... ON DUPLICATE KEY UPDATE) 방식
+  - address_key = address.to_tablename()
+
+**MySQL 메타데이터 테이블 스키마:**
+```sql
+CREATE TABLE IF NOT EXISTS fa_candles_metadata (
+    address_key VARCHAR(255) PRIMARY KEY,
+    last_update_ts BIGINT NOT NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+```
+
 ## 디렉토리 구조
 
 ```
@@ -465,18 +564,27 @@ packages/financial-assets/financial_assets/candle/
     │       ├── parquet.py                 # ParquetSaveStrategy
     │       └── mysql.py                   # MySQLSaveStrategy
     │
-    └── load/
+    ├── load/
+    │   ├── __init__.py
+    │   ├── load_worker.py                 # LoadWorker
+    │   └── strategy/
+    │       ├── __init__.py
+    │       ├── base.py                    # BaseLoadStrategy
+    │       ├── parquet.py                 # ParquetLoadStrategy
+    │       └── mysql.py                   # MySQLLoadStrategy
+    │
+    └── metadata/
         ├── __init__.py
-        ├── load_worker.py                 # LoadWorker
+        ├── metadata_worker.py             # MetadataWorker
         └── strategy/
             ├── __init__.py
-            ├── base.py                    # BaseLoadStrategy
-            ├── parquet.py                 # ParquetLoadStrategy
-            └── mysql.py                   # MySQLLoadStrategy
+            ├── base.py                    # BaseMetadataStrategy
+            ├── parquet.py                 # ParquetMetadataStrategy
+            └── mysql.py                   # MySQLMetadataStrategy
 ```
 
 **구조 원칙:**
 - `env/`: 환경변수 관리 도메인
 - `storage/`: 저장소 관련 모든 컴포넌트
-- 각 작업(prepare/save/load)별로 폴더 분리
+- 각 작업(prepare/save/load/metadata)별로 폴더 분리
 - Worker와 Strategy를 같은 폴더 아래 배치하여 응집도 향상

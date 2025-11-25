@@ -17,8 +17,8 @@ class StockAddress:
         return f"{self.archetype}-{self.exchange}-{self.tradetype}-{self.base}-{self.quote}-{self.timeframe}"
 
     def to_tablename(self) -> str:
-        """언더스코어 구분 테이블명 형식"""
-        return f"{self.archetype}_{self.exchange}_{self.tradetype}_{self.base}_{self.quote}_{self.timeframe}"
+        """언더스코어 구분 테이블명 형식 (소문자)"""
+        return f"{self.archetype}_{self.exchange}_{self.tradetype}_{self.base}_{self.quote}_{self.timeframe}".lower()
 
     def to_symbol(self) -> Symbol:
         """거래쌍 심볼 객체 생성 (base/quote)"""
