@@ -1,7 +1,7 @@
 from sqlalchemy import create_engine, text
 from .....stock_address import StockAddress
 from .base import BaseMetadataStrategy
-from simple_logger import init_logging, func_logging
+from simple_logger import init_logging, func_logging, logger
 
 
 class MySQLMetadataStrategy(BaseMetadataStrategy):
@@ -11,18 +11,37 @@ class MySQLMetadataStrategy(BaseMetadataStrategy):
 
     @init_logging
     def __init__(self, config: dict):
-        # SQLAlchemy engine 생성
+        self.config = config
+
+        # 데이터베이스 생성용 engine (데이터베이스 지정 없음)
+        connection_string_no_db = (
+            f"mysql+pymysql://{config['username']}:{config['password']}"
+            f"@{config['host']}:{config['port']}"
+        )
+        self.engine_no_db = create_engine(connection_string_no_db, pool_recycle=3600)
+
+        # SQLAlchemy engine 생성 (데이터베이스 지정)
         connection_string = (
             f"mysql+pymysql://{config['username']}:{config['password']}"
             f"@{config['host']}:{config['port']}/{config['dbname']}"
         )
         self.engine = create_engine(connection_string, pool_recycle=3600, pool_size=5)
 
-        # 메타데이터 테이블 생성 (없으면)
-        self._ensure_metadata_table()
+        # 데이터베이스 및 메타데이터 테이블 생성 (없으면)
+        self._ensure_database_and_table()
 
-    def _ensure_metadata_table(self) -> None:
-        # 메타데이터 테이블 생성 (없으면)
+    def _ensure_database_and_table(self) -> None:
+        # 1. 데이터베이스 생성 (없으면)
+        dbname = self.config['dbname']
+        create_db_sql = f"CREATE DATABASE IF NOT EXISTS {dbname}"
+
+        try:
+            with self.engine_no_db.begin() as connection:
+                connection.execute(text(create_db_sql))
+        except Exception as e:
+            logger.error(f"데이터베이스 생성 실패: {e}")
+
+        # 2. 메타데이터 테이블 생성 (없으면)
         create_table_sql = f"""
         CREATE TABLE IF NOT EXISTS {self.METADATA_TABLE} (
             address_key VARCHAR(255) PRIMARY KEY,
@@ -34,9 +53,8 @@ class MySQLMetadataStrategy(BaseMetadataStrategy):
         try:
             with self.engine.begin() as connection:
                 connection.execute(text(create_table_sql))
-        except Exception:
-            # 테이블 생성 실패 시 무시 (이미 존재하거나 권한 문제)
-            pass
+        except Exception as e:
+            logger.error(f"메타데이터 테이블 생성 실패: {e}")
 
     @func_logging
     def get_last_update_ts(self, address: StockAddress) -> int | None:
