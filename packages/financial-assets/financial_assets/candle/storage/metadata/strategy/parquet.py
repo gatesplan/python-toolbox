@@ -15,6 +15,14 @@ class ParquetMetadataStrategy(BaseMetadataStrategy):
         self.metadata_file = self.basepath / '_metadata.json'
         self._lock = Lock()
 
+        # 디렉토리 생성 (없으면)
+        self.basepath.mkdir(parents=True, exist_ok=True)
+
+        # 메타데이터 파일 초기화 (없으면)
+        if not self.metadata_file.exists():
+            with open(self.metadata_file, 'w') as f:
+                json.dump({}, f)
+
     @func_logging
     def get_last_update_ts(self, address: StockAddress) -> int | None:
         # 마지막 업데이트 타임스탬프 조회

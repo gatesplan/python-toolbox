@@ -18,6 +18,26 @@ class MySQLMetadataStrategy(BaseMetadataStrategy):
         )
         self.engine = create_engine(connection_string, pool_recycle=3600, pool_size=5)
 
+        # 메타데이터 테이블 생성 (없으면)
+        self._ensure_metadata_table()
+
+    def _ensure_metadata_table(self) -> None:
+        # 메타데이터 테이블 생성 (없으면)
+        create_table_sql = f"""
+        CREATE TABLE IF NOT EXISTS {self.METADATA_TABLE} (
+            address_key VARCHAR(255) PRIMARY KEY,
+            last_update_ts BIGINT NOT NULL,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        )
+        """
+
+        try:
+            with self.engine.begin() as connection:
+                connection.execute(text(create_table_sql))
+        except Exception:
+            # 테이블 생성 실패 시 무시 (이미 존재하거나 권한 문제)
+            pass
+
     @func_logging
     def get_last_update_ts(self, address: StockAddress) -> int | None:
         # 마지막 업데이트 타임스탬프 조회
