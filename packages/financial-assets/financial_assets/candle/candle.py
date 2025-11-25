@@ -90,9 +90,9 @@ class Candle:
         self.is_new = False
         self.storage_last_ts = int(self.candle_df['timestamp'].iloc[-1])
 
-        # 메타데이터 업데이트
+        # 메타데이터 업데이트 (현재 시간으로 저장)
         metadata_worker = Candle._storage.get_metadata_worker()
-        metadata_worker.set_last_update_ts(self.address, self.storage_last_ts)
+        metadata_worker.set_last_update_ts(self.address, int(time.time()))
 
     @func_logging
     def update(self, new_df: pd.DataFrame, save_immediately: bool = False) -> None:
