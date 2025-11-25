@@ -144,7 +144,7 @@ class TestPhase1InitialState:
         """1-5. 캔들 데이터 조회"""
         request = factory.see_candles(
             address=xrp_krw_address,
-            interval="minutes",
+            interval="1m",
             limit=10,
             request_id="test_candles_001"
         )

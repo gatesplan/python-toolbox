@@ -1,1 +1,0 @@
-매번의 claude 로그인 시점 직후에 수행하는 작업이나 `/reset`, `/compact`와 같은 컨텍스트 보강이 필요한 상황에 무조건 @.claude/for-agent-readme.md 파일의 지시사항을 읽는다.

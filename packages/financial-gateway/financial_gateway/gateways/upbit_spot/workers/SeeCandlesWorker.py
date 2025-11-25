@@ -38,26 +38,37 @@ class SeeCandlesWorker:
         send_when = self._utc_now_ms()
 
         try:
+            # Upbit API 제약: start_time은 지원하지 않음 (to 파라미터만 지원)
+            if request.start_time:
+                raise ValueError(
+                    "업비트 API는 start_time 파라미터를 지원하지 않습니다. "
+                    "업비트는 'to'(end_time) 파라미터만 지원하며, 특정 시점부터 과거 방향으로 캔들을 조회합니다. "
+                    "end_time과 limit를 사용해주세요."
+                )
+
             market = f"{request.address.quote}-{request.address.base}"
             interval_type, unit = self._parse_interval(request.interval)
             count = request.limit if request.limit else 200
 
+            # end_time을 ISO 8601 포맷으로 변환 (업비트 'to' 파라미터)
+            to = self._convert_timestamp_to_iso(request.end_time) if request.end_time else None
+
             # Upbit API 호출
             if interval_type == "minutes":
                 api_response = await self.throttler.get_candles_minutes(
-                    unit=unit, market=market, count=count
+                    unit=unit, market=market, to=to, count=count
                 )
             elif interval_type == "days":
                 api_response = await self.throttler.get_candles_days(
-                    market=market, count=count
+                    market=market, to=to, count=count
                 )
             elif interval_type == "weeks":
                 api_response = await self.throttler.get_candles_weeks(
-                    market=market, count=count
+                    market=market, to=to, count=count
                 )
             elif interval_type == "months":
                 api_response = await self.throttler.get_candles_months(
-                    market=market, count=count
+                    market=market, to=to, count=count
                 )
             else:
                 raise ValueError(f"Invalid interval type: {interval_type}")
@@ -101,7 +112,8 @@ class SeeCandlesWorker:
         # ]
 
         candles = []
-        for candle_data in api_response:
+        # 업비트 API는 최신→과거 순서로 반환하므로, 과거→최신으로 통일
+        for candle_data in reversed(api_response):
             timestamp = candle_data.get("timestamp", 0)
             open_price = float(candle_data.get("opening_price", 0))
             high = float(candle_data.get("high_price", 0))
@@ -154,6 +166,19 @@ class SeeCandlesWorker:
             error_code=error_code,
             error_message=str(error),
         )
+
+    def _convert_timestamp_to_iso(self, timestamp_ms: int) -> str:
+        """밀리초 타임스탬프를 ISO 8601 포맷으로 변환 (업비트 'to' 파라미터용)
+
+        Args:
+            timestamp_ms: 밀리초 단위 타임스탬프
+
+        Returns:
+            ISO 8601 포맷 문자열 (예: "2024-01-01T00:00:00Z")
+        """
+        from datetime import datetime
+        dt = datetime.utcfromtimestamp(timestamp_ms / 1000)
+        return dt.strftime("%Y-%m-%dT%H:%M:%SZ")
 
     def _utc_now_ms(self) -> int:
         return int(time.time() * 1000)
