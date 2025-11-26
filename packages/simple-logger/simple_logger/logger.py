@@ -121,52 +121,47 @@ def func_logging(
             # Async 함수용 wrapper
             @wraps(func)
             async def async_wrapper(*args, **kwargs) -> Any:
-                token_class = _context_class_name.set(class_name)
-                token_func = _context_func_id.set(func_id)
+                # ContextVar 대신 logger.bind() 사용 (await 후 context 유지)
+                bound_logger = logger.bind(class_name=class_name, func_id=func_id)
 
+                # 시작 로그
+                start_msg = "시작"
+                if log_params:
+                    params = {}
+                    if is_method and args:
+                        param_args = args[1:]
+                    else:
+                        param_args = args
+
+                    if param_args:
+                        params['args'] = param_args
+                    if kwargs:
+                        params['kwargs'] = kwargs
+
+                    if params:
+                        start_msg += f" params={params}"
+
+                bound_logger.log(level, start_msg)
+
+                # 실행
+                start_time = time.time() if log_time else None
                 try:
-                    # 시작 로그
-                    start_msg = "시작"
-                    if log_params:
-                        params = {}
-                        if is_method and args:
-                            param_args = args[1:]
-                        else:
-                            param_args = args
+                    result = await func(*args, **kwargs)
 
-                        if param_args:
-                            params['args'] = param_args
-                        if kwargs:
-                            params['kwargs'] = kwargs
+                    # 종료 로그
+                    end_msg = "종료"
+                    if log_result:
+                        end_msg += f" result={result}"
+                    if log_time:
+                        elapsed = time.time() - start_time
+                        end_msg += f" elapsed={elapsed:.3f}s"
 
-                        if params:
-                            start_msg += f" params={params}"
+                    bound_logger.log(level, end_msg)
+                    return result
 
-                    logger.log(level, start_msg)
-
-                    # 실행
-                    start_time = time.time() if log_time else None
-                    try:
-                        result = await func(*args, **kwargs)
-
-                        # 종료 로그
-                        end_msg = "종료"
-                        if log_result:
-                            end_msg += f" result={result}"
-                        if log_time:
-                            elapsed = time.time() - start_time
-                            end_msg += f" elapsed={elapsed:.3f}s"
-
-                        logger.log(level, end_msg)
-                        return result
-
-                    except Exception as e:
-                        logger.exception("오류 발생")
-                        raise
-
-                finally:
-                    _context_class_name.reset(token_class)
-                    _context_func_id.reset(token_func)
+                except Exception:
+                    bound_logger.exception("오류 발생")
+                    raise
 
             return async_wrapper
         else:
@@ -212,7 +207,7 @@ def func_logging(
                         logger.log(level, end_msg)
                         return result
 
-                    except Exception as e:
+                    except Exception:
                         logger.exception("오류 발생")
                         raise
 
