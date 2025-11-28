@@ -1,585 +1,142 @@
 # Architecture - Financial Indicators
 
-## 개요
+## Overview
 
-캔들스틱 데이터를 기반으로 다양한 기술적 지표를 계산하는 모듈.
+캔들스틱 데이터를 기반으로 다양한 기술적 지표를 계산하는 모듈. 순수 함수 기반의 간결한 설계와 Registry 패턴을 통한 확장성, 캐싱을 통한 성능 최적화를 제공한다.
 
-### 목적
+### Core Features
 
-캔들 데이터로부터 기술 지표를 계산하고 관리할 수 있는 **목적성 있는 인터페이스** 제공.
+- **기술 지표 계산**: SMA, EMA, RSI, RSI Entropy 등 다양한 지표 지원
+- **확장 가능한 구조**: Registry 패턴으로 새 지표 추가 시 기존 코드 수정 불필요
+- **성능 최적화**: 계산 결과 캐싱, 중복 계산 방지, 배치 처리 지원
+- **순수 함수 기반**: Core 연산은 부수효과 없는 순수 함수로 구현
+- **명확한 반환 형식**: 단일 값은 배열로, 다중 값은 dict로 일관성 있게 반환
 
-**핵심 기능:**
-- 다양한 기술 지표 계산 (SMA, EMA, RSI, RSI Entropy 등)
-- 지표별 파라미터 커스터마이징
-- 계산 결과 반환 (numpy array 또는 pandas Series)
-- 지표 간 의존성 자동 처리 (Director를 통한 재귀 호출)
+### Design Philosophy
 
-**데이터 특성:**
-- 입력: Candle DataFrame (timestamp, OHLCV)
-- 출력: dict[str, np.ndarray] (지표명: 값 배열)
-- **중요 원칙**: 출력 배열 길이는 항상 입력과 동일
-- 계산 불가능한 초기 값은 NaN 처리
+**단순함과 명확함**
+- 필요한 추상화만 사용, 불필요한 계층 제거
+- 각 컴포넌트의 책임이 명확하고 단일함
+- 코드 흐름을 쉽게 추적 가능
 
-### 설계 전략
+**확장성과 유지보수성**
+- Registry 패턴으로 OCP(Open-Closed Principle) 준수
+- 새 지표 추가 시 기존 코드 수정 불필요
+- 플러그인 방식의 지표 확장
 
-**의존성 역전 원칙 (Dependency Inversion)**
-- Worker는 Director를 파라미터로 전달받음
-- 다른 지표가 필요한 경우 Director를 통해 요청
-- Worker 간 직접 의존성 없음, Director를 통한 간접 호출
+**성능과 효율성**
+- 계산 결과 캐싱으로 중복 계산 방지
+- numpy 벡터화 연산 활용
+- 배치 계산으로 의존성 최적화
 
-**계산 최적화**
-- numpy 기반 벡터화 연산
-- Core 모듈의 순수 계산 함수 재사용
-- 불필요한 중복 계산 방지
+**테스트 용이성**
+- 순수 함수는 독립적으로 테스트 가능
+- stateless 설계로 모킹 불필요
+- 명확한 입출력으로 검증 용이
 
-### 의존성
+### Dependencies
 
 ```toml
 dependencies = [
     "pandas>=2.0.0",
     "numpy>=1.24.0",
     "financial-assets",
-    "simple-logger"
 ]
 ```
 
-**참고:**
-- `financial-assets`: Candle 데이터 로드
-- `pandas`, `numpy`: 수치 계산
-- `simple-logger`: 로깅 (loguru 기반)
+**Notes:**
+- `pandas`: DataFrame 기반 데이터 처리
+- `numpy`: 고성능 수치 연산
+- `financial-assets`: Candle 데이터 구조
 
-## 구조
+## Structure
 
 ```mermaid
 graph TB
-    subgraph Layer3["Layer 3: Interface"]
-        Indicator[Indicator<br/>통합 인터페이스<br/>static methods]
+    subgraph User["User Interface"]
+        Calculator[IndicatorCalculator<br/>캐싱, 배치 처리, 고수준 API]
     end
 
-    subgraph Layer2["Layer 2: Services (stateless)"]
-        SMAService[SMAService<br/>static calculate]
-        EMAService[EMAService<br/>static calculate]
-        RSIService[RSIService<br/>static calculate]
-        RSIEntropyService[RSIEntropyService<br/>static calculate]
-        OtherServices[기타 Services...]
+    subgraph Management["Indicator Management"]
+        Registry[IndicatorRegistry<br/>지표 등록/조회, 라우팅]
     end
 
-    subgraph Layer1["Layer 1: Core Calculators"]
-        FlatSeriesCalc[FlatSeriesCalculator<br/>1D numpy 배열 연산<br/>owns workers]
-        CandleSeriesCalc[CandleSeriesCalculator<br/>Candle DataFrame 가공<br/>static methods]
-
-        FlatWorkers[FlatSeries Workers<br/>SMA, EMA, Std, ZScore,<br/>Scaling, PctChange, ...]
-
-        FlatSeriesCalc -->|owns as class variable| FlatWorkers
+    subgraph Indicators["Indicator Functions"]
+        SMA[calculate_sma<br/>SMA 계산]
+        EMA[calculate_ema<br/>EMA 계산]
+        RSI[calculate_rsi<br/>RSI 계산]
+        RSIEntropy[calculate_rsi_entropy<br/>RSI Entropy 계산]
+        Others[기타 지표들...]
     end
 
-    Indicator --> SMAService
-    Indicator --> EMAService
-    Indicator --> RSIService
-    Indicator --> RSIEntropyService
-    Indicator --> OtherServices
+    subgraph Core["Core Functions (Pure)"]
+        Rolling[Rolling Operations<br/>sma, ema, wma, std, zscore...]
+        Series[Series Transforms<br/>scaling, pct_change, log_return...]
+    end
 
-    SMAService --> FlatSeriesCalc
-    SMAService --> CandleSeriesCalc
+    Calculator --> Registry
+    Registry --> SMA
+    Registry --> EMA
+    Registry --> RSI
+    Registry --> RSIEntropy
+    Registry --> Others
 
-    EMAService --> FlatSeriesCalc
-    EMAService --> CandleSeriesCalc
+    SMA --> Rolling
+    EMA --> Rolling
+    RSI --> Rolling
+    RSI --> Series
+    RSIEntropy --> RSI
+    RSIEntropy --> Rolling
+    RSIEntropy --> Series
 
-    RSIService --> FlatSeriesCalc
-    RSIService --> CandleSeriesCalc
-
-    RSIEntropyService --> RSIService
-    RSIEntropyService --> FlatSeriesCalc
-    RSIEntropyService --> CandleSeriesCalc
-
-    OtherServices --> RSIService
-    OtherServices --> SMAService
-    OtherServices --> FlatSeriesCalc
-    OtherServices --> CandleSeriesCalc
-
-    style Layer3 fill:#e1f5ff
-    style Layer2 fill:#fff4e6
-    style Layer1 fill:#f3e5f5
+    style User fill:#e1f5ff
+    style Management fill:#fff4e6
+    style Indicators fill:#f3e5f5
+    style Core fill:#e8f5e9
 ```
 
-**레이어 구조:**
-
-**Layer 1: Core Calculators** (순수 계산 + Worker 관리)
-- **FlatSeriesCalculator**: 1D numpy 배열 연산 통합
-  - 클래스 변수로 Workers 소유 및 관리
-  - 정적 메서드로 통합 인터페이스 제공
-  - Workers: SMAWorker, EMAWorker, StdWorker, ZScoreWorker, ScalingWorker, PctChangeWorker 등
-- **CandleSeriesCalculator**: Candle DataFrame 가공 유틸리티
-  - 정적 메서드로 컬럼 추출, HLOC, TypicalPrice 등 제공
-
-**Layer 2: Services** (stateless, 재사용 조합)
-- **각 지표별 Service 클래스** (SMAService, RSIService, RSIEntropyService 등)
-- 모든 메서드는 **static**으로 구현 (상태 없음)
-- Core Calculators 재사용하여 계산
-- **Service 간 재사용 가능** (예: RSIEntropyService → RSIService 호출)
-- 점진적 복잡도 증가 (단순 → 복잡)
-
-**Layer 3: Interface** (사용자 진입점)
-- **Indicator**: 통합 인터페이스
-- 각 메서드는 해당 Service를 호출하여 결과 반환
-- 기본값 정의 및 출력 형식 통일
-
-**의존성 흐름:**
-- **Indicator** → Services → Calculators
-- **Services 간 재사용**: RSIEntropyService → RSIService
-- **Calculators**: 완전 독립적, 정적 메서드
-- **모두 stateless**: 의존성 주입 불필요, 테스트 용이
-
-## 데이터
-
-### 입력 DataFrame 스키마
-
-Candle 모듈과 동일한 스키마:
-
-| 컬럼명 | 타입 | 설명 |
-|--------|------|------|
-| timestamp | int | Unix timestamp (초 단위) |
-| high | float | 고가 |
-| low | float | 저가 |
-| open | float | 시가 |
-| close | float | 종가 |
-| volume | float | 거래량 |
-
-### 출력 형식
-
-**Worker 반환 형식: (str, dict[str, np.ndarray])**
-
-모든 Worker는 `(key, values)` 튜플 반환:
-```python
-# 반환 형식
-(
-    "indicator_key",  # 지표 기본 키
-    {
-        "sub_key_1": np.array([...]),  # 서브 키: 배열
-        "sub_key_2": np.array([...])
-    }
-)
-```
-
-**단일 값 지표:**
-```python
-# SMAWorker 반환
-(
-    "sma-20",
-    {
-        "value": np.array([nan, nan, ..., 100.5, 101.2])
-    }
-)
-
-# CalculationDirector 반환 (Indicator.sma()로 전달)
-{
-    "sma-20": {
-        "value": np.array([nan, nan, ..., 100.5, 101.2])
-    }
-}
-
-# EMAWorker 반환 → Indicator.ema() 출력
-{
-    "ema-12": {
-        "value": np.array([...])
-    }
-}
-
-# RSIWorker 반환 → Indicator.rsi() 출력
-{
-    "rsi-14": {
-        "value": np.array([...])
-    }
-}
-```
-
-**다중 값 지표:**
-```python
-# RSIEntropyWorker 반환
-(
-    "rsientropy-20-365",
-    {
-        "base": np.array([...]),
-        "z-1": np.array([...]),
-        "z+1": np.array([...]),
-        "buy": np.array([...]),
-        "sell": np.array([...])
-    }
-)
-
-# CalculationDirector 반환 (Indicator.rsi_entropy()로 전달)
-{
-    "rsientropy-20-365": {
-        "base": np.array([...]),
-        "z-1": np.array([...]),
-        "z+1": np.array([...]),
-        "buy": np.array([...]),
-        "sell": np.array([...]
-    }
-}
-```
-
-**중요 원칙:**
-- 모든 출력 배열 길이는 입력과 동일
-- 계산 불가능한 초기 값은 NaN 처리
-- Worker는 `(key, dict)` 튜플 반환
-- Director는 `{key: dict}` 형식으로 변환하여 반환
-- 각 Indicator 메서드는 해당 Worker의 출력 형식을 그대로 반환
-
-## API
-
-### Indicator
-
-```mermaid
-classDiagram
-    class Indicator {
-        -static _calculator: CalculationDirector
-        -static _core: Core
-        +__init__()
-        +sma(candle, period)
-        +ema(candle, period)
-        +rsi(candle, period, use)
-        +rsi_entropy(candle, rsi_period, rsi_use, entropy_window)
-    }
-```
-
-지표 계산의 진입점 (입력 독립적).
-
-**클래스 변수:**
-- `_calculator`: CalculationDirector 인스턴스 (클래스 변수 공유)
-- `_core`: Core Compositor 인스턴스 (클래스 변수 공유)
-
-**초기화:**
-- `__init__()`: 의존성 없음, 인스턴스 상태 없음
-
-#### 입출력
-
-```python
-# 단일 값 지표
-{"sma-20": {"value": np.array([...])}}
-{"ema-12": {"value": np.array([...])}}
-{"rsi-14": {"value": np.array([...])}}
-
-# 다중 값 지표
-{
-    "rsientropy-20-365": {
-        "base": np.array([...]),
-        "z-1": np.array([...]),
-        "z+1": np.array([...]),
-        "buy": np.array([...]),
-        "sell": np.array([...])
-    }
-}
-```
-
-#### 메서드
-- `sma(candle, period=20) -> dict[str, dict]`: SMA 계산
-  - 내부적으로 `_calculator.sma(self, candle.candle_df, period)` 호출
-  - 반환: {"sma-20": {"value": array}}
-- `ema(candle, period=12) -> dict[str, dict]`: EMA 계산
-  - 내부적으로 `_calculator.ema(self, candle.candle_df, period)` 호출
-  - 반환: {"ema-12": {"value": array}}
-- `rsi(candle, period=14, use="close") -> dict[str, dict]`: RSI 계산
-  - `use`: 사용할 컬럼 (close, open, high, low 등)
-  - 내부적으로 `_calculator.rsi(self, candle.candle_df, period, use)` 호출
-  - 반환: {"rsi-14": {"value": array}}
-- `rsi_entropy(candle, rsi_period=20, rsi_use="close", entropy_window=365) -> dict[str, dict]`: RSI Entropy 계산
-  - `rsi_use`: RSI 계산에 사용할 컬럼
-  - `entropy_window`: 엔트로피 계산용 롤링 윈도우
-  - 내부적으로 `_calculator.rsi_entropy(self, candle.candle_df, rsi_period, rsi_use, entropy_window)` 호출
-  - 반환: {"rsientropy-20-365": {"base": array, "z-1": array, ...}}
-
-**설계 특징:**
-- 모든 메서드는 `Candle` 객체를 첫 번째 파라미터로 받음
-- 입력 독립적: 외부 환경변수나 설정에 의존하지 않음, 특정 Candle 인스턴스에 의존하지 않음
-- 메서드 간 의존성 없음, 독립적으로 호출 가능
-- **기본값은 Indicator API에서 정의** (Worker는 전달받은 값만 사용)
-
-### CalculationDirector
-
-```mermaid
-classDiagram
-    class CalculationDirector {
-        -sma_worker: SMAWorker
-        -ema_worker: EMAWorker
-        -rsi_worker: RSIWorker
-        -rsi_entropy_worker: RSIEntropyWorker
-        +__init__()
-        +sma(indicator, candle_df, period)
-        +ema(indicator, candle_df, period)
-        +rsi(indicator, candle_df, period, use)
-        +rsi_entropy(indicator, candle_df, rsi_period, rsi_use, entropy_window)
-    }
-```
-
-지표 Worker 관리 및 의존성 중재.
-
-**Worker 관리 방식:**
-- `__init__`에서 모든 Worker 인스턴스 생성 및 캐싱
-- 각 메서드는 `indicator`를 첫 번째 파라미터로 받아 Worker에 전달
-- Worker는 `indicator._core`를 통해 Core 계산에 접근
-
-**메서드:**
-- `__init__() -> None`: 모든 Worker 초기화
-- `sma(indicator, candle_df, period) -> dict[str, dict]`: SMAWorker 호출, (key, dict) 튜플을 {key: dict}로 변환
-- `ema(indicator, candle_df, period) -> dict[str, dict]`: EMAWorker 호출, (key, dict) 튜플을 {key: dict}로 변환
-- `rsi(indicator, candle_df, period, use) -> dict[str, dict]`: RSIWorker 호출, (key, dict) 튜플을 {key: dict}로 변환
-- `rsi_entropy(indicator, candle_df, rsi_period, rsi_use, entropy_window) -> dict[str, dict]`: RSIEntropyWorker 호출, (key, dict) 튜플을 {key: dict}로 변환
-
-### 지표 Workers
-
-각 지표별 전용 Worker.
-
-```mermaid
-classDiagram
-    class IndicatorWorkerBase {
-        <<abstract>>
-        +__call__(indicator, director, candle_df, ...)*
-        +name(...)*
-    }
-    class SMAWorker {
-        +__call__(indicator, director, candle_df, period)
-        +name(period)
-    }
-    class EMAWorker {
-        +__call__(indicator, director, candle_df, period)
-        +name(period)
-    }
-    class RSIWorker {
-        +__call__(indicator, director, candle_df, period, use)
-        +name(period, use)
-    }
-    class RSIEntropyWorker {
-        +__call__(indicator, director, candle_df, rsi_period, rsi_use, entropy_window)
-        +name(rsi_period, rsi_use, entropy_window)
-    }
-
-    IndicatorWorkerBase <|-- SMAWorker
-    IndicatorWorkerBase <|-- EMAWorker
-    IndicatorWorkerBase <|-- RSIWorker
-    IndicatorWorkerBase <|-- RSIEntropyWorker
-```
-
-**메서드 시그니처:**
-- `__call__(indicator: Indicator, director: CalculationDirector, candle_df: pd.DataFrame, ...) -> tuple[str, dict[str, np.ndarray]]`
-- `name(...) -> str`: 지표 키 생성 (예: "sma-20", "rsi-14-close")
-
-**참고:**
-- Worker는 기본값을 가지지 않음
-- 모든 파라미터는 Indicator API에서 기본값이 적용되어 전달됨
-
-**의존성 호출:**
-- 다른 지표 필요 시: `director.xxx()` 호출 (예: RSI 기반 지표는 `director.rsi()` 호출)
-- Core 연산 필요 시: `indicator._core.xxx()` 호출 (예: SMA, Std 등)
-- 결과 반환: `(key, dict)` 튜플 형식
-- 키 생성: `name()` 메서드로 파라미터 기반 키 생성
-
-### Core Compositor
-
-```mermaid
-classDiagram
-    class Core {
-        -rolling_op_director: RollingOperationDirector
-        -series_transform_director: SeriesTransformDirector
-        +__init__()
-        +sma(arr, window)
-        +ema(arr, window)
-        +std(arr, window)
-        +scaling(arr, min, max)
-        +standardize(arr, mean, std)
-        +pct_change(arr, periods)
-        +log_return(arr, periods)
-    }
-```
-
-순수 계산 함수의 통합 인터페이스.
-
-**역할:**
-- RollingOperationDirector와 SeriesTransformDirector를 조합
-- 단일 진입점으로 모든 Core 연산 제공
-
-**메서드:**
-- `sma(arr: np.ndarray, window: int) -> np.ndarray`: RollingOperationDirector 위임
-- `ema(arr: np.ndarray, window: int) -> np.ndarray`: RollingOperationDirector 위임
-- `std(arr: np.ndarray, window: int) -> np.ndarray`: RollingOperationDirector 위임
-- `scaling(arr: np.ndarray, min: float, max: float) -> np.ndarray`: SeriesTransformDirector 위임
-- `standardize(arr: np.ndarray, mean: float, std: float) -> np.ndarray`: SeriesTransformDirector 위임
-- `pct_change(arr: np.ndarray, periods: int) -> np.ndarray`: SeriesTransformDirector 위임
-- `log_return(arr: np.ndarray, periods: int) -> np.ndarray`: SeriesTransformDirector 위임
-
-**참고:**
-- Core 연산은 단순 배열 반환 (dict 아님)
-- 지표 키 생성은 상위 지표 Worker의 책임
-
-### RollingOperationDirector
-
-```mermaid
-classDiagram
-    class RollingOperationDirector {
-        -sma_worker: SMAWorker
-        -ema_worker: EMAWorker
-        -wma_worker: WMAWorker
-        -std_worker: StdWorker
-        -max_worker: MaxWorker
-        -min_worker: MinWorker
-        -zscore_worker: ZScoreWorker
-        +__init__()
-        +sma(arr, window)
-        +ema(arr, window)
-        +std(arr, window)
-    }
-```
-
-Rolling 연산 Worker 관리.
-
-**메서드:**
-- `sma(arr: np.ndarray, window: int) -> np.ndarray`: SMAWorker 호출 (자신을 director로 전달)
-- `ema(arr: np.ndarray, window: int) -> np.ndarray`: EMAWorker 호출 (자신을 director로 전달)
-- `wma(arr: np.ndarray, window: int) -> np.ndarray`: WMAWorker 호출 (자신을 director로 전달)
-- `std(arr: np.ndarray, window: int) -> np.ndarray`: StdWorker 호출 (자신을 director로 전달)
-- `max(arr: np.ndarray, window: int) -> np.ndarray`: MaxWorker 호출 (자신을 director로 전달)
-- `min(arr: np.ndarray, window: int) -> np.ndarray`: MinWorker 호출 (자신을 director로 전달)
-- `zscore(arr: np.ndarray, window: int) -> np.ndarray`: ZScoreWorker 호출 (자신을 director로 전달)
-
-**특징:**
-- **기본값 없음**: 모든 파라미터를 명시적으로 받음 (정확한 동작 보장)
-
-### SeriesTransformDirector
-
-```mermaid
-classDiagram
-    class SeriesTransformDirector {
-        -scaling_worker: ScalingWorker
-        -standardize_worker: StandardizeWorker
-        -pct_change_worker: PctChangeWorker
-        -log_return_worker: LogReturnWorker
-        -crossover_worker: CrossoverWorker
-        +__init__()
-        +scaling(arr, min, max)
-        +standardize(arr, mean, std)
-        +pct_change(arr, periods)
-        +log_return(arr, periods)
-    }
-```
-
-Series 변환 연산 Worker 관리.
-
-**메서드:**
-- `scaling(arr: np.ndarray, min: float, max: float) -> np.ndarray`: ScalingWorker 호출 (지정 범위로 Min-Max 스케일링)
-- `standardize(arr: np.ndarray, mean: float, std: float) -> np.ndarray`: StandardizeWorker 호출 (지정 평균/표준편차로 표준화)
-- `pct_change(arr: np.ndarray, periods: int) -> np.ndarray`: PctChangeWorker 호출 (퍼센트 변화율 계산)
-- `log_return(arr: np.ndarray, periods: int) -> np.ndarray`: LogReturnWorker 호출 (로그 수익률 계산)
-- `crossover(arr: np.ndarray, reference: np.ndarray) -> np.ndarray`: CrossoverWorker 호출 (arr이 reference를 상향 교차 시 1, 하향 교차 시 -1, 나머지 0)
-
-**특징:**
-- **기본값 없음**: 모든 파라미터를 명시적으로 받음 (정확한 동작 보장)
-
-### Core Workers
-
-순수 계산 로직 구현.
-
-```mermaid
-classDiagram
-    class SMAWorker {
-        +__call__(director, arr, window)
-    }
-    class EMAWorker {
-        +__call__(director, arr, window)
-    }
-    class StdWorker {
-        +__call__(director, arr, window)
-    }
-    class ZScoreWorker {
-        +__call__(director, arr, window)
-    }
-```
-
-**메서드 시그니처:**
-- `__call__(director: Director, arr: np.ndarray, ...) -> np.ndarray`
-
-**의존성 호출 예시:**
-```python
-# ZScoreWorker 내부
-def __call__(self, director, arr: np.ndarray, window: int) -> np.ndarray:
-    # SMA와 Std 필요 시 director 통해 호출
-    mean = director.sma(arr, window)
-    std = director.std(arr, window)
-    # 0 나누기 방지
-    return np.where(std > 0, (arr - mean) / std, 0)
-```
-
-**특징:**
-- `name()` 메서드 없음 (순수 계산만 담당, 지표 키 생성 불필요)
-- Director를 파라미터로 전달받음 (의존성 역전)
-- numpy 기반 벡터화 연산
-- 최적화된 알고리즘 (convolution, cumsum 등)
-- **출력 길이는 항상 입력과 동일**: 각 Worker는 계산 불가능한 초기값을 NaN으로 패딩하여 길이 유지
-- **기본값 없음**: 모든 파라미터를 명시적으로 받음 (정확한 동작 보장)
-
-## 디렉토리 구조
-
-```
-packages/financial-indicators/
-├── Architecture.md
-├── pyproject.toml
-├── README.md
-└── financial_indicators/
-    ├── __init__.py
-    ├── indicator.py                          # Indicator 클래스
-    │
-    ├── core/
-    │   ├── __init__.py
-    │   ├── core.py                           # Core Compositor
-    │   │
-    │   ├── rolling/
-    │   │   ├── __init__.py
-    │   │   ├── rolling_operation_director.py
-    │   │   └── workers/
-    │   │       ├── __init__.py
-    │   │       ├── sma_worker.py
-    │   │       ├── ema_worker.py
-    │   │       ├── wma_worker.py
-    │   │       ├── std_worker.py
-    │   │       ├── max_worker.py
-    │   │       ├── min_worker.py
-    │   │       └── zscore_worker.py
-    │   │
-    │   └── series/
-    │       ├── __init__.py
-    │       ├── series_transform_director.py
-    │       └── workers/
-    │           ├── __init__.py
-    │           ├── scaling_worker.py
-    │           ├── standardize_worker.py
-    │           ├── pct_change_worker.py
-    │           ├── log_return_worker.py
-    │           └── crossover_worker.py
-    │
-    └── calculation/
-        ├── __init__.py
-        ├── calculation_director.py           # CalculationDirector
-        └── workers/
-            ├── __init__.py
-            ├── sma_worker.py
-            ├── ema_worker.py
-            ├── rsi_worker.py
-            └── rsi_entropy_worker.py
-```
-
-**구조 원칙:**
-- `core/`: 순수 계산 함수 (Compositor 패턴)
-  - `rolling/`: Rolling 연산 (SMA, EMA, Std 등)
-  - `series/`: Series 변환 (Diff, PctChange 등)
-- `calculation/`: 지표 계산 (Core 활용, Director 의존성 역전)
-  - `workers/`: 각 지표별 전용 Worker
-
-**명명 규칙 및 차이점:**
-- **Core Workers**:
-  - `__call__(director, arr: np.ndarray, ...)` 시그니처
-  - 순수 numpy 배열 연산
-  - `name()` 메서드 없음 (순수 계산만 담당)
-- **지표 Workers**:
-  - `__call__(indicator, director, candle_df, ...)` 시그니처
-  - DataFrame 기반 지표 계산
-  - `name(params) -> str` 메서드로 지표 키 생성
-  - tuple[str, dict[str, np.ndarray]] 반환
+**Component Responsibilities:**
+
+- **IndicatorCalculator**: 사용자 진입점, 계산 결과 캐싱, 배치 계산 지원, 의존성 최적화
+- **IndicatorRegistry**: 지표 함수 등록 및 조회, 이름 기반 라우팅, 확장 가능한 플러그인 구조
+- **Indicator Functions**: 각 지표별 계산 로직, DataFrame → dict 변환, Core Functions 조합
+- **Core Functions**: 순수 계산 함수, numpy 배열 연산, 부수효과 없음, 재사용 가능
+
+**Dependencies:**
+
+- IndicatorCalculator → IndicatorRegistry: 지표 조회 및 실행
+- IndicatorRegistry → Indicator Functions: 등록된 지표 함수 호출
+- Indicator Functions → Core Functions: 순수 계산 재사용
+- Indicator Functions → Indicator Functions: 복합 지표는 기본 지표 재사용 (예: RSI Entropy → RSI)
+
+**Data Flow:**
+
+1. 사용자가 `IndicatorCalculator`를 통해 지표 계산 요청
+2. `IndicatorCalculator`는 캐시 확인, 없으면 `IndicatorRegistry`에 요청
+3. `IndicatorRegistry`는 등록된 지표 함수 조회 및 실행
+4. 지표 함수는 `Core Functions`를 조합하여 계산
+5. 결과는 캐시에 저장되고 사용자에게 반환
+
+**Key Design Decisions:**
+
+1. **Registry 패턴**: 새 지표 추가 시 decorator로 등록만 하면 됨, 기존 코드 수정 불필요
+2. **순수 함수 Core**: 테스트 용이, 부수효과 없음, 재사용 가능
+3. **캐싱은 Calculator에만**: 비즈니스 로직과 성능 최적화 분리
+4. **단순한 반환 형식**:
+   - 단일 값 지표: `np.ndarray` 직접 반환
+   - 다중 값 지표: `dict[str, np.ndarray]` 반환
+5. **NaN 패딩**: 모든 출력 배열 길이는 입력과 동일, 계산 불가 영역은 NaN
+
+**Notes:**
+
+- Core Functions는 완전히 독립적, 어떤 컨텍스트에서도 재사용 가능
+- 지표 함수는 stateless, 모든 파라미터를 명시적으로 받음
+- IndicatorCalculator만 상태(캐시)를 가짐
+- 각 컴포넌트의 구체적인 API, 데이터 구조, 구현 패턴은 별도 moduleinfo 문서에서 정의
+
+**Development Order and Status:**
+
+1. [Core Functions] Done
+2. [Indicator Functions] Done
+3. [IndicatorRegistry] Done
+4. [IndicatorCalculator] Done
