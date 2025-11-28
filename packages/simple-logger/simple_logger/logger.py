@@ -160,7 +160,7 @@ def func_logging(
                         logger.log(level, end_msg)
                         return result
 
-                    except Exception as e:
+                    except Exception:
                         logger.exception("오류 발생")
                         raise
 
@@ -212,7 +212,7 @@ def func_logging(
                         logger.log(level, end_msg)
                         return result
 
-                    except Exception as e:
+                    except Exception:
                         logger.exception("오류 발생")
                         raise
 

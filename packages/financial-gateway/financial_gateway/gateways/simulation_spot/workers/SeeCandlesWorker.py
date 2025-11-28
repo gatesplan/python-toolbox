@@ -14,7 +14,7 @@ class SeeCandlesWorker:
     def __init__(self, exchange):
         self.exchange = exchange
 
-    @func_logging(level="INFO", log_params=True, log_result=True)
+    @func_logging(level="INFO", log_params=True)
     def execute(self, request: SeeCandlesRequest) -> SeeCandlesResponse:
         # 캔들 조회 실행 (동기식)
         send_when = self._get_timestamp_ms()

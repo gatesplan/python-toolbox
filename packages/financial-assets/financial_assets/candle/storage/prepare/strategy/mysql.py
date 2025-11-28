@@ -32,7 +32,7 @@ class MySQLPrepareStrategy(BasePrepareStrategy):
     @func_logging
     def prepare(self, address: StockAddress) -> None:
         """
-        데이터베이스 및 테이블 생성
+        데이터베이스, 테이블 및 메타데이터 테이블 생성
 
         Args:
             address: StockAddress 객체
@@ -44,7 +44,19 @@ class MySQLPrepareStrategy(BasePrepareStrategy):
         with self.engine_no_db.begin() as connection:
             connection.execute(text(create_db_sql))
 
-        # 2. 테이블 생성 (없으면)
+        # 2. 메타데이터 테이블 생성 (없으면)
+        create_metadata_table_sql = """
+        CREATE TABLE IF NOT EXISTS fa_candles_metadata (
+            address_key VARCHAR(64) PRIMARY KEY,
+            last_update_ts BIGINT NOT NULL,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        )
+        """
+
+        with self.engine.begin() as connection:
+            connection.execute(text(create_metadata_table_sql))
+
+        # 3. 캔들 데이터 테이블 생성 (없으면)
         table_name = address.to_tablename()
 
         create_table_sql = f"""

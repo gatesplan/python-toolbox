@@ -76,7 +76,20 @@ class OrderService:
         return {"order_id": 123}
 ```
 
-### 4. 직접 로깅
+### 4. 비동기(async) 함수 로깅
+
+```python
+from simple_logger import func_logging
+
+# async 함수도 동일하게 사용
+@func_logging(level="INFO", log_params=True)
+async def fetch_data(user_id: int):
+    # await 후에도 컨텍스트 유지됨
+    result = await api_call(user_id)
+    return result
+```
+
+### 5. 직접 로깅
 
 ```python
 from simple_logger import logger
@@ -85,7 +98,25 @@ logger.debug("디버그 메시지")
 logger.info("정보 메시지")
 logger.warning("경고 메시지")
 logger.error("에러 메시지")
-logger.exception("예외 메시지")  # 스택트레이스 포함
+logger.exception("예외 메시지")  # except 블록 안에서만 사용, 스택트레이스 포함
+```
+
+### 6. asyncio.gather() 예외 처리
+
+```python
+from simple_logger import logger
+
+# ❌ 잘못된 사용 (except 블록 밖에서 logger.exception() 호출)
+results = await asyncio.gather(*tasks, return_exceptions=True)
+for result in results:
+    if isinstance(result, Exception):
+        logger.exception("오류")  # NoneType: None 출력됨
+
+# ✅ 올바른 사용
+results = await asyncio.gather(*tasks, return_exceptions=True)
+for result in results:
+    if isinstance(result, Exception):
+        logger.error(f"작업 실패: {type(result).__name__}: {result}")
 ```
 
 ## 로그 출력 예시
@@ -113,6 +144,7 @@ logger.exception("예외 메시지")  # 스택트레이스 포함
 ## 특징
 
 - **loguru 기반**: 강력한 로그 로테이션, 비동기 지원 등
+- **async/await 완벽 지원**: async 함수에서도 await 후 컨텍스트 유지
 - **자동 컨텍스트**: 클래스명/함수명 자동 추적
 - **유연한 설정**: 콘솔/파일 레벨 개별 설정 가능
 - **깔끔한 인터페이스**: 데코레이터만 추가하면 끝

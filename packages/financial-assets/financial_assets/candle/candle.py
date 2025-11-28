@@ -1,3 +1,4 @@
+import time
 import pandas as pd
 from ..stock_address import StockAddress
 from ..price import Price
@@ -88,6 +89,10 @@ class Candle:
         # 저장 후 상태 업데이트
         self.is_new = False
         self.storage_last_ts = int(self.candle_df['timestamp'].iloc[-1])
+
+        # 메타데이터 업데이트 (현재 시간으로 저장)
+        metadata_worker = Candle._storage.get_metadata_worker()
+        metadata_worker.set_last_update_ts(self.address, int(time.time()))
 
     @func_logging
     def update(self, new_df: pd.DataFrame, save_immediately: bool = False) -> None:
@@ -210,3 +215,40 @@ class Candle:
             c=float(row['close']),
             v=float(row['volume'])
         )
+
+    @staticmethod
+    @func_logging
+    def get_last_update_ts(address: StockAddress) -> int | None:
+        """
+        마지막 업데이트 타임스탬프 조회 (데이터 로드 없이)
+
+        Args:
+            address: StockAddress 객체
+
+        Returns:
+            마지막 업데이트 타임스탬프 (없으면 None)
+        """
+        # 임시 인스턴스를 만들어 _storage 초기화 보장
+        temp = Candle(address)
+
+        metadata_worker = Candle._storage.get_metadata_worker()
+        return metadata_worker.get_last_update_ts(address)
+
+    @staticmethod
+    @func_logging
+    def get_time_since_last_update(address: StockAddress) -> int | None:
+        """
+        마지막 업데이트 이후 경과 시간 (초)
+
+        Args:
+            address: StockAddress 객체
+
+        Returns:
+            경과 시간 (초), 데이터 없으면 None
+        """
+        last_ts = Candle.get_last_update_ts(address)
+        if last_ts is None:
+            return None
+
+        current_ts = int(time.time())
+        return current_ts - last_ts
