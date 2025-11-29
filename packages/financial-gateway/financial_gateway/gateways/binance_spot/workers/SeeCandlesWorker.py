@@ -49,9 +49,9 @@ class SeeCandlesWorker:
             }
 
             if request.start_time:
-                params["startTime"] = request.start_time
+                params["startTime"] = request.start_time * 1000  # 초 → 밀리초 변환
             if request.end_time:
-                params["endTime"] = request.end_time
+                params["endTime"] = request.end_time * 1000  # 초 → 밀리초 변환
             if request.limit:
                 params["limit"] = request.limit
 

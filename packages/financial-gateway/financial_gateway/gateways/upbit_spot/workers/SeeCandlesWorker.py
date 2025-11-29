@@ -175,17 +175,17 @@ class SeeCandlesWorker:
             error_message=str(error),
         )
 
-    def _convert_timestamp_to_iso(self, timestamp_ms: int) -> str:
-        """밀리초 타임스탬프를 ISO 8601 포맷으로 변환 (업비트 'to' 파라미터용)
+    def _convert_timestamp_to_iso(self, timestamp_sec: int) -> str:
+        """초 단위 타임스탬프를 ISO 8601 포맷으로 변환 (업비트 'to' 파라미터용)
 
         Args:
-            timestamp_ms: 밀리초 단위 타임스탬프
+            timestamp_sec: 초 단위 타임스탬프
 
         Returns:
             ISO 8601 포맷 문자열 (예: "2024-01-01T00:00:00Z")
         """
         from datetime import datetime
-        dt = datetime.utcfromtimestamp(timestamp_ms / 1000)
+        dt = datetime.utcfromtimestamp(timestamp_sec)
         return dt.strftime("%Y-%m-%dT%H:%M:%SZ")
 
     def _utc_now_ms(self) -> int:
