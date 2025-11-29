@@ -154,9 +154,12 @@ class TestPhase1InitialState:
         assert response.is_success, f"Failed: {response.error_message}"
         assert len(response.candles) > 0
 
-        # Worker가 변환해서 open/high/low/close/volume로 반환
-        latest_candle = response.candles[0]
+        # SeeCandlesWorker는 DataFrame으로 반환
+        import pandas as pd
+        assert isinstance(response.candles, pd.DataFrame)
+        latest_candle = response.candles.iloc[0]
         print(f"\n[OK] Candles (Latest)")
+        print(f"   Timestamp: {latest_candle['timestamp']}")
         print(f"   Open: KRW {latest_candle['open']:.2f}")
         print(f"   High: KRW {latest_candle['high']:.2f}")
         print(f"   Low: KRW {latest_candle['low']:.2f}")

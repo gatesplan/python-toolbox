@@ -1,4 +1,5 @@
 import time
+import pandas as pd
 from simple_logger import func_logging, logger
 from throttled_api.providers.binance import BinanceSpotThrottler
 from financial_gateway.structures.see_candles import SeeCandlesRequest, SeeCandlesResponse
@@ -70,7 +71,7 @@ class SeeCandlesWorker:
     ) -> SeeCandlesResponse:
         candles = []
         for candle_data in api_response:
-            timestamp = candle_data[0]
+            timestamp_ms = candle_data[0]
             open_price = float(candle_data[1])
             high = float(candle_data[2])
             low = float(candle_data[3])
@@ -78,13 +79,20 @@ class SeeCandlesWorker:
             volume = float(candle_data[5])
 
             candles.append({
-                "timestamp": timestamp,
+                "timestamp": int(timestamp_ms // 1000),  # 밀리초 → 초 변환 (정수)
                 "open": open_price,
                 "high": high,
                 "low": low,
                 "close": close,
                 "volume": volume,
             })
+
+        # DataFrame으로 변환
+        if candles:
+            candles_df = pd.DataFrame(candles)
+            candles_df['timestamp'] = candles_df['timestamp'].astype(int)
+        else:
+            candles_df = pd.DataFrame(columns=["timestamp", "open", "high", "low", "close", "volume"])
 
         processed_when = (send_when + receive_when) // 2
         timegaps = receive_when - send_when
@@ -96,7 +104,7 @@ class SeeCandlesWorker:
             receive_when=receive_when,
             processed_when=processed_when,
             timegaps=timegaps,
-            candles=candles,
+            candles=candles_df,
         )
 
     def _decode_error(

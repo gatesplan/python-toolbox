@@ -25,8 +25,10 @@
 ### 조회 옵션
 
 **시간 범위:**
-- `start_time: Optional[int]` - 조회 시작 시각 (UTC ms, None이면 최근 데이터)
-- `end_time: Optional[int]` - 조회 종료 시각 (UTC ms, None이면 현재)
+- `start_time: Optional[int]` - 조회 시작 시각 (UTC 초 단위, None이면 최근 데이터)
+  - **예외: Binance는 밀리초 단위 사용**
+- `end_time: Optional[int]` - 조회 종료 시각 (UTC 초 단위, None이면 현재)
+  - **예외: Binance는 밀리초 단위 사용**
 
 **개수 제한:**
 - `limit: Optional[int]` - 조회 개수 (None이면 거래소 기본값)
@@ -160,11 +162,17 @@ interval_map = {"1m": 60, "5m": 300, "1h": 3600, "1d": 86400, ...}
 **Binance:**
 - 최대 1000개
 - startTime/endTime 없으면 최신 캔들
+- **타임스탬프: 밀리초 단위 사용**
+  - Request: start_time/end_time을 밀리초로 전달
+  - Response: API가 반환하는 timestamp를 밀리초 → 초로 변환
 
 **Upbit:**
 - 최대 200개
 - 분 캔들은 /v1/candles/minutes/{unit}
 - 일/주/월은 별도 엔드포인트
+- **타임스탬프: 초 단위 사용**
+  - Request: start_time/end_time을 초로 전달 (start_time 미지원)
+  - Response: API가 반환하는 timestamp가 밀리초이면 초로 변환
 
 **Bybit:**
 - 최대 1000개
@@ -197,16 +205,30 @@ if response.is_success:
 
 **2. 특정 기간 캔들:**
 ```python
-start = int(datetime(2024, 1, 1).timestamp() * 1000)
-end = int(datetime(2024, 1, 31).timestamp() * 1000)
+# 일반 거래소 (초 단위)
+start = int(datetime(2024, 1, 1).timestamp())
+end = int(datetime(2024, 1, 31).timestamp())
 
 response = gateway.execute(SeeCandlesRequest(
     request_id="req-001",
-    gateway_name="binance",
-    address=btc_usdt_address,
+    gateway_name="upbit",
+    address=btc_krw_address,
     interval="1d",
     start_time=start,
     end_time=end
+))
+
+# Binance (밀리초 단위)
+start_ms = int(datetime(2024, 1, 1).timestamp() * 1000)
+end_ms = int(datetime(2024, 1, 31).timestamp() * 1000)
+
+response = gateway.execute(SeeCandlesRequest(
+    request_id="req-002",
+    gateway_name="binance",
+    address=btc_usdt_address,
+    interval="1d",
+    start_time=start_ms,
+    end_time=end_ms
 ))
 ```
 

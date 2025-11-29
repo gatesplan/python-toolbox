@@ -1,4 +1,5 @@
 import time
+import pandas as pd
 from simple_logger import func_logging, logger
 from throttled_api.providers.upbit import UpbitSpotThrottler
 from financial_gateway.structures.see_candles import SeeCandlesRequest, SeeCandlesResponse
@@ -114,7 +115,7 @@ class SeeCandlesWorker:
         candles = []
         # 업비트 API는 최신→과거 순서로 반환하므로, 과거→최신으로 통일
         for candle_data in reversed(api_response):
-            timestamp = candle_data.get("timestamp", 0)
+            timestamp_ms = candle_data.get("timestamp", 0)
             open_price = float(candle_data.get("opening_price", 0))
             high = float(candle_data.get("high_price", 0))
             low = float(candle_data.get("low_price", 0))
@@ -122,13 +123,20 @@ class SeeCandlesWorker:
             volume = float(candle_data.get("candle_acc_trade_volume", 0))
 
             candles.append({
-                "timestamp": timestamp,
+                "timestamp": int(timestamp_ms // 1000),  # 밀리초 → 초 변환 (정수)
                 "open": open_price,
                 "high": high,
                 "low": low,
                 "close": close,
                 "volume": volume,
             })
+
+        # DataFrame으로 변환
+        if candles:
+            candles_df = pd.DataFrame(candles)
+            candles_df['timestamp'] = candles_df['timestamp'].astype(int)
+        else:
+            candles_df = pd.DataFrame(columns=["timestamp", "open", "high", "low", "close", "volume"])
 
         processed_when = (send_when + receive_when) // 2
         timegaps = receive_when - send_when
@@ -140,7 +148,7 @@ class SeeCandlesWorker:
             receive_when=receive_when,
             processed_when=processed_when,
             timegaps=timegaps,
-            candles=candles,
+            candles=candles_df,
         )
 
     def _decode_error(
