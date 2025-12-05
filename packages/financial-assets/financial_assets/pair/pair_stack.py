@@ -33,18 +33,26 @@ class PairStack:
         return f"{self._asset_symbol}-{self._value_symbol}"
 
     def get_asset_token(self) -> Token:
-        """전체 asset Token 반환."""
+        """전체 asset Token 반환 (Token.__add__를 재활용하여 fixed-point 정밀도 유지)."""
         if self.is_empty():
             raise ValueError("Cannot get asset token: stack is empty")
 
-        return Token(symbol=self._asset_symbol, amount=self.total_asset_amount())
+        # Token.__add__는 이미 fixed-point로 구현되어 정확함
+        result = self._pairs[0].get_asset_token()
+        for pair in self._pairs[1:]:
+            result = result + pair.get_asset_token()
+        return result
 
     def get_value_token(self) -> Token:
-        """전체 value Token 반환."""
+        """전체 value Token 반환 (Token.__add__를 재활용하여 fixed-point 정밀도 유지)."""
         if self.is_empty():
             raise ValueError("Cannot get value token: stack is empty")
 
-        return Token(symbol=self._value_symbol, amount=self.total_value_amount())
+        # Token.__add__는 이미 fixed-point로 구현되어 정확함
+        result = self._pairs[0].get_value_token()
+        for pair in self._pairs[1:]:
+            result = result + pair.get_value_token()
+        return result
 
     def get_asset(self) -> float:
         """전체 asset 수량 반환."""
@@ -109,24 +117,25 @@ class PairStack:
         return True
 
     def mean_value(self) -> float:
-        """전체 스택의 평단가 반환."""
+        """전체 스택의 평단가 반환 (Pair.mean_value() 재활용)."""
         if self.is_empty():
             raise ValueError("Cannot calculate mean_value: stack is empty")
 
-        total_asset = self.total_asset_amount()
-        if total_asset == 0:
-            raise ValueError("Cannot calculate mean_value: total asset amount is zero")
-
-        total_value = self.total_value_amount()
-        return total_value / total_asset
+        # Pair 생성해서 이미 fixed-point로 개선된 Pair.mean_value() 호출
+        total_pair = Pair(asset=self.get_asset_token(), value=self.get_value_token())
+        return total_pair.mean_value()
 
     def total_asset_amount(self) -> float:
-        """전체 asset 수량 합계 반환."""
-        return sum(pair.get_asset() for pair in self._pairs)
+        """전체 asset 수량 합계 반환 (get_asset_token() 재활용)."""
+        if self.is_empty():
+            return 0.0
+        return self.get_asset_token().amount
 
     def total_value_amount(self) -> float:
-        """전체 value 수량 합계 반환."""
-        return sum(pair.get_value() for pair in self._pairs)
+        """전체 value 수량 합계 반환 (get_value_token() 재활용)."""
+        if self.is_empty():
+            return 0.0
+        return self.get_value_token().amount
 
     def flatten(self) -> Pair:
         """모든 Pair를 하나로 합산하여 단일 Pair 반환."""
@@ -198,7 +207,7 @@ class PairStack:
         return PairStack(splitted_pairs)
 
     def split_by_value_amount(self, amount: float) -> PairStack:
-        """value 수량 기준으로 스택 분할."""
+        """value 수량 기준으로 스택 분할 (Pair.split_by_value_amount 재활용)."""
         logger.debug(f"PairStack.split_by_value_amount 시작: total_value={self.total_value_amount()}, split_amount={amount}")
 
         if amount < 0:
@@ -216,11 +225,48 @@ class PairStack:
                 f"Amount {amount} exceeds total value amount {total_value}"
             )
 
-        ratio = amount / total_value
-        return self.split_by_ratio(ratio)
+        if amount == 0:
+            return PairStack()
+
+        if amount == total_value:
+            splitted = PairStack(self._pairs.copy())
+            self._pairs.clear()
+            self._asset_symbol = None
+            self._value_symbol = None
+            return splitted
+
+        splitted_pairs: list[Pair] = []
+        remaining_target = amount
+
+        # 스택 위(맨 뒤)부터 순서대로 value 기준으로 뽑기
+        while remaining_target > 0 and self._pairs:
+            current_pair = self._pairs[-1]
+            current_value = current_pair.get_value()
+
+            if current_value <= remaining_target:
+                # 현재 Pair 전체를 가져감
+                splitted_pairs.append(current_pair)
+                remaining_target -= current_value
+                self._pairs.pop()
+            else:
+                # 현재 Pair를 value 기준으로 분할 (Pair.split_by_value_amount는 이미 fixed-point!)
+                reduced, splitted = current_pair.split_by_value_amount(remaining_target)
+                self._pairs[-1] = reduced
+                splitted_pairs.append(splitted)
+                remaining_target = 0
+
+        # 스택이 비어있거나 남은 수량이 너무 작으면 정리 (garbage control)
+        if self.is_empty() or self.total_value_amount() < 0.0001:
+            self._pairs.clear()
+            self._asset_symbol = None
+            self._value_symbol = None
+
+        logger.debug(f"PairStack.split_by_value_amount 완료: splitted_layers={len(splitted_pairs)}, remaining_layers={len(self._pairs)}")
+
+        return PairStack(splitted_pairs)
 
     def split_by_ratio(self, ratio: float) -> PairStack:
-        """비율 기준으로 스택 분할."""
+        """비율 기준으로 스택 분할 (Token.__mul__ 재활용)."""
         logger.debug(f"PairStack.split_by_ratio 시작: layers={len(self._pairs)}, ratio={ratio}")
 
         if not 0 <= ratio <= 1:
@@ -237,11 +283,14 @@ class PairStack:
             self._value_symbol = None
             return splitted
 
-        total_value = self.total_value_amount()
-        if total_value == 0:
+        total_value_token = self.get_value_token()
+        if total_value_token.amount == 0:
             raise RuntimeError("Cannot split: total value amount is zero")
 
-        target_value = total_value * ratio
+        # Token.__mul__은 이미 fixed-point로 구현되어 정확함
+        target_value_token = total_value_token * ratio
+        target_value = target_value_token.amount
+
         splitted_pairs: list[Pair] = []
         remaining_target = target_value
 

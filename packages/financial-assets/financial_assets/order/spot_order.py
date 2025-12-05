@@ -78,7 +78,7 @@ class SpotOrder:
             new_status = OrderStatus.FILLED
             logger.info(f"주문 완전 체결: order_id={self.order_id}, filled={new_filled}/{self.amount}")
         elif new_filled > 0:
-            new_status = OrderStatus.PARTIAL
+            new_status = OrderStatus.PARTIALLY_FILLED
             logger.info(f"주문 부분 체결: order_id={self.order_id}, filled={new_filled}/{self.amount}")
         else:
             new_status = OrderStatus.PENDING
@@ -118,7 +118,7 @@ class SpotOrder:
         return self._clone(status=OrderStatus.PENDING)
 
     def to_partial_state(self) -> SpotOrder:
-        return self._clone(status=OrderStatus.PARTIAL)
+        return self._clone(status=OrderStatus.PARTIALLY_FILLED)
 
     def to_filled_state(self) -> SpotOrder:
         return self._clone(status=OrderStatus.FILLED)
@@ -165,9 +165,10 @@ class SpotOrder:
                 )
 
     def __str__(self) -> str:
+        order_type_str = self.order_type.value if hasattr(self.order_type, 'value') else self.order_type
         return (
             f"SpotOrder(id={self.order_id}, side={self.side.name}, "
-            f"type={self.order_type.value}, price={self.price}, "
+            f"type={order_type_str}, price={self.price}, "
             f"amount={self.amount}, filled={self.filled_amount}, "
             f"status={self.status.value})"
         )

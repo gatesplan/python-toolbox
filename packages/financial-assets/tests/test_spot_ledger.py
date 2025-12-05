@@ -2,12 +2,48 @@
 
 from financial_assets.ledger import SpotLedger, SpotLedgerEntry
 from financial_assets.trade import SpotTrade
+from financial_assets.order import SpotOrder
 from financial_assets.constants import OrderSide
 from financial_assets.pair import Pair
 from financial_assets.token import Token
 from financial_assets.stock_address import StockAddress
 import pytest
 import pandas as pd
+
+
+def create_spot_trade(
+    trade_id: str,
+    side: OrderSide,
+    asset_amount: float,
+    value_amount: float,
+    asset_symbol: str = "BTC",
+    value_symbol: str = "USDT",
+    stock_address: StockAddress = None,
+    timestamp: int = 1234567890,
+) -> SpotTrade:
+    """Helper to create SpotTrade."""
+    if stock_address is None:
+        stock_address = StockAddress(
+            archetype="crypto",
+            exchange="binance",
+            tradetype="spot",
+            base=asset_symbol.lower(),
+            quote=value_symbol.lower(),
+            timeframe="1d",
+        )
+
+    price = value_amount / asset_amount if asset_amount > 0 else 0.0
+    order = SpotOrder(
+        order_id=f"order-{trade_id}",
+        stock_address=stock_address,
+        side=side,
+        order_type="limit",
+        price=price,
+        amount=asset_amount,
+        timestamp=timestamp,
+    )
+    pair = Pair(Token(asset_symbol, asset_amount), Token(value_symbol, value_amount))
+    return SpotTrade(trade_id=trade_id, order=order, pair=pair, timestamp=timestamp)
 
 
 @pytest.fixture
@@ -26,12 +62,12 @@ def stock_address():
 @pytest.fixture
 def buy_trade_1btc_50k(stock_address):
     """Create a BUY trade: 1.0 BTC at 50000 USDT."""
-    return SpotTrade(
-        stock_address=stock_address,
+    return create_spot_trade(
         trade_id="trade-1",
-        fill_id="fill-1",
         side=OrderSide.BUY,
-        pair=Pair(Token("BTC", 1.0), Token("USDT", 50000.0)),
+        asset_amount=1.0,
+        value_amount=50000.0,
+        stock_address=stock_address,
         timestamp=1234567890,
     )
 
@@ -39,12 +75,12 @@ def buy_trade_1btc_50k(stock_address):
 @pytest.fixture
 def buy_trade_half_btc_52k(stock_address):
     """Create a BUY trade: 0.5 BTC at 52000 USDT (26000 total)."""
-    return SpotTrade(
-        stock_address=stock_address,
+    return create_spot_trade(
         trade_id="trade-2",
-        fill_id="fill-2",
         side=OrderSide.BUY,
-        pair=Pair(Token("BTC", 0.5), Token("USDT", 26000.0)),
+        asset_amount=0.5,
+        value_amount=26000.0,
+        stock_address=stock_address,
         timestamp=1234567900,
     )
 
@@ -52,12 +88,12 @@ def buy_trade_half_btc_52k(stock_address):
 @pytest.fixture
 def sell_trade_half_btc_55k(stock_address):
     """Create a SELL trade: 0.5 BTC at 55000 USDT (27500 total)."""
-    return SpotTrade(
-        stock_address=stock_address,
+    return create_spot_trade(
         trade_id="trade-3",
-        fill_id="fill-3",
         side=OrderSide.SELL,
-        pair=Pair(Token("BTC", 0.5), Token("USDT", 27500.0)),
+        asset_amount=0.5,
+        value_amount=27500.0,
+        stock_address=stock_address,
         timestamp=1234567910,
     )
 
@@ -228,12 +264,14 @@ class TestSpotLedger:
         ledger.add_trade(buy_trade_1btc_50k)
 
         # Sell 0.6 BTC at 55000 (33000 total)
-        sell_trade = SpotTrade(
-            stock_address=stock_address,
+        sell_trade = create_spot_trade(
             trade_id="trade-sell",
-            fill_id="fill-sell",
             side=OrderSide.SELL,
-            pair=Pair(Token("BTC", 0.6), Token("USDT", 33000.0)),
+            asset_amount=0.6,
+            value_amount=33000.0,
+            asset_symbol="BTC",
+            value_symbol="USDT",
+            stock_address=stock_address,
             timestamp=1234567920,
         )
         entry = ledger.add_trade(sell_trade)
@@ -295,12 +333,14 @@ class TestSpotLedger:
         ledger.add_trade(buy_trade_1btc_50k)
 
         # Sell entire position: 1.0 BTC at 55000
-        sell_all = SpotTrade(
-            stock_address=stock_address,
+        sell_all = create_spot_trade(
             trade_id="trade-sell-all",
-            fill_id="fill-sell-all",
             side=OrderSide.SELL,
-            pair=Pair(Token("BTC", 1.0), Token("USDT", 55000.0)),
+            asset_amount=1.0,
+            value_amount=55000.0,
+            asset_symbol="BTC",
+            value_symbol="USDT",
+            stock_address=stock_address,
             timestamp=1234567930,
         )
         entry = ledger.add_trade(sell_all)
@@ -320,12 +360,14 @@ class TestSpotLedger:
         ledger.add_trade(buy_trade_1btc_50k)
 
         # Sell entire position
-        sell_all = SpotTrade(
-            stock_address=stock_address,
+        sell_all = create_spot_trade(
             trade_id="trade-sell-all",
-            fill_id="fill-sell-all",
             side=OrderSide.SELL,
-            pair=Pair(Token("BTC", 1.0), Token("USDT", 55000.0)),
+            asset_amount=1.0,
+            value_amount=55000.0,
+            asset_symbol="BTC",
+            value_symbol="USDT",
+            stock_address=stock_address,
             timestamp=1234567930,
         )
         ledger.add_trade(sell_all)
@@ -340,23 +382,27 @@ class TestSpotLedger:
         ledger.add_trade(buy_trade_1btc_50k)
 
         # Sell entire position
-        sell_all = SpotTrade(
-            stock_address=stock_address,
+        sell_all = create_spot_trade(
             trade_id="trade-sell-all",
-            fill_id="fill-sell-all",
             side=OrderSide.SELL,
-            pair=Pair(Token("BTC", 1.0), Token("USDT", 55000.0)),
+            asset_amount=1.0,
+            value_amount=55000.0,
+            asset_symbol="BTC",
+            value_symbol="USDT",
+            stock_address=stock_address,
             timestamp=1234567930,
         )
         ledger.add_trade(sell_all)
 
         # Buy again at different price
-        buy_again = SpotTrade(
-            stock_address=stock_address,
+        buy_again = create_spot_trade(
             trade_id="trade-buy-again",
-            fill_id="fill-buy-again",
             side=OrderSide.BUY,
-            pair=Pair(Token("BTC", 2.0), Token("USDT", 120000.0)),
+            asset_amount=2.0,
+            value_amount=120000.0,
+            asset_symbol="BTC",
+            value_symbol="USDT",
+            stock_address=stock_address,
             timestamp=1234567940,
         )
         entry = ledger.add_trade(buy_again)
@@ -383,23 +429,27 @@ class TestSpotLedger:
         ledger = SpotLedger(ticker="BTC-USDT")
 
         # Buy 0.00000001 BTC
-        tiny_buy = SpotTrade(
-            stock_address=stock_address,
+        tiny_buy = create_spot_trade(
             trade_id="tiny-buy",
-            fill_id="fill-tiny-buy",
             side=OrderSide.BUY,
-            pair=Pair(Token("BTC", 0.00000001), Token("USDT", 0.0005)),
+            asset_amount=0.00000001,
+            value_amount=0.0005,
+            asset_symbol="BTC",
+            value_symbol="USDT",
+            stock_address=stock_address,
             timestamp=1234567890,
         )
         ledger.add_trade(tiny_buy)
 
         # Sell exact same amount
-        tiny_sell = SpotTrade(
-            stock_address=stock_address,
+        tiny_sell = create_spot_trade(
             trade_id="tiny-sell",
-            fill_id="fill-tiny-sell",
             side=OrderSide.SELL,
-            pair=Pair(Token("BTC", 0.00000001), Token("USDT", 0.0006)),
+            asset_amount=0.00000001,
+            value_amount=0.0006,
+            asset_symbol="BTC",
+            value_symbol="USDT",
+            stock_address=stock_address,
             timestamp=1234567900,
         )
         entry = ledger.add_trade(tiny_sell)

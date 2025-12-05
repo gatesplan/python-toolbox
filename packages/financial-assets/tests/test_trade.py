@@ -1,11 +1,62 @@
 """Tests for SpotTrade module."""
 
 import pytest
+from financial_assets.order import SpotOrder
 from financial_assets.trade import SpotTrade
 from financial_assets.constants import OrderSide
 from financial_assets.token import Token
 from financial_assets.pair import Pair
 from financial_assets.stock_address import StockAddress
+
+
+def create_spot_trade(
+    trade_id: str,
+    side: OrderSide,
+    asset_amount: float,
+    value_amount: float,
+    asset_symbol: str = "BTC",
+    value_symbol: str = "USDT",
+    price: float = None,
+    timestamp: int = 1234567890,
+    stock_address: StockAddress = None,
+    fee: Token = None,
+) -> SpotTrade:
+    """SpotTrade 생성 헬퍼 함수."""
+    if stock_address is None:
+        stock_address = StockAddress(
+            archetype="crypto",
+            exchange="binance",
+            tradetype="spot",
+            base=asset_symbol.lower(),
+            quote=value_symbol.lower(),
+            timeframe="1d",
+        )
+
+    if price is None:
+        price = value_amount / asset_amount if asset_amount > 0 else 0.0
+
+    order = SpotOrder(
+        order_id=f"order-{trade_id}",
+        stock_address=stock_address,
+        side=side,
+        order_type="limit",
+        price=price,
+        amount=asset_amount,
+        timestamp=timestamp,
+    )
+
+    pair = Pair(
+        asset=Token(asset_symbol, asset_amount),
+        value=Token(value_symbol, value_amount),
+    )
+
+    return SpotTrade(
+        trade_id=trade_id,
+        order=order,
+        pair=pair,
+        timestamp=timestamp,
+        fee=fee,
+    )
 
 
 class TestOrderSide:
@@ -33,54 +84,33 @@ class TestSpotTradeCreation:
 
     def test_basic_spot_trade_creation(self):
         """기본 SpotTrade 객체 생성"""
-        stock_address = StockAddress(
-            archetype="crypto",
-            exchange="binance",
-            tradetype="spot",
-            base="btc",
-            quote="usd",
-            timeframe="1d",
-        )
-
-        pair = Pair(asset=Token("BTC", 1.5), value=Token("USD", 75000.0))
-
-        trade = SpotTrade(
-            stock_address=stock_address,
+        trade = create_spot_trade(
             trade_id="trade-123",
-            fill_id="fill-456",
             side=OrderSide.BUY,
-            pair=pair,
-            timestamp=1234567890,
+            asset_amount=1.5,
+            value_amount=75000.0,
+            asset_symbol="BTC",
+            value_symbol="USD",
         )
 
-        assert trade.stock_address == stock_address
+        assert trade.stock_address.base == "btc"
+        assert trade.stock_address.quote == "usd"
         assert trade.trade_id == "trade-123"
-        assert trade.fill_id == "fill-456"
         assert trade.side == OrderSide.BUY
-        assert trade.pair == pair
+        assert trade.pair.get_asset() == 1.5
+        assert trade.pair.get_value() == 75000.0
         assert trade.timestamp == 1234567890
 
     def test_spot_trade_with_all_sides(self):
         """모든 OrderSide로 SpotTrade 객체 생성"""
-        stock_address = StockAddress(
-            archetype="crypto",
-            exchange="binance",
-            tradetype="spot",
-            base="btc",
-            quote="usd",
-            timeframe="1d",
-        )
-
-        pair = Pair(asset=Token("BTC", 1.0), value=Token("USD", 50000.0))
-
         for side in [OrderSide.BUY, OrderSide.SELL]:
-            trade = SpotTrade(
-                stock_address=stock_address,
+            trade = create_spot_trade(
                 trade_id=f"trade-{side.value}",
-                fill_id=f"fill-{side.value}",
                 side=side,
-                pair=pair,
-                timestamp=1234567890,
+                asset_amount=1.0,
+                value_amount=50000.0,
+                asset_symbol="BTC",
+                value_symbol="USD",
             )
             assert trade.side == side
 
@@ -90,24 +120,11 @@ class TestSpotTradeImmutability:
 
     def test_trade_is_frozen(self):
         """Trade 객체는 frozen이어서 수정 불가능"""
-        stock_address = StockAddress(
-            archetype="crypto",
-            exchange="binance",
-            tradetype="spot",
-            base="btc",
-            quote="usd",
-            timeframe="1d",
-        )
-
-        pair = Pair(asset=Token("BTC", 1.0), value=Token("USD", 50000.0))
-
-        trade = SpotTrade(
-            stock_address=stock_address,
+        trade = create_spot_trade(
             trade_id="trade-frozen",
-            fill_id="fill-frozen",
             side=OrderSide.BUY,
-            pair=pair,
-            timestamp=1234567890,
+            asset_amount=1.0,
+            value_amount=50000.0,
         )
 
         # 모든 필드 수정 시도는 에러를 발생시켜야 함
@@ -126,24 +143,13 @@ class TestSpotTradeIntegration:
 
     def test_pair_integration(self):
         """Pair를 통한 거래 정보 접근"""
-        stock_address = StockAddress(
-            archetype="crypto",
-            exchange="binance",
-            tradetype="spot",
-            base="btc",
-            quote="usd",
-            timeframe="1d",
-        )
-
-        pair = Pair(asset=Token("BTC", 2.0), value=Token("USD", 100000.0))
-
-        trade = SpotTrade(
-            stock_address=stock_address,
+        trade = create_spot_trade(
             trade_id="trade-pair",
-            fill_id="fill-pair",
             side=OrderSide.BUY,
-            pair=pair,
-            timestamp=1234567890,
+            asset_amount=2.0,
+            value_amount=100000.0,
+            asset_symbol="BTC",
+            value_symbol="USD",
         )
 
         # Pair의 기능 활용
@@ -162,15 +168,14 @@ class TestSpotTradeIntegration:
             timeframe="1h",
         )
 
-        pair = Pair(asset=Token("ETH", 10.0), value=Token("KRW", 30000000.0))
-
-        trade = SpotTrade(
-            stock_address=stock_address,
+        trade = create_spot_trade(
             trade_id="trade-eth",
-            fill_id="fill-eth",
             side=OrderSide.BUY,
-            pair=pair,
-            timestamp=1234567890,
+            asset_amount=10.0,
+            value_amount=30000000.0,
+            asset_symbol="ETH",
+            value_symbol="KRW",
+            stock_address=stock_address,
         )
 
         assert trade.stock_address.exchange == "upbit"
@@ -184,24 +189,11 @@ class TestSpotTradeStringRepresentation:
 
     def test_trade_str(self):
         """Trade __str__ 테스트"""
-        stock_address = StockAddress(
-            archetype="crypto",
-            exchange="binance",
-            tradetype="spot",
-            base="btc",
-            quote="usd",
-            timeframe="1d",
-        )
-
-        pair = Pair(asset=Token("BTC", 0.5), value=Token("USD", 25000.0))
-
-        trade = SpotTrade(
-            stock_address=stock_address,
+        trade = create_spot_trade(
             trade_id="trade-str",
-            fill_id="fill-str",
             side=OrderSide.SELL,
-            pair=pair,
-            timestamp=1234567890,
+            asset_amount=0.5,
+            value_amount=25000.0,
         )
 
         trade_str = str(trade)
@@ -210,30 +202,16 @@ class TestSpotTradeStringRepresentation:
 
     def test_trade_repr(self):
         """Trade __repr__ 테스트"""
-        stock_address = StockAddress(
-            archetype="crypto",
-            exchange="binance",
-            tradetype="spot",
-            base="btc",
-            quote="usd",
-            timeframe="1d",
-        )
-
-        pair = Pair(asset=Token("BTC", 1.0), value=Token("USD", 50000.0))
-
-        trade = SpotTrade(
-            stock_address=stock_address,
+        trade = create_spot_trade(
             trade_id="trade-repr",
-            fill_id="fill-repr",
             side=OrderSide.BUY,
-            pair=pair,
-            timestamp=1234567890,
+            asset_amount=1.0,
+            value_amount=50000.0,
         )
 
         trade_repr = repr(trade)
         assert "SpotTrade" in trade_repr
         assert "trade-repr" in trade_repr
-        assert "fill-repr" in trade_repr
 
 
 class TestSpotTradeFee:
@@ -241,25 +219,12 @@ class TestSpotTradeFee:
 
     def test_trade_with_fee(self):
         """Fee 정보를 포함한 Trade 생성"""
-        stock_address = StockAddress(
-            archetype="crypto",
-            exchange="binance",
-            tradetype="spot",
-            base="btc",
-            quote="usd",
-            timeframe="1d",
-        )
-
-        pair = Pair(asset=Token("BTC", 1.0), value=Token("USD", 50000.0))
         fee = Token("USD", 0.5)
-
-        trade = SpotTrade(
-            stock_address=stock_address,
+        trade = create_spot_trade(
             trade_id="trade-with-fee",
-            fill_id="fill-with-fee",
             side=OrderSide.BUY,
-            pair=pair,
-            timestamp=1234567890,
+            asset_amount=1.0,
+            value_amount=50000.0,
             fee=fee,
         )
 
@@ -269,50 +234,25 @@ class TestSpotTradeFee:
 
     def test_trade_without_fee_default(self):
         """Fee를 명시하지 않으면 None (하위 호환성)"""
-        stock_address = StockAddress(
-            archetype="crypto",
-            exchange="binance",
-            tradetype="spot",
-            base="btc",
-            quote="usd",
-            timeframe="1d",
-        )
-
-        pair = Pair(asset=Token("BTC", 0.5), value=Token("USD", 25000.0))
-
-        trade = SpotTrade(
-            stock_address=stock_address,
+        trade = create_spot_trade(
             trade_id="trade-no-fee",
-            fill_id="fill-no-fee",
             side=OrderSide.SELL,
-            pair=pair,
-            timestamp=1234567890,
-            # fee 파라미터 생략
+            asset_amount=0.5,
+            value_amount=25000.0,
         )
 
         assert trade.fee is None
 
     def test_trade_with_different_currency_fee(self):
         """거래 통화와 다른 통화의 Fee"""
-        stock_address = StockAddress(
-            archetype="crypto",
-            exchange="upbit",
-            tradetype="spot",
-            base="btc",
-            quote="krw",
-            timeframe="1d",
-        )
-
-        pair = Pair(asset=Token("BTC", 0.1), value=Token("KRW", 7000000.0))
         fee = Token("KRW", 7000.0)
-
-        trade = SpotTrade(
-            stock_address=stock_address,
+        trade = create_spot_trade(
             trade_id="trade-krw-fee",
-            fill_id="fill-krw-fee",
             side=OrderSide.BUY,
-            pair=pair,
-            timestamp=1234567890,
+            asset_amount=0.1,
+            value_amount=7000000.0,
+            asset_symbol="BTC",
+            value_symbol="KRW",
             fee=fee,
         )
 
@@ -321,25 +261,12 @@ class TestSpotTradeFee:
 
     def test_trade_fee_immutability(self):
         """Fee 포함해도 불변성 유지"""
-        stock_address = StockAddress(
-            archetype="crypto",
-            exchange="binance",
-            tradetype="spot",
-            base="btc",
-            quote="usd",
-            timeframe="1d",
-        )
-
-        pair = Pair(asset=Token("BTC", 1.0), value=Token("USD", 50000.0))
         fee = Token("USD", 1.0)
-
-        trade = SpotTrade(
-            stock_address=stock_address,
+        trade = create_spot_trade(
             trade_id="trade-immutable-fee",
-            fill_id="fill-immutable-fee",
             side=OrderSide.BUY,
-            pair=pair,
-            timestamp=1234567890,
+            asset_amount=1.0,
+            value_amount=50000.0,
             fee=fee,
         )
 
@@ -349,25 +276,12 @@ class TestSpotTradeFee:
 
     def test_trade_repr_includes_fee(self):
         """__repr__에 fee 포함"""
-        stock_address = StockAddress(
-            archetype="crypto",
-            exchange="binance",
-            tradetype="spot",
-            base="btc",
-            quote="usd",
-            timeframe="1d",
-        )
-
-        pair = Pair(asset=Token("BTC", 1.0), value=Token("USD", 50000.0))
         fee = Token("USD", 0.25)
-
-        trade = SpotTrade(
-            stock_address=stock_address,
+        trade = create_spot_trade(
             trade_id="trade-repr-fee",
-            fill_id="fill-repr-fee",
             side=OrderSide.BUY,
-            pair=pair,
-            timestamp=1234567890,
+            asset_amount=1.0,
+            value_amount=50000.0,
             fee=fee,
         )
 

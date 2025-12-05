@@ -50,14 +50,19 @@ class Pair:
         # asset을 분할
         reduced_asset, splitted_asset = self._asset.split_by_amount(amount)
 
-        # asset 분할 비율 계산
-        if self._asset.amount == 0:
-            ratio = 0.0
+        # value를 정수 비례로 분할 (float ratio 사용 안 함)
+        if self._asset.amount_fixed == 0:
+            # asset이 0이면 value도 0으로 분할
+            splitted_value_fixed = 0
+            reduced_value_fixed = self._value.amount_fixed
         else:
-            ratio = splitted_asset.amount / self._asset.amount
+            # splitted_value = (total_value * splitted_asset) / total_asset (정수 나눗셈)
+            splitted_value_fixed = (self._value.amount_fixed * splitted_asset.amount_fixed) // self._asset.amount_fixed
+            reduced_value_fixed = self._value.amount_fixed - splitted_value_fixed
 
-        # value를 같은 비율로 분할
-        reduced_value, splitted_value = self._value.split_by_ratio(ratio)
+        # Token 생성
+        reduced_value = Token._from_fixed(self._value.symbol, reduced_value_fixed)
+        splitted_value = Token._from_fixed(self._value.symbol, splitted_value_fixed)
 
         logger.debug(f"Pair.split_by_asset_amount 완료: reduced_asset={reduced_asset.amount}, splitted_asset={splitted_asset.amount}")
 
@@ -73,14 +78,19 @@ class Pair:
         # value를 분할
         reduced_value, splitted_value = self._value.split_by_amount(amount)
 
-        # value 분할 비율 계산
-        if self._value.amount == 0:
-            ratio = 0.0
+        # asset을 정수 비례로 분할 (float ratio 사용 안 함)
+        if self._value.amount_fixed == 0:
+            # value가 0이면 asset도 0으로 분할
+            splitted_asset_fixed = 0
+            reduced_asset_fixed = self._asset.amount_fixed
         else:
-            ratio = splitted_value.amount / self._value.amount
+            # splitted_asset = (total_asset * splitted_value) / total_value (정수 나눗셈)
+            splitted_asset_fixed = (self._asset.amount_fixed * splitted_value.amount_fixed) // self._value.amount_fixed
+            reduced_asset_fixed = self._asset.amount_fixed - splitted_asset_fixed
 
-        # asset을 같은 비율로 분할
-        reduced_asset, splitted_asset = self._asset.split_by_ratio(ratio)
+        # Token 생성
+        reduced_asset = Token._from_fixed(self._asset.symbol, reduced_asset_fixed)
+        splitted_asset = Token._from_fixed(self._asset.symbol, splitted_asset_fixed)
 
         logger.debug(f"Pair.split_by_value_amount 완료: reduced_value={reduced_value.amount}, splitted_value={splitted_value.amount}")
 
@@ -106,9 +116,10 @@ class Pair:
 
     def mean_value(self) -> float:
         """단위 asset당 평균 가치 계산."""
-        if self._asset.amount == 0:
+        if self._asset.amount_fixed == 0:
             raise ValueError("Cannot calculate mean_value: asset amount is zero")
-        return self._value.amount / self._asset.amount
+        # 정수 나눗셈으로 더 정확한 결과
+        return self._value.amount_fixed / self._asset.amount_fixed
 
     def _check_pair_match(self, other: Pair, operation: str) -> None:
         """다른 Pair와 symbol 일치 여부 확인."""

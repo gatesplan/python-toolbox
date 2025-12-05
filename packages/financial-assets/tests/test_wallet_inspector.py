@@ -3,11 +3,22 @@
 import pytest
 from financial_assets.wallet import SpotWallet, WalletInspector, WalletWorker
 from financial_assets.trade import SpotTrade
+from financial_assets.order import SpotOrder
 from financial_assets.constants import OrderSide
 from financial_assets.pair import Pair
 from financial_assets.token import Token
 from financial_assets.stock_address import StockAddress
 from financial_assets.price import Price
+
+
+def create_spot_trade(trade_id, side, asset_amount, value_amount, asset_symbol="BTC", value_symbol="USD", stock_address=None, timestamp=1234567890):
+    """Helper to create SpotTrade."""
+    if stock_address is None:
+        stock_address = StockAddress("crypto", "binance", "spot", asset_symbol.lower(), value_symbol.lower(), "1d")
+    price = value_amount / asset_amount if asset_amount > 0 else 0.0
+    order = SpotOrder(f"order-{trade_id}", stock_address, side, "limit", price, asset_amount, timestamp)
+    pair = Pair(Token(asset_symbol, asset_amount), Token(value_symbol, value_amount))
+    return SpotTrade(trade_id, order, pair, timestamp)
 
 
 @pytest.fixture
@@ -54,12 +65,14 @@ class TestTotalValue:
         wallet.deposit_currency(symbol="USD", amount=100000.0)
 
         # BUY 1.0 BTC at 50000
-        trade = SpotTrade(
-            stock_address=stock_address_btc_usd,
+        trade = create_spot_trade(
             trade_id="t1",
-            fill_id="f1",
             side=OrderSide.BUY,
-            pair=Pair(Token("BTC", 1.0), Token("USD", 50000.0)),
+            asset_amount=1.0,
+            value_amount=50000.0,
+            asset_symbol="BTC",
+            value_symbol="USD",
+            stock_address=stock_address_btc_usd,
             timestamp=1234567890,
         )
         wallet.process_trade(trade)
@@ -91,24 +104,28 @@ class TestTotalValue:
 
         # BTC
         wallet.process_trade(
-            SpotTrade(
-                stock_address=stock_address_btc_usd,
+            create_spot_trade(
                 trade_id="t1",
-                fill_id="f1",
                 side=OrderSide.BUY,
-                pair=Pair(Token("BTC", 1.0), Token("USD", 50000.0)),
+                asset_amount=1.0,
+                value_amount=50000.0,
+                asset_symbol="BTC",
+                value_symbol="USD",
+                stock_address=stock_address_btc_usd,
                 timestamp=1234567890,
             )
         )
 
         # ETH
         wallet.process_trade(
-            SpotTrade(
-                stock_address=stock_address_eth_usd,
+            create_spot_trade(
                 trade_id="t2",
-                fill_id="f2",
                 side=OrderSide.BUY,
-                pair=Pair(Token("ETH", 10.0), Token("USD", 20000.0)),
+                asset_amount=10.0,
+                value_amount=20000.0,
+                asset_symbol="ETH",
+                value_symbol="USD",
+                stock_address=stock_address_eth_usd,
                 timestamp=1234567900,
             )
         )
@@ -135,24 +152,28 @@ class TestRealizedPnL:
 
         # BUY
         wallet.process_trade(
-            SpotTrade(
-                stock_address=stock_address_btc_usd,
+            create_spot_trade(
                 trade_id="t1",
-                fill_id="f1",
                 side=OrderSide.BUY,
-                pair=Pair(Token("BTC", 1.0), Token("USD", 50000.0)),
+                asset_amount=1.0,
+                value_amount=50000.0,
+                asset_symbol="BTC",
+                value_symbol="USD",
+                stock_address=stock_address_btc_usd,
                 timestamp=1234567890,
             )
         )
 
         # SELL
         wallet.process_trade(
-            SpotTrade(
-                stock_address=stock_address_btc_usd,
+            create_spot_trade(
                 trade_id="t2",
-                fill_id="f2",
                 side=OrderSide.SELL,
-                pair=Pair(Token("BTC", 0.6), Token("USD", 33000.0)),
+                asset_amount=0.6,
+                value_amount=33000.0,
+                asset_symbol="BTC",
+                value_symbol="USD",
+                stock_address=stock_address_btc_usd,
                 timestamp=1234567900,
             )
         )
@@ -172,44 +193,52 @@ class TestRealizedPnL:
 
         # BTC: Buy-Sell
         wallet.process_trade(
-            SpotTrade(
-                stock_address=stock_address_btc_usd,
+            create_spot_trade(
                 trade_id="t1",
-                fill_id="f1",
                 side=OrderSide.BUY,
-                pair=Pair(Token("BTC", 1.0), Token("USD", 50000.0)),
+                asset_amount=1.0,
+                value_amount=50000.0,
+                asset_symbol="BTC",
+                value_symbol="USD",
+                stock_address=stock_address_btc_usd,
                 timestamp=1234567890,
             )
         )
         wallet.process_trade(
-            SpotTrade(
-                stock_address=stock_address_btc_usd,
+            create_spot_trade(
                 trade_id="t2",
-                fill_id="f2",
                 side=OrderSide.SELL,
-                pair=Pair(Token("BTC", 0.5), Token("USD", 27500.0)),
+                asset_amount=0.5,
+                value_amount=27500.0,
+                asset_symbol="BTC",
+                value_symbol="USD",
+                stock_address=stock_address_btc_usd,
                 timestamp=1234567900,
             )
         )
 
         # ETH: Buy-Sell
         wallet.process_trade(
-            SpotTrade(
-                stock_address=stock_address_eth_usd,
+            create_spot_trade(
                 trade_id="t3",
-                fill_id="f3",
                 side=OrderSide.BUY,
-                pair=Pair(Token("ETH", 10.0), Token("USD", 20000.0)),
+                asset_amount=10.0,
+                value_amount=20000.0,
+                asset_symbol="ETH",
+                value_symbol="USD",
+                stock_address=stock_address_eth_usd,
                 timestamp=1234567910,
             )
         )
         wallet.process_trade(
-            SpotTrade(
-                stock_address=stock_address_eth_usd,
+            create_spot_trade(
                 trade_id="t4",
-                fill_id="f4",
                 side=OrderSide.SELL,
-                pair=Pair(Token("ETH", 5.0), Token("USD", 11000.0)),
+                asset_amount=5.0,
+                value_amount=11000.0,
+                asset_symbol="ETH",
+                value_symbol="USD",
+                stock_address=stock_address_eth_usd,
                 timestamp=1234567920,
             )
         )
@@ -233,12 +262,14 @@ class TestUnrealizedPnL:
 
         # BUY 1.0 BTC at 50000
         wallet.process_trade(
-            SpotTrade(
-                stock_address=stock_address_btc_usd,
+            create_spot_trade(
                 trade_id="t1",
-                fill_id="f1",
                 side=OrderSide.BUY,
-                pair=Pair(Token("BTC", 1.0), Token("USD", 50000.0)),
+                asset_amount=1.0,
+                value_amount=50000.0,
+                asset_symbol="BTC",
+                value_symbol="USD",
+                stock_address=stock_address_btc_usd,
                 timestamp=1234567890,
             )
         )
@@ -260,24 +291,28 @@ class TestUnrealizedPnL:
 
         # BTC: 1.0 at 50000
         wallet.process_trade(
-            SpotTrade(
-                stock_address=stock_address_btc_usd,
+            create_spot_trade(
                 trade_id="t1",
-                fill_id="f1",
                 side=OrderSide.BUY,
-                pair=Pair(Token("BTC", 1.0), Token("USD", 50000.0)),
+                asset_amount=1.0,
+                value_amount=50000.0,
+                asset_symbol="BTC",
+                value_symbol="USD",
+                stock_address=stock_address_btc_usd,
                 timestamp=1234567890,
             )
         )
 
         # ETH: 10.0 at 20000
         wallet.process_trade(
-            SpotTrade(
-                stock_address=stock_address_eth_usd,
+            create_spot_trade(
                 trade_id="t2",
-                fill_id="f2",
                 side=OrderSide.BUY,
-                pair=Pair(Token("ETH", 10.0), Token("USD", 20000.0)),
+                asset_amount=10.0,
+                value_amount=20000.0,
+                asset_symbol="ETH",
+                value_symbol="USD",
+                stock_address=stock_address_eth_usd,
                 timestamp=1234567900,
             )
         )
@@ -306,24 +341,28 @@ class TestPositionSummary:
 
         # BTC
         wallet.process_trade(
-            SpotTrade(
-                stock_address=stock_address_btc_usd,
+            create_spot_trade(
                 trade_id="t1",
-                fill_id="f1",
                 side=OrderSide.BUY,
-                pair=Pair(Token("BTC", 1.0), Token("USD", 50000.0)),
+                asset_amount=1.0,
+                value_amount=50000.0,
+                asset_symbol="BTC",
+                value_symbol="USD",
+                stock_address=stock_address_btc_usd,
                 timestamp=1234567890,
             )
         )
 
         # ETH
         wallet.process_trade(
-            SpotTrade(
-                stock_address=stock_address_eth_usd,
+            create_spot_trade(
                 trade_id="t2",
-                fill_id="f2",
                 side=OrderSide.BUY,
-                pair=Pair(Token("ETH", 10.0), Token("USD", 20000.0)),
+                asset_amount=10.0,
+                value_amount=20000.0,
+                asset_symbol="ETH",
+                value_symbol="USD",
+                stock_address=stock_address_eth_usd,
                 timestamp=1234567900,
             )
         )
