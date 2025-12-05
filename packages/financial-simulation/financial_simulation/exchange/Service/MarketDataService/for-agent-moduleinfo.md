@@ -14,11 +14,11 @@
 
 ## 메서드
 
-### generate_orderbook(symbol: str, depth: int = 20) -> Orderbook
+### generate_orderbook(symbol: str | Symbol, depth: int = 20) -> Orderbook
     OHLC 기반 더미 호가창 생성 (Gateway API 호환용)
 
     Args:
-        symbol: 심볼 (예: "BTC/USDT")
+        symbol: 심볼 (예: "BTC/USDT") 또는 Symbol 객체
         depth: 호가 깊이 (기본값: 20)
 
     Returns:
@@ -40,6 +40,16 @@
         1. MarketData.get_symbols() 호출
         2. 각 심볼을 Symbol 객체로 변환
         3. 모든 마켓에 MarketStatus.TRADING 할당 (시뮬레이션 특성)
+
+## Symbol 지원
+
+`generate_orderbook()` 메서드는 `str | Symbol` 타입 지원:
+- str: "BTC/USDT" (slash 형식)
+- Symbol: Symbol("BTC/USDT") 또는 Symbol("BTC-USDT")
+
+MarketData가 Symbol 지원하므로 별도 변환 없이 직접 전달.
+
+---
 
 ## 설계 원칙
 

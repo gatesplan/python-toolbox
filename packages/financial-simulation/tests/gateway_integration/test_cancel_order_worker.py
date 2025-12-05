@@ -97,12 +97,8 @@ class CancelOrderWorker:
 
     def _calculate_filled_amount(self, order_id: str) -> float:
         """주문의 체결 수량 계산 (Trade history 조회)"""
-        trades = self.exchange.get_trade_history()
-        filled = sum(
-            trade.pair.get_asset()
-            for trade in trades
-            if trade.order.order_id == order_id or trade.order.client_order_id == order_id
-        )
+        trades = self.exchange.get_trades_by_order_id(order_id)
+        filled = sum(trade.pair.get_asset() for trade in trades)
         return filled
 
     def _classify_error(self, order: SpotOrder, error: Exception) -> str:

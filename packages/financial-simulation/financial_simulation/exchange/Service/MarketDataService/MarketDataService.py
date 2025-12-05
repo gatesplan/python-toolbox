@@ -10,21 +10,13 @@ from ...Core import MarketData
 class MarketDataService:
     # MarketData 기반 시장 정보 조회 및 변환 서비스
 
-    @init_logging(level="INFO", log_params=True)
+    @init_logging(level="INFO")
     def __init__(self, market_data: MarketData):
         self._market_data = market_data
 
-    @func_logging(level="INFO", log_params=True)
-    def generate_orderbook(self, symbol: str, depth: int = 20) -> Orderbook:
-        """OHLC 기반 더미 호가창 생성 (Gateway API 호환용).
-
-        Args:
-            symbol: 심볼 (예: "BTC/USDT")
-            depth: 호가 깊이 (기본값: 20)
-
-        Returns:
-            Orderbook: financial-assets Orderbook 객체
-        """
+    @func_logging(level="INFO")
+    def generate_orderbook(self, symbol: str | Symbol, depth: int = 20) -> Orderbook:
+        # OHLC 기반 더미 호가창 생성 (Gateway API 호환용)
         price_data = self._market_data.get_current(symbol)
 
         if price_data is None:
@@ -52,13 +44,9 @@ class MarketDataService:
 
         return Orderbook(asks=asks, bids=bids)
 
-    @func_logging(level="INFO", log_params=True)
+    @func_logging(level="INFO")
     def get_available_markets(self) -> list[dict]:
-        """마켓 목록 조회 (Gateway API 호환용).
-
-        Returns:
-            list[dict]: [{"symbol": Symbol, "status": MarketStatus}, ...]
-        """
+        # 마켓 목록 조회 (Gateway API 호환용)
         symbols = self._market_data.get_symbols()
         markets = []
 

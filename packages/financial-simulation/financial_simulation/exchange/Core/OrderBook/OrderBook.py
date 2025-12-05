@@ -1,33 +1,24 @@
-"""미체결 주문 관리"""
+# 미체결 주문 관리
 
 from typing import Optional
 from financial_assets.order import SpotOrder
+from financial_assets.symbol import Symbol
 from simple_logger import init_logging, func_logging, logger
 
 
 class OrderBook:
-    """미체결 주문 관리.
-
-    주문 저장, 조회, 취소 및 TimeInForce 기반 자동 만료 처리를 담당합니다.
-    """
+    # 미체결 주문 관리 (주문 저장, 조회, 취소 및 TimeInForce 기반 자동 만료 처리)
 
     @init_logging(level="INFO")
     def __init__(self) -> None:
-        """OrderBook 초기화."""
+        # OrderBook 초기화
         self._orders: dict[str, SpotOrder] = {}
         self._symbol_index: dict[str, set[str]] = {}
         logger.info("OrderBook 초기화 완료")
 
     @func_logging(level="INFO")
     def add_order(self, order: SpotOrder) -> None:
-        """미체결 주문 추가.
-
-        Args:
-            order: 추가할 주문 객체
-
-        Raises:
-            ValueError: order_id 중복 시
-        """
+        # 미체결 주문 추가 (raise ValueError)
         symbol = self._get_symbol(order)
         logger.info(f"주문 추가 시도: order_id={order.order_id}, symbol={symbol}, side={order.side.value}")
 
@@ -46,14 +37,7 @@ class OrderBook:
 
     @func_logging(level="INFO")
     def remove_order(self, order_id: str) -> None:
-        """주문 제거 (취소).
-
-        Args:
-            order_id: 제거할 주문 ID
-
-        Raises:
-            KeyError: 존재하지 않는 order_id
-        """
+        # 주문 제거 취소 (raise KeyError)
         logger.info(f"주문 제거 시도: order_id={order_id}")
 
         if order_id not in self._orders:
@@ -75,54 +59,26 @@ class OrderBook:
         logger.info(f"주문 제거 완료: order_id={order_id}, remaining_orders={len(self._orders)}")
 
     def get_order(self, order_id: str) -> Optional[SpotOrder]:
-        """특정 주문 조회.
-
-        Args:
-            order_id: 조회할 주문 ID
-
-        Returns:
-            SpotOrder | None: 주문 객체 또는 None
-        """
+        # 특정 주문 조회
         return self._orders.get(order_id)
 
-    def get_orders_by_symbol(self, symbol: str) -> list[SpotOrder]:
-        """특정 심볼의 모든 미체결 주문 조회.
-
-        Args:
-            symbol: 거래쌍 심볼 (예: "BTC/USDT")
-
-        Returns:
-            list[SpotOrder]: 해당 심볼의 주문 리스트
-        """
-        order_ids = self._symbol_index.get(symbol, set())
+    def get_orders_by_symbol(self, symbol: str | Symbol) -> list[SpotOrder]:
+        # 특정 심볼의 모든 미체결 주문 조회
+        symbol_str = str(symbol)
+        order_ids = self._symbol_index.get(symbol_str, set())
         return [self._orders[oid] for oid in order_ids]
 
     def get_all_orders(self) -> list[SpotOrder]:
-        """모든 미체결 주문 조회.
-
-        Returns:
-            list[SpotOrder]: 전체 주문 리스트
-        """
+        # 모든 미체결 주문 조회
         return list(self._orders.values())
 
     def get_order_count(self) -> int:
-        """미체결 주문 총 개수.
-
-        Returns:
-            int: 주문 개수
-        """
+        # 미체결 주문 총 개수
         return len(self._orders)
 
     @func_logging(level="DEBUG")
     def expire_orders(self, current_timestamp: int) -> list[str]:
-        """TimeInForce 기반 만료 주문 제거.
-
-        Args:
-            current_timestamp: 현재 시간 (timestamp)
-
-        Returns:
-            list[str]: 만료된 주문 ID 리스트
-        """
+        # TimeInForce 기반 만료 주문 제거
         logger.debug(f"주문 만료 체크 시작: current_timestamp={current_timestamp}")
         expired_ids = []
 
@@ -141,16 +97,8 @@ class OrderBook:
         return expired_ids
 
     def _get_symbol(self, order: SpotOrder) -> str:
-        """주문에서 심볼 추출.
-
-        Args:
-            order: 주문 객체
-
-        Returns:
-            str: "BASE/QUOTE" 형식의 심볼
-        """
+        # 주문에서 심볼 추출 ("BASE/QUOTE" 형식)
         return order.stock_address.to_symbol().to_slash()
 
     def __repr__(self) -> str:
-        """상세한 문자열 표현 반환."""
         return f"OrderBook(orders={len(self._orders)}, symbols={len(self._symbol_index)})"

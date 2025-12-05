@@ -1,16 +1,15 @@
-"""MarketData: MultiCandle 기반 시뮬레이션 시장 데이터 관리"""
+# MultiCandle 기반 시뮬레이션 시장 데이터 관리
 
 import random
 from typing import Optional
 from financial_assets.price import Price
 from financial_assets.multicandle import MultiCandle
+from financial_assets.symbol import Symbol
 from simple_logger import init_logging, logger
 
 
 class MarketData:
-    """
-    MultiCandle 위에 커서 관리 레이어를 추가한 시뮬레이션용 시장 데이터 관리자
-    """
+    # MultiCandle 위에 커서 관리 레이어를 추가한 시뮬레이션용 시장 데이터 관리자
 
     @init_logging(level="INFO")
     def __init__(
@@ -19,12 +18,7 @@ class MarketData:
         start_offset: int = 0,
         random_offset: bool = False,
     ) -> None:
-        """
-        Args:
-            multicandle: MultiCandle 인스턴스
-            start_offset: 시작 오프셋 (인덱스)
-            random_offset: 랜덤 오프셋 추가 여부
-        """
+        # MarketData 초기화 (multicandle, start_offset, random_offset)
         self._multicandle = multicandle
         self._start_offset = start_offset
         self._random_offset = random_offset
@@ -45,7 +39,7 @@ class MarketData:
         logger.info(f"MarketData 초기화 완료: start_idx={self._start_idx}")
 
     def _calculate_start_idx(self) -> int:
-        """시작 인덱스 계산 (offset + random)"""
+        # 시작 인덱스 계산 (offset + random)
         start = self._start_offset
 
         if self._random_offset:
@@ -64,12 +58,7 @@ class MarketData:
         return start
 
     def reset(self, override: bool = False) -> None:
-        """
-        커서 리셋
-
-        Args:
-            override: True면 새로운 랜덤 시작점 생성 (random_offset=True인 경우)
-        """
+        # 커서 리셋 (override시 새로운 랜덤 시작점 생성)
         if override and self._random_offset:
             logger.info("새로운 랜덤 시작 인덱스 생성")
             self._start_idx = self._calculate_start_idx()
@@ -78,12 +67,7 @@ class MarketData:
         logger.info(f"커서 리셋 완료: cursor_idx={self._cursor_idx}")
 
     def step(self) -> bool:
-        """
-        다음 타임스탬프로 이동
-
-        Returns:
-            bool: 이동 성공 시 True, 끝에 도달했으면 False
-        """
+        # 다음 타임스탬프로 이동 (성공 시 True, 끝 도달 시 False)
         if self._cursor_idx >= self._n_timestamps - 1:
             logger.debug("데이터 끝에 도달")
             return False
@@ -92,80 +76,40 @@ class MarketData:
         logger.debug(f"커서 이동: {self._cursor_idx}")
         return True
 
-    def get_current(self, symbol: str) -> Price:
-        """
-        특정 심볼의 현재 커서 위치 가격 조회
-
-        Args:
-            symbol: 심볼 (예: "BTC/USDT")
-
-        Returns:
-            Price: 가격 객체
-
-        Raises:
-            KeyError: 심볼이 존재하지 않거나 해당 시점에 데이터가 없는 경우
-        """
+    def get_current(self, symbol: str | Symbol) -> Price:
+        # 특정 심볼의 현재 커서 위치 가격 조회 (raise KeyError)
+        symbol_str = str(symbol)
         current_timestamp = int(self._timestamps[self._cursor_idx])
         snapshot = self._multicandle.get_snapshot(current_timestamp, as_price=True)
 
-        if symbol not in snapshot:
-            raise KeyError(f"Symbol {symbol} not found at timestamp {current_timestamp}")
+        if symbol_str not in snapshot:
+            raise KeyError(f"Symbol {symbol_str} not found at timestamp {current_timestamp}")
 
-        return snapshot[symbol]
+        return snapshot[symbol_str]
 
     def get_current_all(self) -> dict[str, Price]:
-        """
-        현재 커서 위치의 모든 유효한 심볼 가격 조회
-
-        Returns:
-            dict[str, Price]: 심볼별 가격 딕셔너리
-        """
+        # 현재 커서 위치의 모든 유효한 심볼 가격 조회
         current_timestamp = int(self._timestamps[self._cursor_idx])
         return self._multicandle.get_snapshot(current_timestamp, as_price=True)
 
     def get_current_timestamp(self) -> int:
-        """
-        현재 커서 위치의 타임스탬프 조회
-
-        Returns:
-            int: 타임스탬프 (초 단위)
-        """
+        # 현재 커서 위치의 타임스탬프 조회
         return int(self._timestamps[self._cursor_idx])
 
     def get_symbols(self) -> list[str]:
-        """
-        관리 중인 모든 심볼 리스트
-
-        Returns:
-            list[str]: 심볼 리스트
-        """
+        # 관리 중인 모든 심볼 리스트
         return self._multicandle._symbols.copy()
 
     def get_cursor_idx(self) -> int:
-        """
-        현재 커서 인덱스 조회
-
-        Returns:
-            int: 커서 인덱스
-        """
+        # 현재 커서 인덱스 조회
         return self._cursor_idx
 
     def is_finished(self) -> bool:
-        """
-        시뮬레이션 종료 여부
-
-        Returns:
-            bool: 커서가 마지막 위치에 도달했으면 True
-        """
+        # 시뮬레이션 종료 여부
         return self._cursor_idx >= self._n_timestamps - 1
 
     def get_progress(self) -> float:
-        """
-        시뮬레이션 진행률 (0.0 ~ 1.0)
-
-        Returns:
-            float: 진행률
-        """
+        # 시뮬레이션 진행률 (0.0 ~ 1.0)
         if self._n_timestamps <= 1:
             return 1.0
         return self._cursor_idx / (self._n_timestamps - 1)
@@ -179,26 +123,14 @@ class MarketData:
 
     def get_candles(
         self,
-        symbol: str,
+        symbol: str | Symbol,
         start_ts: int = None,
         end_ts: int = None,
         limit: int = None
     ):
-        """과거 캔들 데이터 조회 (MultiCandle의 고정 timeframe 사용)
-
-        Args:
-            symbol: 심볼 (예: "BTC/USDT")
-            start_ts: 시작 타임스탬프 (None이면 처음부터)
-            end_ts: 종료 타임스탬프 (None이면 현재 커서까지)
-            limit: 최대 개수 (None이면 전체)
-
-        Returns:
-            pd.DataFrame: 캔들 데이터
-
-        Raises:
-            KeyError: 심볼이 존재하지 않음
-        """
+        # 과거 캔들 데이터 조회 (raise KeyError)
         import pandas as pd
+        symbol_str = str(symbol)
 
         # 기본값 설정
         if start_ts is None:
@@ -213,7 +145,7 @@ class MarketData:
 
         # MultiCandle에서 Price 리스트 조회
         prices = self._multicandle.get_symbol_range(
-            symbol,
+            symbol_str,
             start_ts,
             end_ts,
             as_price=True

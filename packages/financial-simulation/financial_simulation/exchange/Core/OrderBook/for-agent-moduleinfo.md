@@ -15,7 +15,7 @@ remove_order(order_id: str) -> None
 get_order(order_id: str) -> SpotOrder | None
     특정 주문 조회
 
-get_orders_by_symbol(symbol: str) -> list[SpotOrder]
+get_orders_by_symbol(symbol: str | Symbol) -> list[SpotOrder]
     특정 심볼의 모든 미체결 주문 조회
 
 get_all_orders() -> list[SpotOrder]
@@ -26,6 +26,17 @@ get_order_count() -> int
 
 expire_orders(current_timestamp: int) -> list[str]
     TimeInForce 기반 만료 주문 제거 (GTD 처리)
+
+---
+
+## Symbol 지원
+
+`get_orders_by_symbol()` 메서드는 `str | Symbol` 타입 지원:
+- str: "BTC/USDT" (slash 형식)
+- Symbol: Symbol("BTC/USDT") 또는 Symbol("BTC-USDT")
+
+내부 변환:
+- `str(symbol)` → "BTC/USDT" (_symbol_index 키 접근용)
 
 ---
 
